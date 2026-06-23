@@ -34,7 +34,44 @@
         "range_copy",
         "demand_range"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A (전체 struct 복사)"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Other / B.Other",
+          "offset": 264,
+          "carries": "dfb_source_B",
+          "reason": "wide copy가 무관 field로 번지면 안 됨"
+        }
+      ]
     },
     {
       "id": "TV2C002",
@@ -61,7 +98,40 @@
         "field_offset",
         "cast"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Transform.Translation.X",
+          "offset": 268,
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "int→float 캐스트"
+        },
+        {
+          "op": "load",
+          "field": "A.Transform.Translation.X",
+          "offset": 268,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Transform.Rotation.Y",
+          "offset": 284,
+          "carries": "dfb_source_B",
+          "reason": "다른 nested field"
+        }
+      ]
     },
     {
       "id": "TV2C004",
@@ -91,7 +161,66 @@
         "control_dependency",
         "struct_merge"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_C.ret",
+          "role": "control"
+        },
+        {
+          "op": "branch_cond",
+          "carries": "dfb_source_C",
+          "note": "if 조건 — control source, data로는 forbidden"
+        },
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_A",
+          "branch": "if(true)"
+        },
+        {
+          "op": "source",
+          "label": "dfb_source_B.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_B",
+          "branch": "else"
+        },
+        {
+          "op": "phi",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "note": "두 분기 data 병합 → {A,B}"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "data_use",
+          "carries": "dfb_source_C",
+          "reason": "C는 분기조건(control)일 뿐, data source로 쓰이면 안 됨"
+        }
+      ]
     },
     {
       "id": "TV2C005",
@@ -119,7 +248,40 @@
         "kill",
         "range_subtract"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_C.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_C",
+          "detail": "B=A 이후 덮어쓰기(strong-update)"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "carries": "dfb_source_A",
+          "reason": "복사로 들어온 옛 값(A)은 덮어쓰기로 kill됨"
+        }
+      ]
     },
     {
       "id": "TV2C006",
@@ -146,7 +308,44 @@
         "field_sensitive",
         "false_positive_guard"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_B.ret"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A (A.Inner만 A로 오염)"
+        },
+        {
+          "op": "store",
+          "field": "B.Other",
+          "offset": 264,
+          "size": 4,
+          "carries": "dfb_source_B"
+        },
+        {
+          "op": "load",
+          "field": "B.Other",
+          "offset": 264,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Inner.Secret / B.Inner.Secret",
+          "offset": 256,
+          "carries": "dfb_source_A",
+          "reason": "Inner 오염이 Other read로 번지면 false positive"
+        }
+      ]
     },
     {
       "id": "TV2C011",
@@ -175,6 +374,42 @@
       "allowed_warnings": [
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "leaf.Secret",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "deref",
+          "detail": "p3→p2→p1→leaf (3단 indirection)"
+        },
+        {
+          "op": "load",
+          "field": "(***p3).Secret",
+          "offset": 0,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "leaf.Noise",
+          "offset": 4,
+          "carries": "dfb_source_B",
+          "reason": "같은 struct 다른 field"
+        }
       ]
     },
     {
@@ -202,7 +437,40 @@
         "reference",
         "field_sensitive"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "reference r = A.Inner.Secret 경유"
+        },
+        {
+          "op": "load",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Inner.Noise",
+          "offset": 260,
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
+      ]
     },
     {
       "id": "TV2C013",
@@ -229,7 +497,44 @@
         "range_copy",
         "partial_range"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "copy",
+          "edge": "external_memcpy",
+          "detail": "memcpy(&B.Inner,&A.Inner,8) — Inner sub-struct만 부분복사"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Other",
+          "offset": 264,
+          "carries": "dfb_source_B",
+          "reason": "Other는 memcpy 범위 밖 — 복사 안 됨"
+        }
+      ]
     },
     {
       "id": "TV2C017",
@@ -257,7 +562,51 @@
         "branch_phi",
         "field_sensitive"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_C.ret",
+          "role": "control"
+        },
+        {
+          "op": "branch_cond",
+          "carries": "dfb_source_C",
+          "note": "if 조건(control)"
+        },
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "s.Secret",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_A",
+          "branch": "if(true)"
+        },
+        {
+          "op": "load",
+          "field": "s.Secret",
+          "offset": 0,
+          "size": 4,
+          "note": "sink이 Secret을 읽음 → A만 도달"
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "s.Noise",
+          "offset": 4,
+          "carries": "dfb_source_B",
+          "reason": "else 분기는 Noise에 B 저장 — Secret sink에 오면 안 됨"
+        }
+      ]
     },
     {
       "id": "TV2C018",
@@ -283,7 +632,44 @@
         "call_out_mem",
         "summary"
       ],
-      "allowed_warnings": []
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "tv2_set_secret(&A, A) helper가 포인터로 field 기록"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "helper 내부 store"
+        },
+        {
+          "op": "load",
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Other",
+          "offset": 264,
+          "carries": "dfb_source_B",
+          "reason": "helper가 안 건드린 field"
+        }
+      ]
     },
     {
       "id": "TV2C020",
@@ -313,6 +699,43 @@
       "allowed_warnings": [
         "budget_exceeded",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Fields[10]",
+          "offset": 16424,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A (16KB 거대 struct 복사)"
+        },
+        {
+          "op": "load",
+          "field": "B.Fields[10]",
+          "offset": 16424,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Fields[20]",
+          "offset": 16464,
+          "carries": "dfb_source_B",
+          "reason": "다른 element offset"
+        }
       ]
     }
   ]

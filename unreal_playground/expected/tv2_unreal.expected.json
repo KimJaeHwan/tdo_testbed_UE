@@ -32,6 +32,38 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "s.Secret",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "load",
+          "field": "s.Secret",
+          "offset": 0,
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "s.Noise",
+          "offset": 4,
+          "carries": "dfb_source_B",
+          "reason": "같은 USTRUCT 다른 field"
+        }
       ]
     },
     {
@@ -60,6 +92,43 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A (USTRUCT 복사)"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Other / B.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "wide copy 번짐 금지"
+        }
       ]
     },
     {
@@ -87,6 +156,38 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "load",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
       ]
     },
     {
@@ -114,6 +215,44 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "t.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "tv2_make_tainted_large 내부"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "sret 반환버퍼 복사 (r = make())"
+        },
+        {
+          "op": "load",
+          "field": "r.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "t.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "반환 struct 다른 field"
+        }
       ]
     },
     {
@@ -145,6 +284,65 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_C.ret",
+          "role": "control"
+        },
+        {
+          "op": "branch_cond",
+          "carries": "dfb_source_C",
+          "note": "if 조건(control)"
+        },
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A",
+          "branch": "if(true)"
+        },
+        {
+          "op": "source",
+          "label": "dfb_source_B.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_B",
+          "branch": "else"
+        },
+        {
+          "op": "phi",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "note": "data 병합 {A,B}"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "data_use",
+          "carries": "dfb_source_C",
+          "reason": "C는 control일 뿐 data source로 쓰이면 안 됨"
+        }
       ]
     },
     {
@@ -174,6 +372,39 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_C.ret"
+        },
+        {
+          "op": "store",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_C",
+          "detail": "B=A 이후 덮어쓰기"
+        },
+        {
+          "op": "load",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "carries": "dfb_source_A",
+          "reason": "덮어쓰기로 kill된 옛 값"
+        }
       ]
     },
     {
@@ -202,6 +433,43 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_B.ret"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A"
+        },
+        {
+          "op": "store",
+          "field": "B.Other",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_B"
+        },
+        {
+          "op": "load",
+          "field": "B.Other",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "carries": "dfb_source_A",
+          "reason": "Inner 오염이 Other read로 번지면 false positive"
+        }
       ]
     },
     {
@@ -231,6 +499,45 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "load",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Inner.Noise",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "distractor field"
+        },
+        {
+          "node": "store",
+          "field": "A.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_C",
+          "reason": "distractor field"
+        }
       ]
     },
     {
@@ -259,6 +566,39 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "V.X",
+          "offset": 0,
+          "size": 8,
+          "carries": "dfb_source_A",
+          "detail": "FVector(double)"
+        },
+        {
+          "op": "load",
+          "field": "V.X",
+          "offset": 0,
+          "size": 8
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "V.Y",
+          "offset": 8,
+          "carries": "dfb_source_B",
+          "reason": "FVector 다른 성분"
+        }
       ]
     },
     {
@@ -287,6 +627,43 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "V.X",
+          "offset": 0,
+          "size": 8,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "T.SetTranslation(V) → FTransform.Translation에 기록"
+        },
+        {
+          "op": "load",
+          "field": "Out.X",
+          "offset": "pdb",
+          "size": 8,
+          "detail": "GetTranslation() 반환"
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "V.Y",
+          "offset": 8,
+          "carries": "dfb_source_B",
+          "reason": "다른 성분"
+        }
       ]
     },
     {
@@ -317,6 +694,46 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "Item.ItemId",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "Items.Add(Item) → heap 배열로 복사"
+        },
+        {
+          "op": "deref",
+          "detail": "TArray data ptr → element[0] (1-deref)"
+        },
+        {
+          "op": "load",
+          "field": "Items[0].ItemId",
+          "offset": "heap",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "Item.Count",
+          "offset": 4,
+          "carries": "dfb_source_B",
+          "reason": "element 다른 field"
+        }
       ]
     },
     {
@@ -347,6 +764,46 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_B.ret"
+        },
+        {
+          "op": "store",
+          "field": "I1.ItemId",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_B"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "Items.Add(I1) → heap index1"
+        },
+        {
+          "op": "deref",
+          "detail": "TArray data ptr → element[1]"
+        },
+        {
+          "op": "load",
+          "field": "Items[1].ItemId",
+          "offset": "heap",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "Items[0].ItemId",
+          "offset": "heap",
+          "carries": "dfb_source_A",
+          "reason": "다른 index(0)의 element"
+        }
       ]
     },
     {
@@ -376,6 +833,39 @@
       "allowed_warnings": [
         "type_overlay_missing",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "self->Payload.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "UObject 헤더 뒤 offset, self 포인터 경유"
+        },
+        {
+          "op": "load",
+          "field": "self->Payload.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "self->Payload.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "같은 struct 다른 field — offset 혼동 시 false positive(실제 발생 버그)"
+        }
       ]
     },
     {
@@ -405,6 +895,38 @@
       "allowed_warnings": [
         "type_overlay_missing",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "self->MemberInner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "load",
+          "field": "self->MemberInner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "self->MemberInner.Noise",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
       ]
     },
     {
@@ -435,6 +957,42 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "Sub->Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "deref",
+          "detail": "self → Sub(TObjectPtr→raw, ResolveObjectHandle) → Inner.Secret (2-deref)"
+        },
+        {
+          "op": "load",
+          "field": "Sub->Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "Sub->Inner.Noise",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
       ]
     },
     {
@@ -465,6 +1023,42 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "Comp->SubStruct.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "deref",
+          "detail": "self → Comp → SubStruct.Inner.Secret (2단 포인터 체인)"
+        },
+        {
+          "op": "load",
+          "field": "Comp->SubStruct.Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "Comp->SubStruct.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
       ]
     },
     {
@@ -495,6 +1089,46 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "(TCHAR)A",
+          "offset": "-",
+          "size": 2,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "S.AppendChar → FString heap 버퍼에 기록"
+        },
+        {
+          "op": "deref",
+          "detail": "FString → TArray<TCHAR> data ptr → char (2-deref)"
+        },
+        {
+          "op": "load",
+          "field": "S[0]",
+          "offset": "heap",
+          "size": 2
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "T[0]",
+          "offset": "heap",
+          "carries": "dfb_source_B",
+          "reason": "다른 FString 버퍼(T)"
+        }
       ]
     },
     {
@@ -525,6 +1159,46 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "It.ItemId",
+          "offset": 0,
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "M.Add(5,It) → TMap bucket heap"
+        },
+        {
+          "op": "deref",
+          "detail": "TMap → bucket → value (2-deref)"
+        },
+        {
+          "op": "load",
+          "field": "M[5].ItemId",
+          "offset": "heap",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "It.Count",
+          "offset": 4,
+          "carries": "dfb_source_B",
+          "reason": "value 다른 field"
+        }
       ]
     },
     {
@@ -554,6 +1228,43 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "Inner0.Add(A) → 내부 TArray heap"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "Outer.Add(Inner0) → 외부 TArray heap"
+        },
+        {
+          "op": "deref",
+          "detail": "Outer data ptr → Inner data ptr → int (3-deref)"
+        },
+        {
+          "op": "load",
+          "field": "Outer[0][0]",
+          "offset": "heap",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "Outer[1][0]",
+          "offset": "heap",
+          "carries": "dfb_source_B",
+          "reason": "다른 외부 index"
+        }
       ]
     },
     {
@@ -584,6 +1295,46 @@
         "type_overlay_missing",
         "unresolved_range_boundary",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "L.Inner.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "call_out_mem",
+          "detail": "Arr.Add(L) → heap 배열로 large elem 복사"
+        },
+        {
+          "op": "deref",
+          "detail": "TArray data ptr → element[0] (1-deref + large elem)"
+        },
+        {
+          "op": "load",
+          "field": "Arr[0].Inner.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "L.Other",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "element 다른 field"
+        }
       ]
     },
     {
@@ -612,6 +1363,39 @@
       ],
       "allowed_warnings": [
         "type_overlay_missing"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "s.Secret",
+          "offset": "pdb",
+          "size": 4,
+          "carries": "dfb_source_A",
+          "detail": "FName(layout noise) 뒤 offset"
+        },
+        {
+          "op": "load",
+          "field": "s.Secret",
+          "offset": "pdb",
+          "size": 4
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "s.Noise",
+          "offset": "pdb",
+          "carries": "dfb_source_B",
+          "reason": "다른 field"
+        }
       ]
     },
     {
@@ -641,6 +1425,43 @@
       "allowed_warnings": [
         "type_overlay_missing",
         "widened_memory_range"
+      ],
+      "expected_flow": [
+        {
+          "op": "source",
+          "label": "dfb_source_A.ret"
+        },
+        {
+          "op": "store",
+          "field": "A.X",
+          "offset": 0,
+          "size": 8,
+          "carries": "dfb_source_A"
+        },
+        {
+          "op": "copy",
+          "edge": "range_copy",
+          "detail": "B = A (FVector, /O2서 SIMD movaps)"
+        },
+        {
+          "op": "load",
+          "field": "B.X",
+          "offset": 0,
+          "size": 8
+        },
+        {
+          "op": "sink",
+          "label": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "node": "store",
+          "field": "A.Y",
+          "offset": 8,
+          "carries": "dfb_source_B",
+          "reason": "다른 성분"
+        }
       ]
     }
   ]
