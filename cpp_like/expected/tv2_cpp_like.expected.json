@@ -1,0 +1,319 @@
+{
+  "schema_version": 2,
+  "program": "tv2_cpp_like",
+  "generated_from": "manifests/cases_v2_manifest.json",
+  "arch_variants": [
+    "x86",
+    "x64",
+    "armv7",
+    "aarch64"
+  ],
+  "cases": [
+    {
+      "id": "TV2C001",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C001_large_struct_copy",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "large_struct",
+        "range_copy",
+        "demand_range"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C002",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C002_deep_nested",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "nested_struct",
+        "field_offset",
+        "cast"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C004",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C004_control_vs_data_struct_phi",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "branch_phi",
+        "control_dependency",
+        "struct_merge"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C005",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C005_partial_overwrite_kill",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "partial_overwrite",
+        "kill",
+        "range_subtract"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C006",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C006_wide_copy_narrow_forbidden",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "range_copy",
+        "field_sensitive",
+        "false_positive_guard"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C011",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "frontier",
+      "function": "case_TV2C011_intra_proc_pointer_chain",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "pointer_chain",
+        "indirect_load"
+      ],
+      "allowed_warnings": [
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2C012",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C012_ref_alias_into_field",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "alias",
+        "reference",
+        "field_sensitive"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C013",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C013_sub_struct_memcpy",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "external_memcpy",
+        "range_copy",
+        "partial_range"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C017",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C017_diamond_phi_field_split",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "branch_phi",
+        "field_sensitive"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C018",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "core-regression",
+      "function": "case_TV2C018_call_out_mem_mutate",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "call_out_mem",
+        "summary"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C020",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "target",
+      "function": "case_TV2C020_very_large_struct",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "large_struct",
+        "scale",
+        "range_copy"
+      ],
+      "allowed_warnings": [
+        "budget_exceeded",
+        "widened_memory_range"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,647 @@
+{
+  "schema_version": 2,
+  "program": "tv2_unreal",
+  "generated_from": "manifests/cases_v2_manifest.json",
+  "arch_variants": [
+    "x64",
+    "aarch64"
+  ],
+  "cases": [
+    {
+      "id": "TV2U001",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U001_direct_field",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "field_offset"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U002",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U002_large_struct_copy",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "large_struct",
+        "range_copy"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U003",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U003_nested_ustruct",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "nested_struct"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U004",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U004_return_buffer",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "sret"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U005",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U005_control_vs_data_struct_phi",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "branch_phi",
+        "control_dependency"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U006",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U006_partial_overwrite_kill",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "partial_overwrite",
+        "kill"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U007",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U007_wide_copy_narrow_forbidden",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "field_sensitive",
+        "false_positive_guard"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2U010",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U010_multi_property_partial",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "field_sensitive",
+        "type_overlay"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2R003",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "core-regression",
+      "function": "case_TV2R003_fvector_field",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "engine_struct",
+        "float_field",
+        "cast"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2R004",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "core-regression",
+      "function": "case_TV2R004_ftransform_translation",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "engine_struct",
+        "nested_struct",
+        "call_out_mem"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2R001",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R001_tarray_element",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "array_index",
+        "heap_indirection"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R002",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R002_tarray_wrong_index",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "element_sensitive",
+        "false_positive_guard"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2U008",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U008_uobject_header_offset",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "unreal_ustruct",
+        "uobject_header",
+        "large_offset"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2U009",
+      "binary": "tv2_unreal",
+      "tier": 2,
+      "severity": "core-regression",
+      "function": "case_TV2U009_uobject_member_chain",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "uclass",
+        "member_access",
+        "pointer_chain"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R007",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R007_tobjectptr_chain",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "pointer_chain",
+        "object_ptr",
+        "indirect_load"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R008",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "frontier",
+      "function": "case_TV2R008_component_chain",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "pointer_chain",
+        "component",
+        "indirect_load"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R005",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "frontier",
+      "function": "case_TV2R005_fstring_buffer",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "heap_indirection",
+        "string"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R009",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "frontier",
+      "function": "case_TV2R009_tmap_value",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "map",
+        "heap_indirection"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R010",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "frontier",
+      "function": "case_TV2R010_nested_container",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "nested_container"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R011",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "frontier",
+      "function": "case_TV2R011_tarray_large_elem",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "container_layout",
+        "large_struct",
+        "scale"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "unresolved_range_boundary",
+        "widened_memory_range"
+      ]
+    },
+    {
+      "id": "TV2R006",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "core-regression",
+      "function": "case_TV2R006_fname_layout",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "engine_struct",
+        "name_index",
+        "field_offset"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing"
+      ]
+    },
+    {
+      "id": "TV2R012",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R012_fvector_simd",
+      "anchor": {
+        "callee": "dfb_sink_int",
+        "arg_index": 0
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "engine_struct",
+        "simd_copy",
+        "range_copy"
+      ],
+      "allowed_warnings": [
+        "type_overlay_missing",
+        "widened_memory_range"
+      ]
+    }
+  ]
+}

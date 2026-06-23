@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.1",
+	"Category": "",
+	"Description": "Testbed V2 Tier2/3 — Unreal USTRUCT / container backward-slice cases",
+	"Modules": [
+		{
+			"Name": "TraceUnrealPlayground",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

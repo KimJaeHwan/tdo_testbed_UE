@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "binaries": [
+    {
+      "name": "tv2_unreal",
+      "expected_file": "expected/tv2_unreal.expected.json",
+      "arch_variants": ["x64", "aarch64"],
+      "note": "UnrealEditor-TraceUnrealPlayground.dll (Win64) / Android arm64 .so"
+    }
+  ],
+  "cases": [
+    {
+      "id": "TV2U001", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "direct_field",
+      "function": "case_TV2U001_direct_field",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "field_offset"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U002", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "large_struct_copy",
+      "function": "case_TV2U002_large_struct_copy",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "large_struct", "range_copy"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U003", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "nested_ustruct",
+      "function": "case_TV2U003_nested_ustruct",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "nested_struct"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U004", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "return_buffer",
+      "function": "case_TV2U004_return_buffer",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "sret"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U005", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "control_vs_data_struct_phi",
+      "function": "case_TV2U005_control_vs_data_struct_phi",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret", "dfb_source_B.ret"], "expected_control_sources": ["dfb_source_C.ret"], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_C.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "branch_phi", "control_dependency"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U006", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "partial_overwrite_kill",
+      "function": "case_TV2U006_partial_overwrite_kill",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_C.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_A.ret", "dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "partial_overwrite", "kill"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U007", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "wide_copy_narrow_forbidden",
+      "function": "case_TV2U007_wide_copy_narrow_forbidden",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_B.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_A.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "field_sensitive", "false_positive_guard"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2U010", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "multi_property_partial",
+      "function": "case_TV2U010_multi_property_partial",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret", "dfb_source_C.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "field_sensitive", "type_overlay"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2R003", "tier": 3, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "fvector_field",
+      "function": "case_TV2R003_fvector_field",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["engine_struct", "float_field", "cast"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2R004", "tier": 3, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "ftransform_translation",
+      "function": "case_TV2R004_ftransform_translation",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["engine_struct", "nested_struct", "call_out_mem"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2R001", "tier": 3, "severity": "target",
+      "binary": "tv2_unreal", "name": "tarray_element",
+      "function": "case_TV2R001_tarray_element",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "array_index", "heap_indirection"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R002", "tier": 3, "severity": "target",
+      "binary": "tv2_unreal", "name": "tarray_wrong_index",
+      "function": "case_TV2R002_tarray_wrong_index",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_B.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_A.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "element_sensitive", "false_positive_guard"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2U008", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "uobject_header_offset",
+      "function": "case_TV2U008_uobject_header_offset",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["unreal_ustruct", "uobject_header", "large_offset"],
+      "allowed_warnings": ["type_overlay_missing", "widened_memory_range"]
+    },
+    {
+      "id": "TV2U009", "tier": 2, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "uobject_member_chain",
+      "function": "case_TV2U009_uobject_member_chain",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["uclass", "member_access", "pointer_chain"],
+      "allowed_warnings": ["type_overlay_missing", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R007", "tier": 3, "severity": "target",
+      "binary": "tv2_unreal", "name": "tobjectptr_chain",
+      "function": "case_TV2R007_tobjectptr_chain",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["pointer_chain", "object_ptr", "indirect_load"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R008", "tier": 3, "severity": "frontier",
+      "binary": "tv2_unreal", "name": "component_chain",
+      "function": "case_TV2R008_component_chain",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["pointer_chain", "component", "indirect_load"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R005", "tier": 3, "severity": "frontier",
+      "binary": "tv2_unreal", "name": "fstring_buffer",
+      "function": "case_TV2R005_fstring_buffer",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "heap_indirection", "string"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R009", "tier": 3, "severity": "frontier",
+      "binary": "tv2_unreal", "name": "tmap_value",
+      "function": "case_TV2R009_tmap_value",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "map", "heap_indirection"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R010", "tier": 3, "severity": "frontier",
+      "binary": "tv2_unreal", "name": "nested_container",
+      "function": "case_TV2R010_nested_container",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "nested_container"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R011", "tier": 3, "severity": "frontier",
+      "binary": "tv2_unreal", "name": "tarray_large_elem",
+      "function": "case_TV2R011_tarray_large_elem",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["container_layout", "large_struct", "scale"],
+      "allowed_warnings": ["type_overlay_missing", "unresolved_range_boundary", "widened_memory_range"]
+    },
+    {
+      "id": "TV2R006", "tier": 3, "severity": "core-regression",
+      "binary": "tv2_unreal", "name": "fname_layout",
+      "function": "case_TV2R006_fname_layout",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["engine_struct", "name_index", "field_offset"],
+      "allowed_warnings": ["type_overlay_missing"]
+    },
+    {
+      "id": "TV2R012", "tier": 3, "severity": "target",
+      "binary": "tv2_unreal", "name": "fvector_simd",
+      "function": "case_TV2R012_fvector_simd",
+      "anchor": { "callee": "dfb_sink_int", "arg_index": 0 },
+      "expected_data_sources": ["dfb_source_A.ret"], "expected_control_sources": [], "expected_global_sources": [],
+      "forbidden_data_sources": ["dfb_source_B.ret"], "forbidden_control_sources": [],
+      "expected_features": ["engine_struct", "simd_copy", "range_copy"],
+      "allowed_warnings": ["type_overlay_missing", "widened_memory_range"]
+    }
+  ]
+}

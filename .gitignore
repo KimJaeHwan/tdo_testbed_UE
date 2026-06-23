@@ -1,0 +1,43 @@
+# ── Claude / 로컬 설정 (절대 커밋 금지) ──
+.claude/
+*.local.json
+.env
+
+# ── 빌드 산출물 (→ GitHub Release로 배포) ──
+cpp_like/build/
+**/Binaries/
+
+# ── 생성/추출물 ──
+**/samples/
+output/
+build_ghidra_proj/
+dist/
+
+# ── Unreal 생성물 ──
+**/Intermediate/
+**/Saved/
+**/DerivedDataCache/
+**/.vs/
+*.sln
+*.VC.db
+*.gpr
+*.rep
+*.lock
+
+# ── 생성 스크립트(빌드 시 자동 생성) ──
+**/_build_*.bat
+**/_run_ah_*.bat
+**/_ah_*.bat
+
+# ── 바이너리/오브젝트 ──
+*.o
+*.obj
+*.so
+*.dll
+*.pdb
+*.exp
+*.lib
+
+# ── OS ──
+.DS_Store
+Thumbs.db
