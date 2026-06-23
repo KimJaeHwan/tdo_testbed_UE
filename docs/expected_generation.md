@@ -129,6 +129,37 @@ expected/<binary>.expected.json    ← 11_엔진이 읽는 정답지 (자동 생
 
 ---
 
+## 6.5 작성 주체와 검증 범위 (중요)
+
+**source/sink뿐 아니라 중간 흐름(`expected_flow`/`forbidden_flow`)도 테스트베드 저자가 손으로 작성한다.**
+바이너리 분석이나 엔진 출력에서 뽑은 게 아니다(그러면 순환). 근거는 세 가지:
+
+```
+연산·순서  ← 저자가 쓴 C++ 문장 (예: "B = A;" → copy 스텝)
+offset     ← 구조체 정의에서 offsetof로 계산 (cpp=정확)
+컨테이너/포인터 동작 ← 타입의 동작 지식 (예: TArray 원소 접근은 heap data ptr 경유)
+```
+
+자동 검증되는 것 / 안 되는 것:
+
+```
+[자동, tools/verify_flows.py]
+  - cpp offset == offsetof 계산값
+  - flow의 source/carries 라벨 == 끝점 정답(expected_/forbidden_)과 일관
+  - source로 시작·sink로 끝, 미지의 source 라벨 없음
+[사람의 책임 — 자동 불가]
+  - 흐름이 "의미적으로 진짜 그 경로인가"는 저자가 소스코드를 보고 보증 (by-construction)
+```
+
+한계: `expected_flow`는 **소스 레벨 의도 경로**다. 바이너리 형태는 컴파일러가 바꾼다
+(`B=A`가 -O0=memcpy, -O2=SIMD, 때론 레지스터로만 → 메모리 store 자체가 없을 수 있음).
+따라서 **offset 단위 정밀 대조는 Debug(P0) 빌드에서만 신뢰**하고, 그 외에는 의미 단위
+(어느 source / 어떤 연산 / 어느 field 경유)로 본다.
+
+자동 추출이 가능한 범위: 끝점(어느 source가 sink 도달)은 동적 taint(DFSan) 또는 매직값 실행으로
+자동 판정 가능하나, 중간 경유점·offset까지 한 스크립트로 뽑는 것은 사실상 또 다른 분석기를
+만드는 일이라 현재는 수기 작성 + 자동 정합성 검사를 택했다.
+
 ## 7. 왜 흐름까지 담는가
 
 끝점만 검사하면, 분석기가 **틀린 경로로 우연히 맞는 source**에 도달해도 PASS가 된다(과대근사 등).
