@@ -14,14 +14,19 @@ Testbed V2(10_)의 전 케이스를 11_ 엔진에 빌드 변형별로 돌려 수
 |---|---|---|---|---|
 | tier0 P0(-O0) x86   | 7 | 4 | 0 | 32-bit가 최고 |
 | tier0 P0(-O0) x64   | 6 | 5 | 0 | |
-| tier0 P0(-O0) armv7 | 6 | 5 | 0 | C011/C017 **크래시** |
+| tier0 P0(-O0) armv7 | 7 | 4 | 0 | |
 | tier0 P0(-O0) aarch64 | 6 | 5 | **1** | C002 nested FP |
-| tier0 P1(-O2) x64   | 2 | 9 | 0 | 최적화가 정밀도 붕괴, C002 크래시 |
-| UE Development(/O2)  | 7 | 15 | 0 | R001/R009/R010 크래시 |
-| UE DebugGame(P0)    | 2 | 20 | **2** | U008/U009 FP, R005 크래시 |
+| tier0 P1(-O2) x64   | 2 | 9 | 0 | 최적화가 정밀도 붕괴 |
+| UE Development(/O2)  | 7 | 15 | 0 | |
+| UE DebugGame(P0)    | 2 | 20 | **2** | U008/U009 FP |
 
-핵심: **FAIL은 대부분 false-negative(정밀도 프론티어)지만, ① 엔진 크래시 7건 ② false positive 3건**이
-섞여 있다. 이 둘이 최우선 수정 대상이다(크래시·오답은 frontier 정밀도보다 위험).
+핵심: **FAIL은 대부분 false-negative(정밀도 프론티어)이고, false positive 3건이 최우선 수정 대상**이다
+(오답은 frontier 정밀도보다 위험). 엔진 크래시는 없다(ERROR=0).
+
+> **정정 기록**: 이 문서 초안은 7건을 "엔진 크래시(IndexError)"로 적었으나, 재확인 결과 그것은
+> 엔진이 아니라 **분석 수집기(`tools/collect_failures.py`)의 라벨 포맷 버그**(`split(':')[-3]`)였다.
+> 수집기 수정 후 ERROR=0. 따라서 크래시 클러스터(구 C0)는 삭제했고, 실제 엔진 이슈는 C1~C4뿐이다.
+> (false positive는 별도 도구 `run_v2_engine.py`에서도 동일 재현되어 실제 엔진 결과로 확정.)
 
 ---
 
@@ -30,34 +35,15 @@ Testbed V2(10_)의 전 케이스를 11_ 엔진에 빌드 변형별로 돌려 수
 - 빌드: Tier0=NDK clang 4-arch(P0/P1), UE=Win64 Editor(Development/DebugGame). Ghidra Low P-code 추출 → 11_엔진.
 - **한계**: `expected_flow`의 offset 정밀 대조는 Debug(P0)에서만 유효하다. `/O2`는 `B=A` 복사가 SIMD/레지스터로
   내려가 **메모리 store 자체가 사라질 수 있어**, 그 변형의 FAIL은 "엔진 한계 + 최적화 lowering"이 섞인다.
-- 따라서 **순수 레이아웃/엔진 능력 판단은 P0(-O0)·DebugGame 기준**으로 본다. /O2는 robustness(크래시·FP) 신호로만 본다.
+- 따라서 **순수 레이아웃/엔진 능력 판단은 P0(-O0)·DebugGame 기준**으로 본다. /O2는 robustness(FP) 신호로만 본다.
 
 ---
 
 ## 3. 근본 원인 클러스터 (우선순위순)
 
-### C0. 엔진 크래시 — `list index out of range` (최우선, 7건)
+> 엔진 크래시는 없다(ERROR=0). 실제 엔진 이슈는 아래 C1~C4다. C4(false positive)가 최우선.
 
-설계 §12 *"budget 초과 시에도 crash 금지"* 불변식을 직접 위반.
-
-```
-tier0 armv7 P0  : TV2C011(pointer_chain), TV2C017(phi_field_split)
-tier0 x64 P1    : TV2C002(deep_nested)
-UE Dev          : TV2R001(TArray), TV2R009(TMap), TV2R010(nested container)
-UE DebugGame    : TV2R005(FString)
-```
-
-- **증상**: 특정 arch/opt/컨테이너 조합에서 분석 중 `IndexError`로 중단.
-- **원인 가설**: 가드 없는 리스트 인덱싱. 후보 — predecessor가 없는 노드에 `[0]` 접근, varnode `inputs[i]`
-  존재 가정, `rsplit(...)` 결과 길이 미확인 등. (컨테이너/포인터 체인에서 예상 못 한 P-code 형태 진입 시.)
-- **11_ 위치(후보)**: `analysis/slice_graph_builder.py`의 varnode/edge 인덱싱부, `_register_byte_range`/
-  `_memory_range_for_key`의 `rsplit` 파싱(이미 length 체크 있는 곳도 있으나 누락 경로 존재 추정).
-- **수정 제안**:
-  1. 분석 단위(함수/케이스)를 try/except로 감싸 **부분 실패를 `unresolved`/`analysis_error`로 강등**, 전체 배치는 계속(설계 §12 degrade 정책).
-  2. 크래시 지점 5개를 traceback으로 특정 후 인덱싱 가드 추가.
-  3. 회귀: `collect_failures.py`에서 ERROR=0을 게이트로.
-
-### C1. 스택 store↔load 매칭 실패 — `OBSERVED_MEMORY:RSP/ESP/sp` (cut 22건, 최다)
+### C1. 스택 store↔load 매칭 실패 — `OBSERVED_MEMORY:RSP/ESP/sp` (cut 다수, 최다)
 
 - **증상**: sink로 가는 load가 스택 메모리 셀에서 멈추고(`observed_memory`), 같은 셀의 store로 못 이어짐.
 - **원인(확인)**: `analysis/slice_graph_builder.py:_memory_range_for_key`가 스택 range identity를
@@ -125,11 +111,10 @@ UE DebugGame    : TV2R005(FString)
 ## 4. 우선순위 로드맵
 
 ```
-1) C0 크래시 가드        — 즉시. 분석 단위 try/except degrade + 5개 지점 가드. (안전성)
-2) C4 false positive     — 즉시. base+offset 정밀 매칭. (정확성, 가장 위험)
-3) C2 call-boundary reg  — 높음. /O2·단순케이스까지 광범위 회복. (recall)
-4) C1 stack 프레임 정규화 — 높음. C2/C4와 원인 공유(base/offset). (recall+정확성)
-5) C3 heap/컨테이너 summary — 로드맵(frontier, DFB055 연장).
+1) C4 false positive     — 즉시. base+offset 정밀 매칭. (정확성, 가장 위험)
+2) C2 call-boundary reg  — 높음. /O2·단순케이스까지 광범위 회복. (recall)
+3) C1 stack 프레임 정규화 — 높음. C2/C4와 원인 공유(base/offset). (recall+정확성)
+4) C3 heap/컨테이너 summary — 로드맵(frontier, DFB055 연장).
 ```
 
 > C1·C2·C4는 **"base+offset를 얼마나 정확히 동일 객체로 묶고 분리하느냐"** 라는 한 뿌리를 공유한다.
@@ -142,12 +127,12 @@ UE DebugGame    : TV2R005(FString)
 ```bash
 # 11_ 수정 후 10_에서:
 python tools/collect_failures.py        # dist/failure_report.json 갱신
-#  게이트: ERROR(크래시)=0, false_pos=0, P0/DebugGame PASS 상승
+#  게이트: ERROR(분석 예외)=0, false_pos=0, P0/DebugGame PASS 상승
 python tools/verify_flows.py            # 정답지 자체 정합성(불변)
 ```
 
 회귀 기준: **ERROR=0, FP=0**을 먼저 달성하고, 그다음 P0·DebugGame의 PASS 수를 올린다.
-`/O2`는 lowering 영향이 커 PASS 목표가 아니라 "크래시·FP 없음 + 정직한 degrade"로 본다.
+`/O2`는 lowering 영향이 커 PASS 목표가 아니라 "FP 없음 + 정직한 degrade"로 본다.
 
 ---
 

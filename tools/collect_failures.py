@@ -31,7 +31,10 @@ def cut_points(fg, q, sink):
         a = g.nodes[n]
         if a.get("kind") == "source_boundary":
             continue
-        leaves.append(f"{a.get('opcode') or a.get('kind')}:{(a.get('display') or str(n)).split(':')[-3] if ':' in str(n) else a.get('display')}")
+        op = a.get("opcode") or a.get("kind")
+        parts = str(n).split(":")
+        base = parts[-3] if len(parts) >= 3 else (parts[0] if parts else str(n))
+        leaves.append(f"{op}:{base}")
     return leaves
 
 def run_variant(label, indir, expf):
