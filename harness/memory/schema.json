@@ -1,0 +1,66 @@
+{
+  "_doc": "하니스 외부 구조화 메모리 스키마 (설계 A §4, §P6). 채팅 컨텍스트가 아닌 이 원장에 상태를 보존하고, 각 에이전트는 필요한 슬라이스만 읽는다.",
+
+  "failure_ledger": {
+    "_key": "case + commit + variant",
+    "fields": {
+      "case": "TV2C005",
+      "commit": "engine git sha",
+      "variant": "ue-DebugGame-x64",
+      "verdict": "PASS|FAIL|ERROR",
+      "missing": ["dfb_source_A.ret"],
+      "forbidden_found": ["dfb_source_B.ret"],
+      "cut": ["OBSERVED_MEMORY:..."],
+      "root_cause_ref": "hypothesis_ledger.id"
+    },
+    "_use": "케이스별 verdict 이력 + 회귀 추적 + 재진단 방지"
+  },
+
+  "hypothesis_ledger": {
+    "_key": "id",
+    "fields": {
+      "id": "H-001",
+      "claim": "self 포인터 store가 unknown 셀로 뭉개져 옆 field 오매칭",
+      "evidence_ref": "diagnose dump path / failure_report key",
+      "status": "proposed|refuted|confirmed|fixed",
+      "adversary_votes": {"correctness": "confirm", "regression": "confirm", "fp_risk": "confirm"}
+    },
+    "_use": "신뢰의 원장 — '검증됨 vs 가설' 관장. confirmed/fixed만 사실로 승격(A §P2). 증거 없는 claim 금지."
+  },
+
+  "decision_log": {
+    "_key": "engine_change(sha)",
+    "fields": {
+      "change": "engine git sha / PR",
+      "why": "한 줄 근거",
+      "cites": ["failure_ledger keys"],
+      "evidence": "재현 명령/덤프",
+      "adversary_votes": "패널 결과",
+      "objective_delta": "before→after 목적벡터"
+    },
+    "_use": "엔진 수정 provenance. 모든 변경은 인용된 실패+증거에 묶인다(A §P4)."
+  },
+
+  "artifact_cache": {
+    "_key": "binary_hash",
+    "fields": {
+      "binary_hash": "sha256(.so/.dll)",
+      "source_commit": "10_ commit",
+      "toolchain": {"ndk": "25.1.8937393", "ue": "5.1", "ghidra": "12.0", "msvc": "14.29"},
+      "pcode_path": "samples/.../*_low_pcode.json",
+      "engine_result_ref": "failure_ledger keys"
+    },
+    "_use": "입력 안 바뀌면 Ghidra 추출/빌드 스킵(A §P5). 툴체인 핀을 함께 기록 — 비결정성 방지."
+  },
+
+  "capability_map": {
+    "_key": "case_class",
+    "fields": {
+      "case_class": "deep_field_pointer_passthrough",
+      "status": "can|cannot|frontier",
+      "note": "DFB055 계열, 2+deref",
+      "blocking_hypothesis": "hypothesis_ledger.id"
+    },
+    "_use": "frontier를 회귀로 오인해 두드리지 않게. 종료조건(A §7)의 frontier 문서화 근거."
+  }
+}
