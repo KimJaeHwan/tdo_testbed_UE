@@ -141,6 +141,26 @@ capability_map   : case_class → status(§8) + blocking_hypothesis
 - adversary: 서로 다른 렌즈(correctness/regression/fp_risk) 독립 다수결, **증거 없는 confirm 무효**.
 - engine_fixer: proposal-only(§2). 출력=branch/files_changed/summary/selftest(collect_failures 재실행)/risk_note. merge는 사람.
 
+### 10.1 모델 티어링 & second opinion (DeepSeek V4 Pro)
+저비용 작업·독립 second opinion으로 **비용 절감 + 맹점 분산**. 아키텍처는 판단 노드가 model-agnostic이라 추가만 하면 됨.
+```
+cheap tier (DeepSeek V4 Pro): 기계적·저위험 — triage 1차 초안, 로그/리포트 요약,
+                              capability_map diff, envelope 포맷팅, memory_synth bookkeeping
+strong tier (Opus 등)       : 미묘한 root-cause 진단, 최종 수정 제안, contradictory 판단 보조
+adversary 패널              : 서로 다른 model family 혼합(예: Opus + DeepSeek) → 상관된 오류 분산
+```
+가드레일 (이게 없으면 방해됨):
+```
+G1 모델 무관 동일 JSON envelope + evidence_required(I5). evidence_ref는 결정적 층이 재검증 가능한
+   artifact(재현 명령·덤프 경로)여야 함 — 모델의 단순 주장은 증거 아님(싼 모델 hallucination 차단).
+G2 cheap tier는 판정 권한 없음 — PASS/FAIL·oracle write·auto-merge 불가(원래 결정적/human).
+G3 second opinion은 독립일 때만 가치: cheap 초안 ↔ strong(또는 다른 family) 검증, 불일치 시 escalation
+   (strong 재판정 또는 human). 합의해도 증거 없으면 통과 금지.
+G4 모델은 판단 노드에만(P1). 결정적 파이프라인엔 미투입 — 모델 선택이 결정성을 깨지 않게.
+G5 config에 모델 티어 매핑 + per-run 비용 상한(토큰/호출) 기록.
+```
+효과: diagnose 1차·triage·요약은 cheap, 최종 판단·반박 핵심은 strong → 비용↓·맹점↓, 품질은 G1~G4로 불변.
+
 ## 11. case_author 오라클 검증 (R6/P3)
 ```
 출력은 proposed_cases/ + approval queue로만. expected/manifest 직접수정 금지.
@@ -174,6 +194,11 @@ tools:
   android_ndk: { path, version, clang }     # 자동선택 금지 — 핀 필수(P5)
   unreal_engine_root, python, cmake
 output: { root, artifact_cache, ledgers }
+models:                                    # 모델 티어링(§10.1)
+  cheap: "deepseek-v4-pro"                 # 저위험·기계적 작업, adversary 멤버
+  strong: "opus-4.8"                       # 미묘한 진단·최종 제안
+  adversary_panel: ["opus-4.8", "deepseek-v4-pro"]   # cross-family 다수결
+budgets: { per_run_max_tokens: ..., per_run_max_calls: ... }   # 비용 가드(G5)
 defaults: { changed_only: true, summary_first: true, no_full_graph_export: true, export_query_subgraph_only: true }
 ```
 선택된 toolchain은 모든 run artifact/FailureReport에 기록(§6 toolchain 필드).

@@ -23,6 +23,8 @@
 ```
 
 ## 규칙
+- **cross-model 패널**(설계 §10.1): 서로 다른 family(예: Opus + DeepSeek V4 Pro)로 구성해 상관된 오류 분산.
+  모델 무관 동일 envelope·evidence 요구(G1). cheap 모델도 증거 없으면 confirm 무효.
 - **증거 없는 confirm은 무효**(orchestrator가 refuted로 취급). 패널 다수결로만 채택.
 - "그럴듯함"으로 통과시키지 말 것 — 반박 실패(=반박 못 함)일 때만 confirm.
 - fix 검토 시 **실제 재실행 결과**(`collect_failures.py`)를 요구. 코드만 보고 통과 금지.
