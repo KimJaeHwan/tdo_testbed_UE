@@ -8,16 +8,27 @@
   "capability_map": { ... } }
 ```
 
-## 출력 (이 스키마로만)
+## 출력 (이 스키마로만) — 8 범주 + unknown 폴백 (설계 §7)
 ```json
-{ "category": "engine_defect | harness_defect | known_frontier | env_artifact",
+{ "category": "engine_defect | harness_defect | extractor_defect | testcase_defect | oracle_defect | environment_defect | known_frontier | unsupported | unknown",
   "reason": "한 줄",
-  "evidence_ref": "diagnose_case 덤프/로그 경로 (없으면 분류 보류)" }
+  "evidence_ref": "diagnose_case 덤프/로그 경로" }
 ```
 
-## 규칙
-- `harness_defect`: 실패가 수집기/도구 탓일 가능성(예: 예외가 tools/* 내부). **엔진으로 넘기기 전 반드시 배제.**
-  (근거: 과거 'list index out of range'는 엔진이 아니라 collect_failures.py 버그였음.)
-- `known_frontier`: capability_map에 frontier로 등록된 클래스(예: deep_field/컨테이너 2+deref) → 회귀 아님.
-- `env_artifact`: 툴체인/빌드 변동(NDK 버전 등)으로 인한 비결정 → 재현·핀 확인.
-- `engine_defect`로 보낼 때도 **증거 없으면 보류**. 추측 금지.
+## 범주 정의
+```
+engine_defect   : 11_ 엔진 결함 (증거 필수)
+harness_defect  : 오케스트레이터/수집·검증 도구 자체 버그 (예: 예외가 tools/* 내부)
+extractor_defect: Ghidra dumper(lowpcode/metadata 추출) 결함
+testcase_defect : 케이스 C++ 자체가 잘못/모호
+oracle_defect   : expected/flow가 틀림 → human(자동수정 금지)
+environment_defect: 툴체인/버전 변동(NDK 등) 비결정
+known_frontier  : capability_map에 frontier 등록됨 → 회귀 아님
+unsupported     : 엔진 설계상 불가(cannot)
+unknown         : 모호 → needs_human (8개 중 억지선택 금지)
+```
+
+## 규칙 (설계 §7/P8)
+- **모든 비-frontier 범주는 evidence 필수.** 재현 증거 없으면 `engine_defect` 단정 금지 → `unknown`.
+  (근거: 과거 'list index out of range'는 엔진 아닌 collect_failures.py 버그였음 — harness_defect.)
+- 운영상 제일 중요한 건 "engine이냐 아니냐". 게이트는 라벨이 아니라 **증거**다(evidence_required).

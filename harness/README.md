@@ -1,7 +1,11 @@
-# Harness 스켈레톤 (B)
+# Harness 스켈레톤
 
-09/10/11 자동 반복 루프 멀티에이전트의 **구현 스켈레톤**. 단일 진실 사양은 [`docs/harness_design.md`](../docs/harness_design.md)(A).
-이 스켈레톤은 **결정적 control flow는 완성**, **LLM 호출·빌드 배선은 STUB**로 두어 GPT5.5가 자기 런타임에 배선한다.
+09/10/11 자동 반복 루프 멀티에이전트의 **구현 스켈레톤**. **단일 진실 사양 = [`docs/harness_design.md`](../docs/harness_design.md) (v2 최종 합의)**.
+v2는 R1–R6(계층캐시·proposal-only·수직슬라이스·8범주 triage·NDK핀·오라클 독립검증) + P1–P4를 반영한 확정 설계다.
+이 스켈레톤(v1)은 방향 예시이며, **실제 구현은 v2 설계서를 따라 Codex가 PR 단위(설계 §16)로 진행**한다.
+
+## 에이전트 7종 (role↔파일명 정확 일치)
+`triage · diagnostician · adversary · engine_fixer · case_author · memory_synth · coverage_planner`
 
 ## 구성
 ```

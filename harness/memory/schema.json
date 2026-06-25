@@ -42,25 +42,24 @@
   },
 
   "artifact_cache": {
-    "_key": "binary_hash",
-    "fields": {
-      "binary_hash": "sha256(.so/.dll)",
-      "source_commit": "10_ commit",
-      "toolchain": {"ndk": "25.1.8937393", "ue": "5.1", "ghidra": "12.0", "msvc": "14.29"},
-      "pcode_path": "samples/.../*_low_pcode.json",
-      "engine_result_ref": "failure_ledger keys"
-    },
-    "_use": "입력 안 바뀌면 Ghidra 추출/빌드 스킵(A §P5). 툴체인 핀을 함께 기록 — 비결정성 방지."
+    "_doc": "계층 캐시 4단 (설계 v2 §5). 단일 평면키 금지 — 과잉 무효화 방지.",
+    "build_artifact":  { "key": ["source_hash", "toolchain", "build_variant"], "value": "binary_path" },
+    "pcode_metadata":  { "key": ["binary_hash", "ghidra_version", "extractor_hash", "metadata_schema_version"], "value": ["pcode_path", "metadata_path"] },
+    "engine_result":   { "key": ["pcode_hash", "metadata_hash", "engine_commit", "run_config_hash"], "value": "result_path" },
+    "verify_result":   { "key": ["engine_result_hash", "expected_hash", "verifier_version"], "value": "verdict" },
+    "_invalidation": "source→build부터 / extractor→pcode부터 / engine_commit→engine_result부터 / expected→verify만",
+    "_note": "비교·해시 전 canonical JSON 정규화(키·node·edge 정렬). 엔진 출력 결정성 PR3서 검증(2회→동일 해시)."
   },
 
   "capability_map": {
     "_key": "case_class",
     "fields": {
       "case_class": "deep_field_pointer_passthrough",
-      "status": "can|cannot|frontier",
+      "status": "can|cannot|frontier|missing|weakly_covered|contradictory",
+      "cases": ["..."],
       "note": "DFB055 계열, 2+deref",
       "blocking_hypothesis": "hypothesis_ledger.id"
     },
-    "_use": "frontier를 회귀로 오인해 두드리지 않게. 종료조건(A §7)의 frontier 문서화 근거."
+    "_use": "frontier를 회귀로 오인해 두드리지 않게(gate known_frontier_not_counted). contradictory는 human escalation·자동수정 금지(설계 v2 §8)."
   }
 }
