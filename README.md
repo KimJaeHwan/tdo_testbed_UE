@@ -13,6 +13,9 @@
 10_tdo_UE_testbed  (이 레포)    엔진형 큰/복잡 구조체 "최종 관문" — 09에 없는 fusion + UE 레이아웃
 ```
 
+로컬 회귀 환경의 Python venv, Ghidra, NDK, UE, release artifact 경로는
+[`docs/local_regression_environment.md`](docs/local_regression_environment.md)를 우선 확인한다.
+
 엔진은 **convention-free + byte-range/offset 기반**이고 struct field 이름을 쓰지 않는다(PDB는 overlay).
 따라서 "field-sensitive"는 *컴파일된 레이아웃의 byte-offset sensitive*를 뜻한다.
 
@@ -76,6 +79,18 @@ ANDROID_NDK_HOME="/path/to/ndk/25.1.8937393" \
 UE_ROOT="/path/to/UE_5.1" \
 ./build.sh all
 ```
+
+11_ Low P-code 엔진과 Ghidra dumper는 레포가 같은 상위 디렉터리에 있으면 자동 탐지한다.
+다른 위치라면 명시한다:
+
+```bash
+TDO_ENGINE_ROOT="/path/to/lowpcode_data_origin" \
+GHIDRA_DIR="/path/to/ghidra" \
+./run_all_coverage.sh
+```
+
+Python 검증 도구는 `TDO_ENGINE_ROOT/.venv`가 있으면 자동으로 그 Python으로 재실행하여
+엔진 의존성과 같은 런타임에서 동작한다.
 
 > NDK는 Windows·macOS 모두 동일 4-arch ELF를 만든다(host와 무관, 11_ 엔진 샘플과 정합).
 > UE 빌드는 Windows=Win64, macOS=Mac 타깃. Windows에서 UBT는 .NET 6 런타임이 필요해

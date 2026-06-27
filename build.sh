@@ -13,6 +13,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$HERE"
 source "$HERE/tools/detect_env.sh"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 TARGET="${1:-all}"
 PROFILE="${2:-P0}"
@@ -22,25 +23,20 @@ case "$PROFILE" in
 	*) echo "프로파일은 P0|P1"; exit 1 ;;
 esac
 
-declare -A TRIPLE=(
-	[x86]="i686-linux-android24"
-	[x64]="x86_64-linux-android24"
-	[armv7]="armv7a-linux-androideabi24"
-	[aarch64]="aarch64-linux-android24"
-)
-
 build_tier0() {
-	[ -x "$NDK_CLANG" ] || { echo "!! NDK clang 없음 ($NDK_CLANG). ANDROID_NDK_HOME 설정 필요."; return 1; }
+	[ -x "$NDK_CLANG" ] || { echo "!! NDK clang 없음. ANDROID_NDK_HOME 설정 필요."; return 1; }
 	local cpp="$HERE/cpp_like"
 	for arch in x86 x64 armv7 aarch64; do
-		local t="${TRIPLE[$arch]}" out="$cpp/build/$PROFILE/$arch"
+		local t out
+		t="$(tv2_target_triple "$arch")" || { echo "!! unknown arch: $arch"; return 1; }
+		out="$cpp/build/$PROFILE/$arch"
 		mkdir -p "$out"
 		echo "  [Tier0 $PROFILE/$arch] $t"
 		"$NDK_CLANG" --target="$t" -fPIC $CC_OPT -I "$cpp/include" -c "$cpp/src/tv2_sources_sinks.c" -o "$out/ss.o"
 		"$NDK_CLANG" --target="$t" -fPIC $CC_OPT -fno-exceptions -fno-rtti -x c++ -I "$cpp/include" -c "$cpp/src/cases_fusion.cpp" -o "$out/cases.o"
 		"$NDK_CLANG" --target="$t" -shared -o "$out/libtv2_cpp_like.so" "$out/ss.o" "$out/cases.o"
 	done
-	python "$cpp/tools/generate_expected_from_manifest.py"
+	"$PYTHON_BIN" "$cpp/tools/generate_expected_from_manifest.py"
 	echo "  -> $cpp/build/$PROFILE/<arch>/libtv2_cpp_like.so"
 }
 
@@ -48,7 +44,7 @@ build_ue() {
 	[ -n "${UE_ROOT:-}" ] && [ -d "$UE_ROOT" ] || { echo "!! UE_ROOT 없음. UE_ROOT 설정 필요."; return 1; }
 	local uedir="$HERE/unreal_playground/TraceUnrealPlayground"
 	local uproj="$uedir/TraceUnrealPlayground.uproject"
-	python "$HERE/unreal_playground/tools/generate_expected_from_manifest.py"
+	"$PYTHON_BIN" "$HERE/unreal_playground/tools/generate_expected_from_manifest.py"
 	if [ "$TV2_OS" = "mac" ]; then
 		echo "  [UE $UE_CONFIG / Mac]"
 		"$UE_ROOT/Engine/Build/BatchFiles/Mac/Build.sh" TraceUnrealPlaygroundEditor Mac "$UE_CONFIG" -project="$uproj" -waitmutex

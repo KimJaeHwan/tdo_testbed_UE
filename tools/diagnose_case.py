@@ -4,7 +4,12 @@
 출력: 도달한 source, 끝까지 못 간 cut leaf(키 포함), sink→source 경로의 edge(양끝 storage)."""
 import sys
 from pathlib import Path
-sys.path.insert(0, "D:/01_gitproject/11_tracing_Data_Origin_lowpcode/trace_data_origin_lowpcode")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from tdo_paths import add_engine_to_syspath, ensure_engine_python
+
+ensure_engine_python(ROOT)
+add_engine_to_syspath(ROOT)
 from analysis.interprocedural_summary import ProgramSliceGraphBuilder
 from query.backward_slice import BackwardSliceQuery
 

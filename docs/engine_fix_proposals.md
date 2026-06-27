@@ -1,5 +1,13 @@
 # 11_ BackwardSlice 엔진 — 실패 분석 & 수정 방안 (증거 기반)
 
+> 2026-06-28 status: M1의 `unknown unique` field-collapse false positive는
+> `lowpcode_data_origin` 엔진에 반영됐다. 관측된 general-register pointer
+> arithmetic은 이제 `unknown:register:<base>:offset:<n>` 셀로 분리되며,
+> stack/frame pointer는 이 fallback에서 제외된다. UE DebugGame의
+> TV2U008/TV2U009 forbidden `dfb_source_B.ret` 경로는 제거됐고, 현재는
+> 보수적인 false negative로 남는다. M3/M4의 store/load 복원, container/heap,
+> UE runtime summary 분석은 아직 참고 가치가 있어 이 문서는 유지한다.
+
 Testbed V2(10_)의 전 케이스를 11_ 엔진에 빌드 변형별로 돌리고, **각 실패의 실제 slice 경로·메모리
 키를 덤프해 원인을 확정**한 보고서다. (11_ 코드는 수정하지 않는다.)
 

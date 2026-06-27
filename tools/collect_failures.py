@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """collect_failures.py — 빌드 변형별로 전 케이스를 11_엔진에 돌려 verdict + cut point 수집.
 사용: python tools/collect_failures.py  (변형 목록은 하단 VARIANTS)"""
-import sys, json
+import json
+import sys
 from pathlib import Path
-ELEVENTH = Path("D:/01_gitproject/11_tracing_Data_Origin_lowpcode/trace_data_origin_lowpcode")
-sys.path.insert(0, str(ELEVENTH))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from tdo_paths import add_engine_to_syspath, ensure_engine_python
+
+ensure_engine_python(ROOT)
+add_engine_to_syspath(ROOT)
 from analysis.interprocedural_summary import ProgramSliceGraphBuilder
 from core.edge import DATA_CONTROL_SLICE_EDGES
 from query.backward_slice import BackwardSliceQuery
 from report.expected_validator import ExpectedValidator
-
-ROOT = Path(__file__).resolve().parents[1]
 
 VARIANTS = [
     ("tier0-P0-x64",    "cpp_like/samples/low_pcode/x64",    "cpp_like/expected/tv2_cpp_like.expected.json"),

@@ -5,19 +5,9 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$HERE"
+source "$HERE/../tools/detect_env.sh"
 
-: "${ANDROID_HOME:=$HOME/AppData/Local/Android/Sdk}"
-NDK_BIN="$ANDROID_HOME/ndk/25.1.8937393/toolchains/llvm/prebuilt/windows-x86_64/bin"
-CLANG="$NDK_BIN/clang.exe"
-[ -x "$CLANG" ] || { echo "ERROR: clang not found at $CLANG"; exit 1; }
-
-# arch -> target triple (API 24)
-declare -A TRIPLE=(
-  [x86]="i686-linux-android24"
-  [x64]="x86_64-linux-android24"
-  [armv7]="armv7a-linux-androideabi24"
-  [aarch64]="aarch64-linux-android24"
-)
+[ -x "$NDK_CLANG" ] || { echo "ERROR: NDK clang not found. Set ANDROID_NDK_HOME."; exit 1; }
 
 PROFILE="${1:-P0}"
 case "$PROFILE" in
@@ -27,14 +17,14 @@ case "$PROFILE" in
 esac
 
 for arch in x86 x64 armv7 aarch64; do
-  T="${TRIPLE[$arch]}"
+  T="$(tv2_target_triple "$arch")" || { echo "unknown arch: $arch"; exit 1; }
   OUT="build/$PROFILE/$arch"
   mkdir -p "$OUT"
   echo "=== [$PROFILE/$arch] target=$T ==="
-  "$CLANG" --target="$T" -fPIC $OPT -I include -c src/tv2_sources_sinks.c -o "$OUT/ss.o"
-  "$CLANG" --target="$T" -fPIC $OPT -fno-exceptions -fno-rtti -x c++ -I include \
+  "$NDK_CLANG" --target="$T" -fPIC $OPT -I include -c src/tv2_sources_sinks.c -o "$OUT/ss.o"
+  "$NDK_CLANG" --target="$T" -fPIC $OPT -fno-exceptions -fno-rtti -x c++ -I include \
            -c src/cases_fusion.cpp -o "$OUT/cases.o"
-  "$CLANG" --target="$T" -shared -o "$OUT/libtv2_cpp_like.so" "$OUT/ss.o" "$OUT/cases.o"
+  "$NDK_CLANG" --target="$T" -shared -o "$OUT/libtv2_cpp_like.so" "$OUT/ss.o" "$OUT/cases.o"
   echo "    -> $OUT/libtv2_cpp_like.so"
 done
 

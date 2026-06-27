@@ -9,8 +9,12 @@ source까지 닿지 못한 FAIL의 '끊긴 지점'을 보여준다.
 import sys
 from pathlib import Path
 
-ELEVENTH = Path("D:/01_gitproject/11_tracing_Data_Origin_lowpcode/trace_data_origin_lowpcode")
-sys.path.insert(0, str(ELEVENTH))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+from tdo_paths import add_engine_to_syspath, ensure_engine_python  # noqa: E402
+
+ensure_engine_python(ROOT)
+add_engine_to_syspath(ROOT)
 
 from analysis.interprocedural_summary import ProgramSliceGraphBuilder  # noqa: E402
 from query.backward_slice import BackwardSliceQuery                     # noqa: E402
