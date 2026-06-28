@@ -47,8 +47,22 @@
     "pcode_metadata":  { "key": ["binary_hash", "ghidra_version", "extractor_hash", "metadata_schema_version"], "value": ["pcode_path", "metadata_path"] },
     "engine_result":   { "key": ["pcode_hash", "metadata_hash", "engine_commit", "run_config_hash"], "value": "result_path" },
     "verify_result":   { "key": ["engine_result_hash", "expected_hash", "verifier_version"], "value": "verdict" },
+    "prepare_step":    { "key": ["command", "tool_env", "input_hashes", "outputs"], "value": "prepare_report row" },
     "_invalidation": "source→build부터 / extractor→pcode부터 / engine_commit→engine_result부터 / expected→verify만",
     "_note": "비교·해시 전 canonical JSON 정규화(키·node·edge 정렬). 엔진 출력 결정성 PR3서 검증(2회→동일 해시)."
+  },
+
+  "baseline_map": {
+    "_key": "variant_label",
+    "fields": {
+      "variant": "arch/compiler/opt/build_config/source_kind",
+      "summary": "latest observed pass/fail/error/fp/cache counts",
+      "cases": {"TV2R001": {"verdict": "PASS|FAIL|ERROR", "missing": [], "forbidden_found": []}},
+      "gate": "latest deterministic gate",
+      "run_id": "harness run id",
+      "output_root": "artifact directory"
+    },
+    "_use": "release/local/UE Mac baseline을 expected와 분리해 관측 결과로 관리한다. 오라클이 아니며, 엔진 출력에서 expected를 만들지 않는다."
   },
 
   "capability_map": {
@@ -61,5 +75,44 @@
       "blocking_hypothesis": "hypothesis_ledger.id"
     },
     "_use": "frontier를 회귀로 오인해 두드리지 않게(gate known_frontier_not_counted). contradictory는 human escalation·자동수정 금지(설계 v2 §8)."
+  },
+
+  "human_approval_queue": {
+    "_key": "append-only",
+    "fields": {
+      "run_id": "harness run id",
+      "kind": "oracle_change|crash_or_harness_error|false_positive|frontier_candidate",
+      "severity": "hard|review",
+      "case": "case id",
+      "variant": "variant label",
+      "evidence_ref": "failure_report_v2.json path",
+      "required_action": "what a human must approve or decide"
+    },
+    "_use": "오라클 변경, FP, crash, frontier 후보를 자동으로 승인하지 않고 사람이 볼 큐에 남긴다."
+  },
+
+  "human_decisions": {
+    "_key": "approval item key",
+    "fields": {
+      "key": "stable queue item key",
+      "decision": "approve|reject|defer",
+      "actor": "human/operator id",
+      "reason": "why this decision was made",
+      "capability_status": "optional can|cannot|frontier|missing|weakly_covered|contradictory",
+      "queue_item": "original queue payload"
+    },
+    "_use": "큐 항목을 삭제하지 않고 append-only 결정 원장으로 승인/반려/보류를 기록한다. capability_status가 있으면 capability_map에 human decision ref를 남긴다."
+  },
+
+  "baseline_pins": {
+    "_key": "pin name",
+    "fields": {
+      "name": "stable baseline name",
+      "run_id": "harness run id",
+      "report_path": "failure_report_v2.json path",
+      "report_hash": "sha256",
+      "description": "why this baseline is pinned"
+    },
+    "_use": "I3 regression gate에서 사람이 선택한 기준 run을 이름으로 참조한다. baseline은 observed result이지 expected/oracle이 아니다."
   }
 }

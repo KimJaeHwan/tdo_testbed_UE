@@ -56,6 +56,17 @@ def regression_ok(before: list[dict], after: list[dict]) -> bool:
     return True
 
 
+def regression_failures(before: list[dict], after: list[dict]) -> list[dict]:
+    """Rows that were PASS in before and are no longer PASS in after."""
+    b, a = _counts(before)["per_case"], _counts(after)["per_case"]
+    failures = []
+    for key, verdict in sorted(b.items()):
+        if verdict == "PASS" and a.get(key) != "PASS":
+            variant, case = key
+            failures.append({"variant": variant, "case": case, "before": verdict, "after": a.get(key, "MISSING")})
+    return failures
+
+
 def objective_improves(before: list[dict], after: list[dict]) -> bool:
     """불변식(crash/fp) 위반 0 유지하면서 목적벡터가 사전식으로 개선되었나."""
     ca = _counts(after)
@@ -86,3 +97,77 @@ def invariant_status(report: list[dict], root: Path | None = None) -> dict:
     if root is not None:
         status["I4_oracle_locked"] = oracle_locked(root)
     return status
+
+
+def human_gate_items(report: list[dict], gate: dict) -> list[dict]:
+    """Return deterministic human-review items.
+
+    This is not an LLM triage decision. It only exposes hard gates and places
+    where the design requires a person before changing oracle/frontier state.
+    """
+    items: list[dict] = []
+    if gate.get("I4_oracle_locked") is False:
+        items.append(
+            {
+                "kind": "oracle_change",
+                "severity": "hard",
+                "reason": "expected_or_manifest_changed",
+                "required_action": "human_approval_before_accepting_run",
+            }
+        )
+    if gate.get("I3_regression_zero") is False:
+        for regression in gate.get("regressions", []):
+            items.append(
+                {
+                    "kind": "regression",
+                    "severity": "hard",
+                    "case": regression.get("case"),
+                    "variant": regression.get("variant"),
+                    "reason": "I3 regression gate failed",
+                    "evidence_ref": gate.get("regression_baseline"),
+                    "required_action": "diagnose_or_revert_before_accepting_run",
+                }
+            )
+    for row in report:
+        case = row.get("case")
+        variant = row.get("variant_label")
+        result_path = (row.get("artifacts") or {}).get("result_path")
+        if row.get("verdict") == "ERROR":
+            items.append(
+                {
+                    "kind": "crash_or_harness_error",
+                    "severity": "hard",
+                    "case": case,
+                    "variant": variant,
+                    "reason": "I1 crash/error gate failed",
+                    "evidence_ref": result_path,
+                    "required_action": "diagnose_before_engine_fix",
+                }
+            )
+        if row.get("forbidden_found"):
+            items.append(
+                {
+                    "kind": "false_positive",
+                    "severity": "hard",
+                    "case": case,
+                    "variant": variant,
+                    "reason": "I2 false_positive gate failed",
+                    "forbidden_found": row.get("forbidden_found", []),
+                    "evidence_ref": result_path,
+                    "required_action": "human_confirm_frontier_or_engine_fix",
+                }
+            )
+        if row.get("verdict") == "FAIL" and not row.get("forbidden_found"):
+            items.append(
+                {
+                    "kind": "frontier_candidate",
+                    "severity": "review",
+                    "case": case,
+                    "variant": variant,
+                    "reason": "missing expected source without false positive",
+                    "missing": row.get("missing", []),
+                    "evidence_ref": result_path,
+                    "required_action": "human_or_agent_evidence_before_frontier_status",
+                }
+            )
+    return items

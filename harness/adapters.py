@@ -13,6 +13,7 @@ class PrepareStep:
     cwd: Path
     env: dict[str, str]
     outputs: tuple[Path, ...] = ()
+    inputs: tuple[Path, ...] = ()
     optional: bool = False
 
 
@@ -176,6 +177,14 @@ class Suite10UEAdapter:
         env = self._tool_env()
         steps = []
         if include_tier0:
+            tier0_inputs = (
+                self.root / "build.sh",
+                self.root / "tools" / "detect_env.sh",
+                self.root / "cpp_like" / "include",
+                self.root / "cpp_like" / "src",
+                self.root / "cpp_like" / "manifests",
+                self.root / "cpp_like" / "tools" / "generate_expected_from_manifest.py",
+            )
             steps.append(
                 PrepareStep(
                     label=f"tier0-build-{profile}",
@@ -186,6 +195,7 @@ class Suite10UEAdapter:
                         self.root / "cpp_like" / "build" / profile / arch / "libtv2_cpp_like.so"
                         for arch in arches
                     ),
+                    inputs=tier0_inputs,
                 )
             )
             for arch in arches:
@@ -195,13 +205,20 @@ class Suite10UEAdapter:
                 steps.append(
                     PrepareStep(
                         label=f"tier0-extract-{profile}-{arch}",
-                        command=("bash", str(self.root / "cpp_like" / "scripts" / "extract_lowpcode.sh"), arch, profile),
-                        cwd=self.root,
-                        env=env,
-                        outputs=(sample_dir,),
-                    )
+                    command=("bash", str(self.root / "cpp_like" / "scripts" / "extract_lowpcode.sh"), arch, profile),
+                    cwd=self.root,
+                    env=env,
+                    outputs=(sample_dir,),
+                    inputs=(
+                        self.root / "tools" / "detect_env.sh",
+                        self.root / "cpp_like" / "scripts" / "extract_lowpcode.sh",
+                        self.root / "cpp_like" / "build" / profile / arch / "libtv2_cpp_like.so",
+                        self.config.path("repos", "engine_11") / "scripts" / "lowpcode_json_dumper.py",
+                    ),
                 )
+            )
         if include_ue_build:
+            project = self.root / "unreal_playground" / "TraceUnrealPlayground"
             steps.append(
                 PrepareStep(
                     label=f"ue-build-{profile}",
@@ -209,12 +226,29 @@ class Suite10UEAdapter:
                     cwd=self.root,
                     env=env,
                     outputs=(self.root / "unreal_playground" / "TraceUnrealPlayground" / "Binaries",),
+                    inputs=(
+                        self.root / "build.sh",
+                        self.root / "tools" / "detect_env.sh",
+                        project / "Source",
+                        project / "TraceUnrealPlayground.uproject",
+                        self.root / "unreal_playground" / "manifests",
+                        self.root / "unreal_playground" / "tools" / "generate_expected_from_manifest.py",
+                    ),
                 )
             )
         if include_ue_extract:
             sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode"
+            binary = self.root / "unreal_playground" / "TraceUnrealPlayground" / "Binaries" / "Mac" / "libUnrealEditor-TraceUnrealPlayground.dylib"
             if profile == "P0":
                 sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode_P0"
+                binary = (
+                    self.root
+                    / "unreal_playground"
+                    / "TraceUnrealPlayground"
+                    / "Binaries"
+                    / "Mac"
+                    / "libUnrealEditor-TraceUnrealPlayground-Mac-DebugGame.dylib"
+                )
             steps.append(
                 PrepareStep(
                     label=f"ue-extract-{profile}",
@@ -222,6 +256,13 @@ class Suite10UEAdapter:
                     cwd=self.root,
                     env=env,
                     outputs=(sample_dir,),
+                    inputs=(
+                        self.root / "tools" / "detect_env.sh",
+                        self.root / "unreal_playground" / "scripts" / "extract_lowpcode.sh",
+                        self.root / "unreal_playground" / "tools" / "normalize_macho_lowpcode.py",
+                        binary,
+                        self.config.path("repos", "engine_11") / "scripts" / "lowpcode_json_dumper.py",
+                    ),
                 )
             )
         return steps

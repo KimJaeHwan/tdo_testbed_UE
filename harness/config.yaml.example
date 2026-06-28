@@ -15,6 +15,19 @@ output:
   root: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness"
   memory: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness/memory"
 
+models:
+  cheap: ""
+  strong: ""
+  adversary_panel: []
+
+budgets:
+  per_run_max_calls: 0
+  per_run_max_tokens: 0
+
 defaults:
   mode: "release-artifacts"
   summary_first: true
+  changed_only_prepare: true
+  case_scope: "auto"                  # auto|always|never
+  case_scope_file_threshold: 32
+  case_scope_byte_threshold: 134217728

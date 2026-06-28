@@ -56,8 +56,20 @@ class Memory:
         return self.base / "capability_map.json"
 
     @property
+    def baseline_map_path(self) -> Path:
+        return self.base / "baseline_map.json"
+
+    @property
     def human_queue_path(self) -> Path:
         return self.base / "human_approval_queue.jsonl"
+
+    @property
+    def human_decisions_path(self) -> Path:
+        return self.base / "human_decisions.jsonl"
+
+    @property
+    def baseline_pins_path(self) -> Path:
+        return self.base / "baseline_pins.json"
 
     @property
     def escalation_path(self) -> Path:
@@ -150,16 +162,27 @@ class Memory:
                 status = "contradictory"
             else:
                 status = "frontier"
+            previous = cap.get(key, {})
             cap[key] = {
-                **cap.get(key, {}),
+                **previous,
                 "case_class": key,
                 "status": status,
-                "human_confirmed": False if status in {"frontier", "contradictory"} else cap.get(key, {}).get("human_confirmed", True),
+                "human_confirmed": False if status in {"frontier", "contradictory"} else previous.get("human_confirmed", True),
+                "needs_human": status in {"frontier", "contradictory"}
+                and not previous.get("human_confirmed", False),
                 "cases": sorted({str(row.get("case")) for row in rows}),
                 "last_run_id": rows[-1].get("run_id"),
                 "last_variants": sorted({str(row.get("variant_label")) for row in rows}),
                 "last_verdicts": sorted({str(verdict) for verdict in verdicts}),
                 "last_false_positive": has_forbidden,
+                "last_missing": sorted({item for row in rows for item in row.get("missing", [])}),
+                "evidence_refs": sorted(
+                    {
+                        str((row.get("artifacts") or {}).get("result_path"))
+                        for row in rows
+                        if (row.get("artifacts") or {}).get("result_path")
+                    }
+                ),
                 "updated_at": _now(),
             }
         _write_json(self.capability_map_path, cap)
@@ -170,10 +193,21 @@ class Memory:
     def escalate(self, reason: str, detail):
         _append_jsonl(self.escalation_path, {"time": _now(), "reason": reason, "detail": detail})
 
-    def record_run(self, run_id: str, report: list[dict], summary: dict, gate: dict, output_root: Path) -> None:
+    def record_run(
+        self,
+        run_id: str,
+        report: list[dict],
+        summary: dict,
+        gate: dict,
+        output_root: Path,
+        human_gate: list[dict] | None = None,
+    ) -> None:
         self._record_failures(run_id, report)
         self._record_artifacts(run_id, report, summary, gate, output_root)
+        self._record_baseline(run_id, report, summary, gate, output_root)
         self.update_capability_map(report)
+        for item in human_gate or []:
+            self.queue_for_human_approval({"run_id": run_id, **item})
 
     def cached_result(
         self,
@@ -217,6 +251,31 @@ class Memory:
                 return cached
         return None
 
+    def cached_prepare_step(self, cache_key: str) -> dict | None:
+        cache = _read_json(self.artifact_cache_path, {})
+        row = (cache.get("prepare_step") or {}).get(cache_key)
+        return deepcopy(row) if row else None
+
+    def record_prepare_step(self, cache_key: str, record: dict) -> None:
+        cache = _read_json(
+            self.artifact_cache_path,
+            {
+                "schema_version": 1,
+                "build_artifact": {},
+                "pcode_metadata": {},
+                "engine_result": {},
+                "verify_result": {},
+                "prepare_step": {},
+                "runs": {},
+            },
+        )
+        cache.setdefault("prepare_step", {})
+        cache["prepare_step"][cache_key] = {
+            **record,
+            "updated_at": _now(),
+        }
+        _write_json(self.artifact_cache_path, cache)
+
     def _record_failures(self, run_id: str, report: list[dict]) -> None:
         for row in report:
             if row.get("verdict") == "PASS":
@@ -254,6 +313,7 @@ class Memory:
         cache.setdefault("pcode_metadata", {})
         cache.setdefault("engine_result", {})
         cache.setdefault("verify_result", {})
+        cache.setdefault("prepare_step", {})
         cache.setdefault("runs", {})
 
         for row in report:
@@ -302,6 +362,47 @@ class Memory:
             "gate": gate,
         }
         _write_json(self.artifact_cache_path, cache)
+
+    def _record_baseline(
+        self,
+        run_id: str,
+        report: list[dict],
+        summary: dict,
+        gate: dict,
+        output_root: Path,
+    ) -> None:
+        baseline = _read_json(self.baseline_map_path, {"schema_version": 1, "variants": {}, "runs": {}})
+        baseline.setdefault("variants", {})
+        baseline.setdefault("runs", {})
+        by_variant: dict[str, list[dict]] = {}
+        for row in report:
+            by_variant.setdefault(str(row.get("variant_label") or "unknown"), []).append(row)
+        for variant, rows in by_variant.items():
+            baseline["variants"][variant] = {
+                "suite": rows[-1].get("suite"),
+                "variant": rows[-1].get("variant", {}),
+                "source_kind": (rows[-1].get("variant") or {}).get("source_kind"),
+                "run_id": run_id,
+                "output_root": str(output_root),
+                "summary": (summary.get("suites") or {}).get(rows[-1].get("suite"), {}).get("variants", {}).get(variant, {}),
+                "gate": gate,
+                "cases": {
+                    str(row.get("case")): {
+                        "verdict": row.get("verdict"),
+                        "missing": row.get("missing", []),
+                        "forbidden_found": row.get("forbidden_found", []),
+                    }
+                    for row in rows
+                },
+                "updated_at": _now(),
+            }
+        baseline["runs"][run_id] = {
+            "time": _now(),
+            "output_root": str(output_root),
+            "variants": sorted(by_variant),
+            "gate": gate,
+        }
+        _write_json(self.baseline_map_path, baseline)
 
     def _update_hypothesis(self, diagnosis: dict, status: str, extra: dict | None = None) -> None:
         hypotheses = _read_json(self.hypothesis_ledger_path, {})

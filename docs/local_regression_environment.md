@@ -246,9 +246,15 @@ Current local UE 5.8 smoke:
 
 ```text
 Development/P1: build OK, Ghidra extract OK, 22 case JSON, PASS 2 / FAIL 20 / ERROR 0 / FP 2
-Development/P1 hot cache: CACHE 22
-DebugGame/P0 : build OK, Ghidra extract OK, 22 case JSON; full analysis currently exceeds practical Engine11 directory-wide graph compose budget
+Development/P1 auto case-scope hot cache: CACHE 22
+DebugGame/P0 : build OK, Ghidra extract OK, 22 case JSON, case-scope PASS 10 / FAIL 12 / ERROR 0 / FP 2
+DebugGame/P0 case-scope hot cache: CACHE 22
 ```
+
+P0 full-directory compose remains useful for debug comparison, but the normal
+local harness path uses case-scoped low-pcode closure materialization because it
+keeps Engine11 semantics unchanged while avoiding unrelated UE helper graph
+composition.
 
 Mach-O symbol note: Ghidra names C exported symbols with a leading underscore on
 Mac (`_case_TV2...`, `_dfb_...`). The UE extraction script normalizes only this

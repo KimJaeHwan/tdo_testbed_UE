@@ -103,9 +103,22 @@ class HarnessConfig:
                 "root": str(root / "output" / "harness"),
                 "memory": str(root / "output" / "harness" / "memory"),
             },
+            "models": {
+                "cheap": "",
+                "strong": "",
+                "adversary_panel": [],
+            },
+            "budgets": {
+                "per_run_max_calls": 0,
+                "per_run_max_tokens": 0,
+            },
             "defaults": {
                 "mode": "release-artifacts",
                 "summary_first": True,
+                "changed_only_prepare": True,
+                "case_scope": "auto",
+                "case_scope_file_threshold": 32,
+                "case_scope_byte_threshold": 134217728,
             },
         }
         return cls(base, root)

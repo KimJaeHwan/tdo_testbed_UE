@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -9,8 +10,10 @@ import uuid
 from pathlib import Path
 
 from .adapters import PrepareStep, Variant, selected_prepare_steps, selected_variants
+from .agent_tasks import build_agent_tasks
+from .case_scope import CaseScopePlanner, ScopedCase
 from .config import HarnessConfig, ROOT
-from .gates import invariant_status
+from .gates import human_gate_items, invariant_status, regression_failures
 from .memory.store import Memory
 from .reporting import (
     canonical_hash,
@@ -24,6 +27,22 @@ from .reporting import (
 
 
 TIER0_ARCHES = ["x86", "x64", "armv7", "aarch64"]
+DEFAULT_CASE_SCOPE_FILE_THRESHOLD = 32
+DEFAULT_CASE_SCOPE_BYTE_THRESHOLD = 128 * 1024 * 1024
+PREPARE_CACHE_SCHEMA_VERSION = 1
+PREPARE_HASH_EXCLUDED_DIRS = {
+    "__pycache__",
+    ".git",
+    "Binaries",
+    "Build",
+    "DerivedDataCache",
+    "Intermediate",
+    "Saved",
+    "build",
+    "dist",
+    "output",
+    "samples",
+}
 
 
 def _add_engine_to_syspath(engine_root: Path) -> None:
@@ -45,11 +64,24 @@ def _ensure_engine_python(engine_root: Path) -> None:
 
 
 class Engine11Runner:
-    def __init__(self, config: HarnessConfig, memory: Memory | None = None, use_cache: bool = True):
+    def __init__(
+        self,
+        config: HarnessConfig,
+        output_root: Path,
+        memory: Memory | None = None,
+        use_cache: bool = True,
+        case_scope_policy: str = "auto",
+        case_scope_file_threshold: int = DEFAULT_CASE_SCOPE_FILE_THRESHOLD,
+        case_scope_byte_threshold: int = DEFAULT_CASE_SCOPE_BYTE_THRESHOLD,
+    ):
         self.config = config
         self.engine_root = config.path("repos", "engine_11")
+        self.output_root = output_root
         self.memory = memory
         self.use_cache = use_cache
+        self.case_scope_policy = case_scope_policy
+        self.case_scope_file_threshold = case_scope_file_threshold
+        self.case_scope_byte_threshold = case_scope_byte_threshold
         _ensure_engine_python(self.engine_root)
         _add_engine_to_syspath(self.engine_root)
 
@@ -71,9 +103,17 @@ class Engine11Runner:
             return [self._error_row(run_id, variant, "NO_CASES", f"no cases matching {variant.case_glob}", run_config_hash)]
         validator = self.ExpectedValidator(variant.expected_path)
         builder = self.ProgramSliceGraphBuilder()
+        scope_planner = CaseScopePlanner(
+            variant.sample_dir,
+            self.output_root,
+            variant.label,
+            policy=self.case_scope_policy,
+            file_threshold=self.case_scope_file_threshold,
+            byte_threshold=self.case_scope_byte_threshold,
+        )
         rows = []
         for json_path in cases:
-            rows.append(self._run_case(run_id, variant, json_path, validator, builder, run_config_hash))
+            rows.append(self._run_case(run_id, variant, json_path, validator, builder, run_config_hash, scope_planner))
         return rows
 
     def _run_case(
@@ -84,8 +124,10 @@ class Engine11Runner:
         validator,
         builder,
         run_config_hash: str,
+        scope_planner: CaseScopePlanner,
     ) -> dict:
-        artifacts = self._artifacts(variant, json_path, run_config_hash)
+        scoped_case = scope_planner.materialize(json_path)
+        artifacts = self._artifacts(variant, json_path, run_config_hash, scoped_case)
         engine = self._engine(run_config_hash)
         if self.use_cache and self.memory is not None:
             cached = self.memory.cached_result(
@@ -107,9 +149,10 @@ class Engine11Runner:
                     "hit": True,
                     "source_result_path": (source_cache.get("source_result_path") or source_cache.get("result_path")),
                 }
+                cached["pcode_scope"] = scoped_case.manifest
                 return cached
         try:
-            fg = builder.build_for_target(json_path)
+            fg = builder.build_for_target(scoped_case.target_path)
             data_sources: set[str] = set()
             control_sources: set[str] = set()
             cuts: list[str] = []
@@ -145,11 +188,13 @@ class Engine11Runner:
                 "edge_kinds_seen": self._edge_kinds(fg),
                 "cut": sorted(set(cuts)) if validation.get("verdict") != "PASS" else [],
                 "budgets": {"budget_exceeded": False, "details": []},
+                "pcode_scope": scoped_case.manifest,
                 "cache": {"hit": False},
             }
         except Exception as exc:  # noqa: BLE001
             row = self._error_row(run_id, variant, json_path.stem, str(exc), run_config_hash)
             row["artifacts"] = artifacts
+            row["pcode_scope"] = scoped_case.manifest
             return row
 
     def _error_row(
@@ -214,12 +259,29 @@ class Engine11Runner:
             "mode": "summary_first" if self.config.value("defaults", "summary_first", True) else "default",
         }
 
-    def _artifacts(self, variant: Variant, json_path: Path | None, run_config_hash: str) -> dict:
+    def _artifacts(
+        self,
+        variant: Variant,
+        json_path: Path | None,
+        run_config_hash: str,
+        scoped_case: ScopedCase | None = None,
+    ) -> dict:
+        if scoped_case is not None:
+            pcode_hash = scoped_case.scope_hash
+            effective_path = scoped_case.target_path
+        elif json_path is not None:
+            pcode_hash = sha256_file(json_path)
+            effective_path = json_path
+        else:
+            pcode_hash = sha256_directory(variant.sample_dir, variant.case_glob)
+            effective_path = variant.sample_dir
         return {
             "binary_path": str(variant.binary_path) if variant.binary_path else None,
             "binary_hash": sha256_file(variant.binary_path),
             "pcode_path": str(json_path or variant.sample_dir),
-            "pcode_hash": sha256_file(json_path) if json_path else sha256_directory(variant.sample_dir, variant.case_glob),
+            "effective_pcode_path": str(effective_path),
+            "pcode_hash": pcode_hash,
+            "root_pcode_hash": sha256_file(json_path) if json_path else None,
             "metadata_path": str(json_path or variant.sample_dir),
             "result_path": None,
             "diagnose_dump_path": None,
@@ -256,23 +318,55 @@ def _safe_label(text: str) -> str:
     return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in text)
 
 
-def _run_prepare_steps(steps: list[PrepareStep], output_root: Path, dry_run: bool = False) -> list[dict]:
+def _run_prepare_steps(
+    steps: list[PrepareStep],
+    output_root: Path,
+    dry_run: bool = False,
+    memory: Memory | None = None,
+    changed_only: bool = True,
+) -> list[dict]:
     records: list[dict] = []
     prepare_dir = output_root / "prepare"
     prepare_dir.mkdir(parents=True, exist_ok=True)
     for index, step in enumerate(steps, start=1):
         log_path = prepare_dir / f"{index:02d}_{_safe_label(step.label)}.log"
+        prepare_fingerprint = _prepare_fingerprint(step)
+        cache_key = canonical_hash(prepare_fingerprint)
         record = {
             "label": step.label,
             "command": list(step.command),
             "cwd": str(step.cwd),
+            "inputs": [str(path) for path in step.inputs],
             "outputs": [str(path) for path in step.outputs],
             "optional": step.optional,
             "dry_run": dry_run,
+            "changed_only": changed_only,
+            "cache_key": cache_key,
+            "cache_hit": False,
+            "skipped": False,
             "returncode": 0,
             "log_path": str(log_path),
         }
         print(f"[prepare] {step.label}: {' '.join(step.command)}")
+        cached = memory.cached_prepare_step(cache_key) if changed_only and memory is not None else None
+        if cached is not None and _outputs_ready(step.outputs):
+            record.update(
+                {
+                    "cache_hit": True,
+                    "skipped": True,
+                    "source_log_path": cached.get("log_path"),
+                    "output_exists": {str(path): _output_ready(path) for path in step.outputs},
+                }
+            )
+            log_path.write_text(
+                "changed-only cache hit: command skipped\n"
+                f"cache_key: {cache_key}\n"
+                f"source_log_path: {cached.get('log_path')}\n",
+                encoding="utf-8",
+            )
+            print(f"[prepare] SKIP {step.label}: changed-only cache hit")
+            records.append(record)
+            continue
         if dry_run:
             log_path.write_text("dry-run: command not executed\n", encoding="utf-8")
             records.append(record)
@@ -290,8 +384,10 @@ def _run_prepare_steps(steps: list[PrepareStep], output_root: Path, dry_run: boo
         )
         log_path.write_text(result.stdout or "", encoding="utf-8")
         record["returncode"] = result.returncode
-        record["output_exists"] = {str(path): path.exists() for path in step.outputs}
+        record["output_exists"] = {str(path): _output_ready(path) for path in step.outputs}
         records.append(record)
+        if result.returncode == 0 and memory is not None:
+            memory.record_prepare_step(cache_key, record)
         if result.returncode != 0:
             print(f"[prepare] FAILED {step.label}; see {log_path}")
             if not step.optional:
@@ -301,6 +397,81 @@ def _run_prepare_steps(steps: list[PrepareStep], output_root: Path, dry_run: boo
 
 def _prepare_failed(records: list[dict]) -> bool:
     return any(row.get("returncode") != 0 and not row.get("optional") for row in records)
+
+
+def _prepare_fingerprint(step: PrepareStep) -> dict:
+    return {
+        "schema_version": PREPARE_CACHE_SCHEMA_VERSION,
+        "label": step.label,
+        "command": list(step.command),
+        "cwd": str(step.cwd),
+        "env": {key: step.env[key] for key in sorted(step.env)},
+        "inputs": [_input_fingerprint(path) for path in step.inputs],
+        "outputs": [str(path) for path in step.outputs],
+    }
+
+
+def _input_fingerprint(path: Path) -> dict:
+    path = Path(path)
+    if path.is_file():
+        return {"path": str(path), "type": "file", "sha256": sha256_file(path)}
+    if path.is_dir():
+        digest = []
+        for item in sorted(path.rglob("*")):
+            if not item.is_file() or _excluded_input_path(item):
+                continue
+            digest.append(
+                {
+                    "path": str(item.relative_to(path)),
+                    "sha256": sha256_file(item),
+                }
+            )
+        return {"path": str(path), "type": "dir", "files": digest}
+    return {"path": str(path), "type": "missing", "sha256": None}
+
+
+def _excluded_input_path(path: Path) -> bool:
+    return any(part in PREPARE_HASH_EXCLUDED_DIRS for part in path.parts)
+
+
+def _outputs_ready(outputs: tuple[Path, ...]) -> bool:
+    return bool(outputs) and all(_output_ready(path) for path in outputs)
+
+
+def _output_ready(path: Path) -> bool:
+    if path.is_file():
+        return True
+    if path.is_dir():
+        return any(item.is_file() for item in path.rglob("*"))
+    return False
+
+
+def _load_regression_baseline(config: HarnessConfig, memory: Memory | None, baseline: str) -> tuple[list[dict], str]:
+    candidate = Path(baseline).expanduser()
+    if candidate.is_dir():
+        candidate = candidate / "failure_report_v2.json"
+    if candidate.is_file():
+        return json.loads(candidate.read_text(encoding="utf-8")), str(candidate)
+
+    output_candidate = config.path("output", "root") / baseline / "failure_report_v2.json"
+    if output_candidate.is_file():
+        return json.loads(output_candidate.read_text(encoding="utf-8")), str(output_candidate)
+
+    if memory is not None and memory.baseline_map_path.exists():
+        baseline_map = json.loads(memory.baseline_map_path.read_text(encoding="utf-8"))
+        run = (baseline_map.get("runs") or {}).get(baseline)
+        if run:
+            report_path = Path(str(run.get("output_root") or "")) / "failure_report_v2.json"
+            if report_path.is_file():
+                return json.loads(report_path.read_text(encoding="utf-8")), str(report_path)
+    if memory is not None and memory.baseline_pins_path.exists():
+        pins = json.loads(memory.baseline_pins_path.read_text(encoding="utf-8"))
+        pin = (pins.get("pins") or {}).get(baseline)
+        if pin:
+            report_path = Path(str(pin.get("report_path") or ""))
+            if report_path.is_file():
+                return json.loads(report_path.read_text(encoding="utf-8")), str(report_path)
+    raise FileNotFoundError(f"regression baseline not found: {baseline}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -314,15 +485,39 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
     parser.add_argument("--no-cache", action="store_true", help="Do not reuse cached verify results.")
+    parser.add_argument(
+        "--regression-baseline",
+        default="",
+        help="Compare I3 against a prior run id, output directory, or failure_report_v2.json path.",
+    )
     parser.add_argument("--variant-filter", default="", help="Substring filter for variant labels.")
     parser.add_argument("--prepare-artifacts", action="store_true", help="Run local build/extract preparation before analysis.")
     parser.add_argument("--prepare-only", action="store_true", help="Run preparation and stop before Engine11 analysis.")
     parser.add_argument("--prepare-dry-run", action="store_true", help="Print and record preparation commands without executing them.")
+    parser.add_argument("--force-prepare", action="store_true", help="Disable changed-only prepare cache and always run prepare commands.")
     parser.add_argument("--profile", default="P0", choices=["P0", "P1"], help="Local Tier0 build/extract profile.")
     parser.add_argument("--arch", default="x64", help="Local Tier0 arch list: x86,x64,armv7,aarch64 or all.")
     parser.add_argument("--skip-tier0-prepare", action="store_true", help="Skip local Tier0 build/extract prepare steps.")
     parser.add_argument("--include-ue-build", action="store_true", help="Also try the local UE build step.")
     parser.add_argument("--include-ue-extract", action="store_true", help="Also extract local UE build low-pcode with Ghidra.")
+    parser.add_argument(
+        "--case-scope",
+        choices=["auto", "always", "never"],
+        default=None,
+        help="Materialize a per-case low-pcode closure before Engine11 analysis.",
+    )
+    parser.add_argument(
+        "--case-scope-file-threshold",
+        type=int,
+        default=None,
+        help="Auto case-scope when a sample directory has more low-pcode files than this.",
+    )
+    parser.add_argument(
+        "--case-scope-byte-threshold",
+        type=int,
+        default=None,
+        help="Auto case-scope when a sample directory is larger than this many bytes.",
+    )
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
@@ -330,6 +525,7 @@ def main(argv: list[str] | None = None) -> int:
     suites = _parse_suites(args.suite)
     run_id = args.run_id or uuid.uuid4().hex[:12]
     output_root = args.output_dir or (config.path("output", "root") / run_id)
+    memory = None if args.no_ledger and args.no_cache else Memory(config.path("output", "memory"))
 
     if args.prepare_artifacts or args.prepare_only:
         try:
@@ -347,7 +543,14 @@ def main(argv: list[str] | None = None) -> int:
             include_ue_build=args.include_ue_build,
             include_ue_extract=args.include_ue_extract,
         )
-        prepare_records = _run_prepare_steps(steps, output_root, dry_run=args.prepare_dry_run)
+        changed_only = not args.force_prepare and bool(config.value("defaults", "changed_only_prepare", True))
+        prepare_records = _run_prepare_steps(
+            steps,
+            output_root,
+            dry_run=args.prepare_dry_run,
+            memory=memory,
+            changed_only=changed_only,
+        )
         write_json(output_root / "prepare_report.json", prepare_records)
         if _prepare_failed(prepare_records):
             return 1
@@ -381,11 +584,25 @@ def main(argv: list[str] | None = None) -> int:
         "engine_mode": "summary_first" if config.value("defaults", "summary_first", True) else "default",
         "report_schema_version": 2,
         "validator": "expected_validator_v1",
+        "case_scope": args.case_scope or str(config.value("defaults", "case_scope", "auto")),
+        "case_scope_file_threshold": args.case_scope_file_threshold
+        if args.case_scope_file_threshold is not None
+        else int(config.value("defaults", "case_scope_file_threshold", DEFAULT_CASE_SCOPE_FILE_THRESHOLD)),
+        "case_scope_byte_threshold": args.case_scope_byte_threshold
+        if args.case_scope_byte_threshold is not None
+        else int(config.value("defaults", "case_scope_byte_threshold", DEFAULT_CASE_SCOPE_BYTE_THRESHOLD)),
     }
     run_config_hash = canonical_hash(run_config)
 
-    memory = None if args.no_ledger and args.no_cache else Memory(config.path("output", "memory"))
-    runner = Engine11Runner(config, memory=memory, use_cache=not args.no_cache)
+    runner = Engine11Runner(
+        config,
+        output_root,
+        memory=memory,
+        use_cache=not args.no_cache,
+        case_scope_policy=str(run_config["case_scope"]),
+        case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
+        case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
+    )
     reports: list[dict] = []
     for variant in variants:
         print(f"[harness] {variant.label}: {variant.sample_dir}")
@@ -393,19 +610,39 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = summarize(reports)
     gate = invariant_status(reports, ROOT)
+    if args.regression_baseline:
+        try:
+            baseline_report, baseline_ref = _load_regression_baseline(config, memory, args.regression_baseline)
+        except FileNotFoundError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        regressions = regression_failures(baseline_report, reports)
+        gate["I3_regression_zero"] = not regressions
+        gate["regression_baseline"] = baseline_ref
+        gate["regressions"] = regressions
     for row in reports:
         row["artifacts"]["result_path"] = str(output_root / "failure_report_v2.json")
+    human_gate = human_gate_items(reports, gate)
+    agent_tasks = build_agent_tasks(reports, human_gate, ROOT / "harness" / "agents")
 
     write_json(output_root / "failure_report_v2.json", reports)
     write_json(output_root / "summary.json", summary)
     write_json(output_root / "gate.json", gate)
+    write_json(output_root / "human_gate.json", human_gate)
+    write_json(output_root / "agent_tasks.json", agent_tasks)
     if not args.no_ledger and memory is not None:
-        memory.record_run(run_id, reports, summary, gate, output_root)
+        memory.record_run(run_id, reports, summary, gate, output_root, human_gate=human_gate)
 
     print_summary(summary)
     print(f"gate: {gate}")
     print(f"[saved] {output_root}")
-    return 1 if not gate.get("I1_crash_zero") or not gate.get("I2_false_positive_zero") else 0
+    return 1 if any(
+        [
+            not gate.get("I1_crash_zero"),
+            not gate.get("I2_false_positive_zero"),
+            gate.get("I3_regression_zero") is False,
+        ]
+    ) else 0
 
 
 if __name__ == "__main__":

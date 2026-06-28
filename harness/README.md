@@ -8,7 +8,9 @@ adapter -> Engine11 실행 -> expected 검증 -> FailureReport v2 -> suite summa
 -> JSON 원장 -> 동일 입력 캐시 재사용까지 실제로 동작한다. Suite10 Tier0는 local
 build/extract prepare step으로 NDK/Ghidra 산출물을 만들고 곧바로 Engine11 분석까지
 연결할 수 있다. UE 5.8 Mac local build 산출물도 prepare step에서 Ghidra
-low-pcode 추출까지 자동 연결할 수 있다. Agent 판단 루프는 다음 단계다.
+low-pcode 추출까지 자동 연결할 수 있다. 큰 UE 디렉터리는 case-scoped low-pcode
+closure로 분석해 P0(DebugGame)도 전체 22개 case 회귀가 가능하다. LLM 호출 자체는
+아직 붙이지 않지만, human gate와 agent task artifact는 결정적으로 생성한다.
 
 ## 에이전트 7종
 `triage · diagnostician · adversary · engine_fixer · case_author · memory_synth · coverage_planner`
@@ -21,8 +23,13 @@ harness/
   config.py           config.yaml(.example) 로드 + 로컬 기본값.
   reporting.py        artifact hash, FailureReport v2 summary writer.
   gates.py            목적함수·불변식·오라클잠금.
+  case_scope.py       큰 low-pcode 디렉터리의 case별 dependency closure materializer.
+  agent_tasks.py      human gate 기반 판단 노드 task artifact 생성.
+  agent_runtime.py    외부 JSON-in/JSON-out agent executor hook + role/evidence 검증.
+  human_approval.py   human approval queue 조회/결정 append-only CLI.
+  baseline.py         I3 regression baseline pin 관리 CLI.
   memory/
-    schema.json       외부 원장 5종 스키마.
+    schema.json       외부 원장 스키마.
     store.py          JSON/JSONL 원장 구현.
   agents/             판단 노드 계약서.
 ```
@@ -83,10 +90,8 @@ python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifac
 python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P0 --include-ue-build --include-ue-extract --variant-filter ue-local-debuggame
 ```
 
-P1(Development)는 현재 end-to-end smoke로 검증되어 있다. P0(DebugGame)는
-UE 5.8 Mac arm64 dylib에서 22개 case low-pcode 추출까지 검증했지만, 전체 분석은
-Engine11의 directory-wide graph compose 비용이 커서 case-scoped graph/budget 개선
-후 정식 gate로 올린다.
+P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 검증되어
+있다. P0는 full directory compose 대신 case-scoped closure를 사용한다.
 
 주요 옵션:
 
@@ -97,13 +102,18 @@ Engine11의 directory-wide graph compose 비용이 커서 case-scoped graph/budg
 --prepare-artifacts       분석 전 build/extract 준비 단계 실행
 --prepare-only            build/extract 준비만 하고 분석은 생략
 --prepare-dry-run         준비 명령을 기록만 하고 실행하지 않음
+--force-prepare           changed-only prepare cache를 무시하고 준비 명령 실행
 --profile P0|P1           Tier0 빌드 프로파일
 --arch x64|x86|armv7|aarch64|all
 --skip-tier0-prepare      UE만 준비할 때 Tier0 build/extract 생략
 --include-ue-build        UE 5.8 Mac build step 포함
 --include-ue-extract      UE 5.8 Mac build output low-pcode extraction 포함
+--case-scope auto|always|never
+                           큰 low-pcode directory를 case별 closure로 materialize
 --variant-filter TEXT     variant label substring으로 실행 대상 제한
 --case-filter TEXT        case JSON filename substring으로 실행 대상 제한
+--regression-baseline ID|PATH
+                           이전 run id/output dir/failure_report_v2.json 기준 I3 비교
 --no-cache                engine/verify 캐시 재사용 끄기
 --no-ledger               memory ledger 갱신 끄기
 ```
@@ -114,12 +124,47 @@ Engine11의 directory-wide graph compose 비용이 커서 case-scoped graph/budg
 output/harness/<run_id>/failure_report_v2.json
 output/harness/<run_id>/summary.json
 output/harness/<run_id>/gate.json
+output/harness/<run_id>/human_gate.json
+output/harness/<run_id>/agent_tasks.json
 output/harness/<run_id>/prepare_report.json
 output/harness/<run_id>/prepare/*.log
 output/harness/memory/failure_ledger.jsonl
 output/harness/memory/artifact_cache.json
+output/harness/memory/baseline_map.json
 output/harness/memory/capability_map.json
+output/harness/memory/human_approval_queue.jsonl
+output/harness/memory/human_decisions.jsonl
+output/harness/memory/baseline_pins.json
 ```
+
+Human approval queue:
+
+```bash
+python -m harness.human_approval list --run-id p0_case_scope_agent_tasks
+python -m harness.human_approval show 38487fd26e35d1c9
+python -m harness.human_approval decide 38487fd26e35d1c9 --decision defer --reason "need engine diagnosis"
+python -m harness.human_approval decide 789a6902be877df4 --decision approve --capability-status frontier --reason "confirmed current frontier"
+```
+
+Regression baseline pins:
+
+```bash
+python -m harness.baseline pin dfb001-good --run-id dfb001_after_harness_finish --description DFB001-all-arch-known-good
+python -m harness.baseline list
+python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --regression-baseline dfb001-good
+```
+
+Agent runtime hook:
+
+```bash
+python -m harness.agent_runtime run \
+  --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
+  --output-dir output/harness/agent_runtime \
+  --executor "your-json-in-json-out-agent-command"
+```
+
+Agent executor output은 role별 JSON 계약과 evidence requirement를 통과해야 accepted로
+기록된다. 모델 출력은 PASS/FAIL, expected, manifest, engine merge를 직접 바꾸지 않는다.
 
 검증된 smoke:
 
@@ -162,19 +207,54 @@ python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter 
 python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P0 --include-ue-build --include-ue-extract --variant-filter ue-local-debuggame --run-id ue58_debug_extract_analyze --no-cache
 prepare: ue-build-P0 OK / ue-extract-P0 OK / 22 case JSON produced
 analysis: interrupted at Engine11 directory-wide NetworkX compose budget
+
+python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter ue-local-debuggame --run-id p0_case_scope_auto_regression --no-cache
+10_tdo_testbed_UE/ue-local-debuggame: PASS 10 / FAIL 12 / ERROR 0 / FP 2 / CACHE 0
+
+python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter ue-local-debuggame --case-scope always --run-id p0_case_scope_agent_tasks
+10_tdo_testbed_UE/ue-local-debuggame: PASS 10 / FAIL 12 / ERROR 0 / FP 2 / CACHE 22
+human_gate.json: 12 review items, agent_tasks.json: 26 deterministic tasks
+
+python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter ue-local-development --run-id p1_case_scope_auto_regression --no-cache
+10_tdo_testbed_UE/ue-local-development: PASS 2 / FAIL 20 / ERROR 0 / FP 2 / CACHE 0
+
+python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter ue-local-development --run-id p1_case_scope_auto_hot
+10_tdo_testbed_UE/ue-local-development: PASS 2 / FAIL 20 / ERROR 0 / FP 2 / CACHE 22
+
+python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --run-id dfb001_after_harness_finish
+09_tdo_testbed: PASS 6 / FAIL 0 / ERROR 0 / FP 0
+
+python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --run-id dfb001_i3_baseline_smoke --regression-baseline dfb001_after_harness_finish
+09_tdo_testbed: PASS 6 / FAIL 0 / ERROR 0 / FP 0 / CACHE 6 / I3_regression_zero True
+
+python -m harness.baseline pin dfb001-good --run-id dfb001_after_harness_finish --description DFB001-all-arch-known-good
+baseline pin: dfb001-good
+
+python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --run-id dfb001_i3_pin_smoke --regression-baseline dfb001-good
+09_tdo_testbed: PASS 6 / FAIL 0 / ERROR 0 / FP 0 / CACHE 6 / I3_regression_zero True
+
+python -m harness.agent_runtime run --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json --output-dir output/harness/agent_runtime_smoke2 --executor "<json-in-json-out smoke executor>"
+agent tasks: 26 result(s), accepted=26
 ```
 
 ## 결정적 vs STUB
 | 완성(결정적) | STUB(배선 필요) |
 |---|---|
-| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | build/extract changed-only cache |
-| artifact hash, engine commit, expected hash, run config hash 기록 | UE build-output binary discovery/cache |
-| cache hit 기반 engine/verify result skip | LLM agent loop, adversary panel |
-| Suite10 Tier0 local build/extract prepare step | UE Mac local expected baseline after extraction |
+| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | UE build-output binary discovery/cache |
+| artifact hash, engine commit, expected hash, run config hash 기록 | multi-arch/local UE variants beyond Mac arm64 |
+| cache hit 기반 engine/verify result skip | real model-tier router/cost budget enforcement |
+| changed-only prepare cache | automatic engine fix/proposed case execution loop |
+| Suite10 Tier0 local build/extract prepare step | UE build-output binary discovery/cache |
 | UE 5.8 local DebugGame/Development build prepare step | multi-arch/local UE variants beyond Mac arm64 |
-| UE 5.8 Mac build-output low-pcode extraction + local analysis | triage/evidence schema 강화 |
-| failure/capability/artifact JSON 원장 갱신 | human approval queue |
-| crash=0, false_positive=0, oracle_locked gate | P0 DebugGame case-scoped graph/budget optimization |
+| UE 5.8 Mac build-output low-pcode extraction + local analysis | automatic proposed case source generation |
+| human approval queue consume CLI | automatic engine patch worktree loop |
+| agent runtime hook + output schema/evidence validation |  |
+| named regression baseline pins |  |
+| P0 DebugGame case-scoped graph/budget path | 결정적 core 기준 추가 STUB 없음 |
+| baseline/capability/artifact JSON 원장 갱신 | 결정적 core 기준 추가 STUB 없음 |
+| human_gate.json + human_approval_queue.jsonl | 결정적 core 기준 추가 STUB 없음 |
+| agent_tasks.json task artifact generation | 결정적 core 기준 추가 STUB 없음 |
+| crash=0, false_positive=0, regression=0, oracle_locked gate | 결정적 core 기준 추가 STUB 없음 |
 
 ## 기존 자산에 grounding
 ```text
@@ -197,8 +277,8 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 엔진 출력에서 생성하지 않는다.
 
 ## 다음 배선 순서
-1. P0 DebugGame이 directory-wide graph compose에서 멈추지 않도록 case-scoped graph/budget 경로를 붙인다.
-2. build/pcode 단계 캐시 무효화를 붙여 changed-only 실행을 완성한다.
-3. UE Mac local 결과를 release-artifacts와 분리해 baseline/capability map으로 관리한다.
-4. `agent()`를 LLM 런타임에 연결하고, 7개 계약서의 I/O 스키마를 그대로 강제한다.
-5. 휴먼 게이트(오라클 변경/대형 패치/frontier 판정)를 큐로 노출한다.
+1. 실제 모델 provider를 `agent_runtime.py` 뒤에 붙이고 model-tier/cost budget을 강제한다.
+2. UE build-output binary discovery/cache를 강화해 profile별 산출물을 자동 식별한다.
+3. agent 결과를 근거로 engine patch worktree/proposed_cases 생성 루프를 붙인다.
+4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
+5. 반복 실행 정책을 정해 어떤 baseline pin을 release/local gate로 승격할지 문서화한다.
