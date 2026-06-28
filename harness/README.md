@@ -158,6 +158,9 @@ python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --regression
 Agent runtime hook:
 
 ```bash
+python -m harness.agent_runtime doctor
+python -m harness.agent_runtime doctor --strict --json
+
 python -m harness.agent_runtime run \
   --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
   --output-dir output/harness/agent_runtime \
@@ -169,13 +172,17 @@ python -m harness.proposals \
   --agent-results output/harness/agent_runtime/agent_results.json \
   --run-id proposal_run \
   --output-dir output/harness/proposal_run \
-  --include-coverage
+  --include-coverage \
+  --scaffold-work-items
 ```
 
 Agent executor output은 role별 JSON 계약과 evidence requirement를 통과해야 accepted로
 기록된다. 모델 출력은 PASS/FAIL, expected, manifest, engine merge를 직접 바꾸지 않는다.
 Accepted case_author/engine_fixer/coverage_planner output도 proposal artifact로만
-materialize되고, source-of-truth 오라클과 엔진 main은 자동 수정하지 않는다.
+materialize된다. `--scaffold-work-items`는 사람이 검토할 source skeleton,
+engine fix plan, coverage update plan만 만들고, source-of-truth 오라클과 엔진 main은
+자동 수정하지 않는다. 실제 provider command는 로컬 `harness/config.yaml`의
+`models.commands.{cheap,strong}`에 넣고 `agent_runtime doctor --strict`로 점검한다.
 
 검증된 smoke:
 
@@ -252,6 +259,9 @@ agent tasks: 26 result(s), accepted=26, tiers cheap/strong, used_calls=26
 
 python -m harness.proposals --agent-results output/harness/agent_runtime_budget_smoke/agent_results.json --run-id proposal_smoke --output-dir output/harness/proposal_smoke --include-coverage
 materialized 10 proposal artifact(s)
+
+python -m harness.proposals --agent-results output/harness/agent_runtime_budget_smoke/agent_results.json --run-id proposal_scaffold_smoke --output-dir output/harness/proposal_scaffold_smoke --include-coverage --scaffold-work-items
+materialized 10 proposal artifact(s), scaffolded 10 proposal work item(s)
 ```
 
 ## 결정적 vs STUB
@@ -259,16 +269,16 @@ materialized 10 proposal artifact(s)
 |---|---|
 | config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | automatic engine patch worktree loop |
 | artifact hash, engine commit, expected hash, run config hash 기록 | multi-arch/local UE variants beyond Mac arm64 |
-| cache hit 기반 engine/verify result skip | real provider-specific model command configuration |
-| changed-only prepare cache | automatic source-code case authoring from proposal |
+| cache hit 기반 engine/verify result skip | local provider command values/secrets configuration |
+| changed-only prepare cache | automatic approved source copy into real testbed repo |
 | Suite10 Tier0 local build/extract prepare step | multi-arch/local UE variants beyond Mac arm64 |
 | UE 5.8 local DebugGame/Development build prepare step | 결정적 core 기준 추가 STUB 없음 |
 | UE 5.8 Mac build-output low-pcode extraction + local analysis | 결정적 core 기준 추가 STUB 없음 |
 | UE build-output binary discovery + artifact cache identity | 결정적 core 기준 추가 STUB 없음 |
 | human approval queue consume CLI | 결정적 core 기준 추가 STUB 없음 |
-| agent runtime hook + output schema/evidence validation + tier/budget accounting | 결정적 core 기준 추가 STUB 없음 |
+| agent runtime hook + output schema/evidence validation + tier/budget accounting + provider doctor | 결정적 core 기준 추가 STUB 없음 |
 | named regression baseline pins | 결정적 core 기준 추가 STUB 없음 |
-| proposal artifact materialization | 결정적 core 기준 추가 STUB 없음 |
+| proposal artifact materialization + review work item scaffolding | 결정적 core 기준 추가 STUB 없음 |
 | P0 DebugGame case-scoped graph/budget path | 결정적 core 기준 추가 STUB 없음 |
 | baseline/capability/artifact JSON 원장 갱신 | 결정적 core 기준 추가 STUB 없음 |
 | human_gate.json + human_approval_queue.jsonl | 결정적 core 기준 추가 STUB 없음 |
@@ -296,8 +306,8 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 엔진 출력에서 생성하지 않는다.
 
 ## 다음 배선 순서
-1. 실제 모델 provider command를 `models.commands.{cheap,strong}`에 연결한다.
-2. accepted engine_fixer proposal을 별도 11_ worktree patch branch로 자동 생성하되 main merge는 계속 human gate로 둔다.
-3. accepted case_author proposal에서 실제 source skeleton을 만들되 expected/manifest 반영은 human approval 뒤로 둔다.
+1. 로컬 `harness/config.yaml`에 실제 모델 provider command를 `models.commands.{cheap,strong}`로 채우고 `agent_runtime doctor --strict`를 gate에 넣는다.
+2. accepted engine_fixer work item을 별도 11_ worktree patch branch로 생성하되 main merge는 계속 human gate로 둔다.
+3. accepted case_author work item을 사람이 승인한 뒤 실제 source/manifest/expected generation 단계로 복사한다.
 4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
 5. 반복 실행 정책을 정해 어떤 baseline pin을 release/local gate로 승격할지 문서화한다.

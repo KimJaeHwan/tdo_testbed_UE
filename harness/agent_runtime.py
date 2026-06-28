@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import shlex
 import subprocess
 from datetime import datetime, timezone
@@ -253,6 +254,71 @@ def _resolve_executor(args: argparse.Namespace, config: HarnessConfig, task: dic
     return tier, executor, model_name
 
 
+def doctor(args: argparse.Namespace) -> int:
+    config = HarnessConfig.load(args.config if args.config.exists() else None)
+    commands = config.value("models", "commands", {}) or {}
+    agent_tiers = config.value("models", "agent_tiers", {}) or {}
+    merged_agent_tiers = dict(DEFAULT_AGENT_TIERS)
+    merged_agent_tiers.update({str(key): str(value) for key, value in agent_tiers.items()})
+    used_tiers = sorted(set(merged_agent_tiers.values()) | {"cheap", "strong"})
+    command_rows = [_inspect_command(tier, str(commands.get(tier) or "")) for tier in used_tiers]
+    warnings = []
+    errors = []
+    for row in command_rows:
+        if row["status"] == "missing":
+            message = f"missing command for tier={row['tier']}"
+            (errors if args.strict else warnings).append(message)
+        elif row["status"] == "not_found":
+            errors.append(f"command not found for tier={row['tier']}: {row['executable']}")
+    report = {
+        "schema_version": AGENT_RESULT_SCHEMA_VERSION,
+        "config": str(args.config) if args.config.exists() else "<defaults>",
+        "agent_tiers": merged_agent_tiers,
+        "commands": command_rows,
+        "models": {
+            "cheap": config.value("models", "cheap", ""),
+            "strong": config.value("models", "strong", ""),
+            "adversary_panel": config.value("models", "adversary_panel", []),
+        },
+        "budgets": {
+            "per_run_max_calls": config.value("budgets", "per_run_max_calls", 0),
+            "per_run_max_tokens": config.value("budgets", "per_run_max_tokens", 0),
+        },
+        "warnings": warnings,
+        "errors": errors,
+    }
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"config: {report['config']}")
+        print(f"budgets: calls={report['budgets']['per_run_max_calls']} tokens={report['budgets']['per_run_max_tokens']}")
+        for row in command_rows:
+            print(f"tier {row['tier']}: {row['status']} {row['command'] or '<empty>'}")
+        if warnings:
+            print("warnings:")
+            for warning in warnings:
+                print(f"  - {warning}")
+        if errors:
+            print("errors:")
+            for error in errors:
+                print(f"  - {error}")
+    return 0 if not errors else 1
+
+
+def _inspect_command(tier: str, command: str) -> dict:
+    if not command:
+        return {"tier": tier, "command": command, "executable": "", "resolved": "", "status": "missing"}
+    argv = shlex.split(command)
+    if not argv:
+        return {"tier": tier, "command": command, "executable": "", "resolved": "", "status": "missing"}
+    executable = argv[0]
+    resolved = shutil.which(executable)
+    if resolved is None and Path(executable).is_file():
+        resolved = str(Path(executable))
+    status = "ok" if resolved else "not_found"
+    return {"tier": tier, "command": command, "executable": executable, "resolved": resolved or "", "status": status}
+
+
 def validate_outputs(args: argparse.Namespace) -> int:
     tasks = _read_json(args.tasks)
     if not isinstance(tasks, list):
@@ -301,6 +367,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--max-tokens", type=int, default=None, help="Override approximate token budget. 0 means unlimited.")
     run_p.add_argument("--dry-run", action="store_true", help="Write request JSON files only.")
     run_p.set_defaults(func=run_tasks)
+
+    doctor_p = sub.add_parser("doctor", help="Validate configured agent tiers, commands, and budgets.")
+    doctor_p.add_argument("--config", type=Path, default=ROOT / "harness" / "config.yaml")
+    doctor_p.add_argument("--strict", action="store_true", help="Treat missing tier commands as errors.")
+    doctor_p.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
+    doctor_p.set_defaults(func=doctor)
 
     val_p = sub.add_parser("validate", help="Validate existing agent output JSON files.")
     val_p.add_argument("--tasks", type=Path, required=True)

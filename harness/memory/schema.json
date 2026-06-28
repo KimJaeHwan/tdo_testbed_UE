@@ -122,8 +122,9 @@
       "kind": "proposed_case|engine_fix_proposal|coverage_update_proposal",
       "agent_result": "validated accepted agent result row",
       "proposal": "agent output payload",
+      "work_items": "optional source skeleton / engine fix plan / coverage update plan review artifacts",
       "policy": "expected_not_applied / engine_not_modified / requires_human_approval"
     },
-    "_use": "accepted agent output을 사람이 검토할 proposal로만 materialize한다. expected/manifest/engine main은 직접 수정하지 않는다."
+    "_use": "accepted agent output을 사람이 검토할 proposal/work_item으로만 materialize한다. expected/manifest/engine main은 직접 수정하지 않는다."
   }
 }

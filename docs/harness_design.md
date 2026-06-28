@@ -258,20 +258,24 @@ PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases appro
                      agent_runtime.py가 외부 JSON-in/JSON-out executor를 호출하고
                      role별 schema/evidence를 검증해 accepted 여부를 기록한다. agent별
                      cheap/strong tier routing과 per-run call/token budget accounting을
-                     적용한다.
+                     적용한다. agent_runtime doctor는 provider command/tier/budget
+                     설정을 실행 전 점검한다.
                      human_approval.py는 queue item을 approve/reject/defer로
                      append-only 기록하고 capability_map에 human decision ref를 남긴다.
                      proposals.py는 accepted case_author/engine_fixer/coverage_planner
                      output을 source-of-truth 변경이 아닌 proposal artifact로만
-                     materialize한다. 실제 provider command 설정과 engine patch
-                     worktree 실행은 후속 배선)
+                     materialize하고, --scaffold-work-items로 source skeleton,
+                     engine fix plan, coverage update plan을 review artifact로만
+                     생성한다. 실제 provider command 값과 engine patch worktree
+                     실행은 후속 로컬/휴먼 승인 배선)
 ```
 
 ## 17. 최종 목표
 ```bash
 python -m harness.orchestrator --config harness/config.yaml --suite 09,10 --engine 11 --changed-only --budget standard
 # → 변경감지 → 필요 case만 build → 캐시 hit/miss → 추출 → 11 실행 → verify → report v2
-#   → gates → triage → diagnostics → adversary → (패치 제안|frontier 기록) → case gap이면 proposed_cases → capability/ledger 갱신
+#   → gates → triage → diagnostics → adversary → (패치 제안|frontier 기록)
+#   → case gap이면 proposed_cases/work_items → capability/ledger 갱신
 ```
 
 ## 18. 반드시 피할 것 (anti-patterns)
