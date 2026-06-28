@@ -216,6 +216,9 @@ def run_tasks(args: argparse.Namespace) -> int:
         output_path = prefix.with_suffix(".output.json")
         write_json(output_path, output)
         validation = validate_agent_output(task, output)
+        if proc.returncode != 0:
+            validation["accepted"] = False
+            validation.setdefault("errors", []).append(f"provider returned non-zero: {proc.returncode}")
         estimated_output_tokens = _estimate_tokens(output)
         used_tokens += estimated_input_tokens + estimated_output_tokens
         if max_tokens and used_tokens > max_tokens:

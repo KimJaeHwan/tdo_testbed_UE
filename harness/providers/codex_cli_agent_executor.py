@@ -113,8 +113,6 @@ def execute(args: argparse.Namespace) -> int:
             "--ephemeral",
             "--sandbox",
             args.sandbox,
-            "-a",
-            "never",
             "--output-schema",
             str(schema_path),
             "--output-last-message",
