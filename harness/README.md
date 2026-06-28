@@ -186,11 +186,26 @@ python -m harness.proposals \
   --output-dir output/harness/proposal_run \
   --include-coverage \
   --scaffold-work-items
+
+python -m harness.agent_loop \
+  --config harness/config.yaml.example \
+  --tasks output/harness/cycle_check_ue_p0_hot/agent_tasks.json \
+  --output-dir output/harness/codex_agent_longrun \
+  --duration-hours 4.5 \
+  --chunk-calls 5 \
+  --chunk-tokens 50000 \
+  --materialize-proposals \
+  --proposal-output-dir output/harness/codex_agent_longrun_proposal \
+  --include-coverage \
+  --scaffold-work-items \
+  --stop-on-no-progress
 ```
 
 `--max-calls`, `--max-tokens`, provider error로 중간 종료되면 exit code 3이 날 수 있다.
 이때도 accepted 결과는 `agent_results.json`에 저장되므로, 같은 output dir에
 `--resume-existing`을 붙여 이어서 실행한다.
+장시간 실행은 `agent_loop`가 이 과정을 반복한다. `duration-hours`는 Codex 5시간 만료
+전에 안전 여유를 두기 위해 4.5처럼 잡는다.
 
 Agent executor output은 role별 JSON 계약과 evidence requirement를 통과해야 accepted로
 기록된다. 모델 출력은 PASS/FAIL, expected, manifest, engine merge를 직접 바꾸지 않는다.

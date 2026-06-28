@@ -29,6 +29,7 @@ harness/
   ue_artifacts.py
   agent_tasks.py
   agent_runtime.py
+  agent_loop.py
   providers/
     openai_agent_executor.py
     codex_cli_agent_executor.py
@@ -166,6 +167,36 @@ human gate와 failure report를 agent task JSON으로 바꾼다.
 python3 -m harness.agent_runtime doctor
 python3 -m harness.agent_runtime doctor --strict
 python3 -m harness.agent_runtime run --tasks output/harness/<run_id>/agent_tasks.json --output-dir output/harness/agent_run
+```
+
+### `harness/agent_loop.py`
+
+`agent_runtime run --resume-existing`을 반복 실행하는 장시간 loop runner다.
+
+역할:
+- Codex/LLM 한도 안에서 chunk 단위로 agent task 처리
+- `agent_loop_state.json`에 round별 진행 상황 저장
+- accepted task는 재실행하지 않고 이어가기
+- 시간 예산, chunk call/token 예산, total call 예산으로 자동 중단
+- 필요하면 proposal/work item을 마지막 또는 매 round 생성
+
+5시간 토큰 만료를 고려하면 `--duration-hours 4.5`처럼 여유를 두고 실행한다.
+
+예:
+
+```bash
+python3 -m harness.agent_loop \
+  --config harness/config.yaml.example \
+  --tasks output/harness/cycle_check_ue_p0_hot/agent_tasks.json \
+  --output-dir output/harness/codex_agent_longrun \
+  --duration-hours 4.5 \
+  --chunk-calls 5 \
+  --chunk-tokens 50000 \
+  --materialize-proposals \
+  --proposal-output-dir output/harness/codex_agent_longrun_proposal \
+  --include-coverage \
+  --scaffold-work-items \
+  --stop-on-no-progress
 ```
 
 ### `harness/providers/openai_agent_executor.py`
