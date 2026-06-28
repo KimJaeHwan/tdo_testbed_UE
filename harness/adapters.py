@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import HarnessConfig
+from .ue_artifacts import discover_local_ue_artifact
 
 
 @dataclass(frozen=True)
@@ -124,39 +125,39 @@ class Suite10UEAdapter:
                     )
                 )
 
-        project = self.root / "unreal_playground" / "TraceUnrealPlayground"
         expected = self.root / "unreal_playground" / "expected" / "tv2_unreal.expected.json"
-        binaries = project / "Binaries" / "Mac"
+        p1 = discover_local_ue_artifact(self.root, "P1")
+        p0 = discover_local_ue_artifact(self.root, "P0")
         variants.extend(
             [
                 Variant(
                     suite="10_tdo_testbed_UE",
-                    label="ue-local-development",
-                    sample_dir=project / "samples" / "low_pcode",
+                    label=p1.label,
+                    sample_dir=p1.sample_dir,
                     expected_path=expected,
                     case_glob="case_TV2*_low_pcode.json",
-                    arch="aarch64",
+                    arch=p1.arch,
                     compiler="local",
-                    opt="O2",
-                    build_config="Development",
+                    opt=p1.opt,
+                    build_config=p1.build_config,
                     pdb=False,
                     unreal_version="5.8.0",
-                    binary_path=binaries / "libUnrealEditor-TraceUnrealPlayground.dylib",
+                    binary_path=p1.binary_path,
                     source_kind="local-samples",
                 ),
                 Variant(
                     suite="10_tdo_testbed_UE",
-                    label="ue-local-debuggame",
-                    sample_dir=project / "samples" / "low_pcode_P0",
+                    label=p0.label,
+                    sample_dir=p0.sample_dir,
                     expected_path=expected,
                     case_glob="case_TV2*_low_pcode.json",
-                    arch="aarch64",
+                    arch=p0.arch,
                     compiler="local",
-                    opt="Od",
-                    build_config="DebugGame",
+                    opt=p0.opt,
+                    build_config=p0.build_config,
                     pdb=False,
                     unreal_version="5.8.0",
-                    binary_path=binaries / "libUnrealEditor-TraceUnrealPlayground-Mac-DebugGame.dylib",
+                    binary_path=p0.binary_path,
                     source_kind="local-samples",
                 ),
             ]
@@ -237,30 +238,19 @@ class Suite10UEAdapter:
                 )
             )
         if include_ue_extract:
-            sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode"
-            binary = self.root / "unreal_playground" / "TraceUnrealPlayground" / "Binaries" / "Mac" / "libUnrealEditor-TraceUnrealPlayground.dylib"
-            if profile == "P0":
-                sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode_P0"
-                binary = (
-                    self.root
-                    / "unreal_playground"
-                    / "TraceUnrealPlayground"
-                    / "Binaries"
-                    / "Mac"
-                    / "libUnrealEditor-TraceUnrealPlayground-Mac-DebugGame.dylib"
-                )
+            artifact = discover_local_ue_artifact(self.root, profile)
             steps.append(
                 PrepareStep(
                     label=f"ue-extract-{profile}",
                     command=("bash", str(self.root / "unreal_playground" / "scripts" / "extract_lowpcode.sh"), profile),
                     cwd=self.root,
                     env=env,
-                    outputs=(sample_dir,),
+                    outputs=(artifact.sample_dir,),
                     inputs=(
                         self.root / "tools" / "detect_env.sh",
                         self.root / "unreal_playground" / "scripts" / "extract_lowpcode.sh",
                         self.root / "unreal_playground" / "tools" / "normalize_macho_lowpcode.py",
-                        binary,
+                        artifact.binary_path,
                         self.config.path("repos", "engine_11") / "scripts" / "lowpcode_json_dumper.py",
                     ),
                 )

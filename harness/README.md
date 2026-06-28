@@ -28,6 +28,7 @@ harness/
   agent_runtime.py    외부 JSON-in/JSON-out agent executor hook + role/evidence 검증.
   human_approval.py   human approval queue 조회/결정 append-only CLI.
   baseline.py         I3 regression baseline pin 관리 CLI.
+  proposals.py        accepted agent output을 proposed artifact로 materialize.
   memory/
     schema.json       외부 원장 스키마.
     store.py          JSON/JSONL 원장 구현.
@@ -160,11 +161,21 @@ Agent runtime hook:
 python -m harness.agent_runtime run \
   --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
   --output-dir output/harness/agent_runtime \
+  --max-calls 30 \
+  --max-tokens 200000 \
   --executor "your-json-in-json-out-agent-command"
+
+python -m harness.proposals \
+  --agent-results output/harness/agent_runtime/agent_results.json \
+  --run-id proposal_run \
+  --output-dir output/harness/proposal_run \
+  --include-coverage
 ```
 
 Agent executor output은 role별 JSON 계약과 evidence requirement를 통과해야 accepted로
 기록된다. 모델 출력은 PASS/FAIL, expected, manifest, engine merge를 직접 바꾸지 않는다.
+Accepted case_author/engine_fixer/coverage_planner output도 proposal artifact로만
+materialize되고, source-of-truth 오라클과 엔진 main은 자동 수정하지 않는다.
 
 검증된 smoke:
 
@@ -235,21 +246,29 @@ python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --run-id dfb
 
 python -m harness.agent_runtime run --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json --output-dir output/harness/agent_runtime_smoke2 --executor "<json-in-json-out smoke executor>"
 agent tasks: 26 result(s), accepted=26
+
+python -m harness.agent_runtime run --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json --output-dir output/harness/agent_runtime_budget_smoke --max-calls 30 --max-tokens 200000 --executor "<json-in-json-out smoke executor>"
+agent tasks: 26 result(s), accepted=26, tiers cheap/strong, used_calls=26
+
+python -m harness.proposals --agent-results output/harness/agent_runtime_budget_smoke/agent_results.json --run-id proposal_smoke --output-dir output/harness/proposal_smoke --include-coverage
+materialized 10 proposal artifact(s)
 ```
 
 ## 결정적 vs STUB
 | 완성(결정적) | STUB(배선 필요) |
 |---|---|
-| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | UE build-output binary discovery/cache |
+| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | automatic engine patch worktree loop |
 | artifact hash, engine commit, expected hash, run config hash 기록 | multi-arch/local UE variants beyond Mac arm64 |
-| cache hit 기반 engine/verify result skip | real model-tier router/cost budget enforcement |
-| changed-only prepare cache | automatic engine fix/proposed case execution loop |
-| Suite10 Tier0 local build/extract prepare step | UE build-output binary discovery/cache |
-| UE 5.8 local DebugGame/Development build prepare step | multi-arch/local UE variants beyond Mac arm64 |
-| UE 5.8 Mac build-output low-pcode extraction + local analysis | automatic proposed case source generation |
-| human approval queue consume CLI | automatic engine patch worktree loop |
-| agent runtime hook + output schema/evidence validation |  |
-| named regression baseline pins |  |
+| cache hit 기반 engine/verify result skip | real provider-specific model command configuration |
+| changed-only prepare cache | automatic source-code case authoring from proposal |
+| Suite10 Tier0 local build/extract prepare step | multi-arch/local UE variants beyond Mac arm64 |
+| UE 5.8 local DebugGame/Development build prepare step | 결정적 core 기준 추가 STUB 없음 |
+| UE 5.8 Mac build-output low-pcode extraction + local analysis | 결정적 core 기준 추가 STUB 없음 |
+| UE build-output binary discovery + artifact cache identity | 결정적 core 기준 추가 STUB 없음 |
+| human approval queue consume CLI | 결정적 core 기준 추가 STUB 없음 |
+| agent runtime hook + output schema/evidence validation + tier/budget accounting | 결정적 core 기준 추가 STUB 없음 |
+| named regression baseline pins | 결정적 core 기준 추가 STUB 없음 |
+| proposal artifact materialization | 결정적 core 기준 추가 STUB 없음 |
 | P0 DebugGame case-scoped graph/budget path | 결정적 core 기준 추가 STUB 없음 |
 | baseline/capability/artifact JSON 원장 갱신 | 결정적 core 기준 추가 STUB 없음 |
 | human_gate.json + human_approval_queue.jsonl | 결정적 core 기준 추가 STUB 없음 |
@@ -277,8 +296,8 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 엔진 출력에서 생성하지 않는다.
 
 ## 다음 배선 순서
-1. 실제 모델 provider를 `agent_runtime.py` 뒤에 붙이고 model-tier/cost budget을 강제한다.
-2. UE build-output binary discovery/cache를 강화해 profile별 산출물을 자동 식별한다.
-3. agent 결과를 근거로 engine patch worktree/proposed_cases 생성 루프를 붙인다.
+1. 실제 모델 provider command를 `models.commands.{cheap,strong}`에 연결한다.
+2. accepted engine_fixer proposal을 별도 11_ worktree patch branch로 자동 생성하되 main merge는 계속 human gate로 둔다.
+3. accepted case_author proposal에서 실제 source skeleton을 만들되 expected/manifest 반영은 human approval 뒤로 둔다.
 4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
 5. 반복 실행 정책을 정해 어떤 baseline pin을 release/local gate로 승격할지 문서화한다.

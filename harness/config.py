@@ -107,6 +107,19 @@ class HarnessConfig:
                 "cheap": "",
                 "strong": "",
                 "adversary_panel": [],
+                "commands": {
+                    "cheap": "",
+                    "strong": "",
+                },
+                "agent_tiers": {
+                    "triage": "cheap",
+                    "coverage_planner": "cheap",
+                    "memory_synth": "cheap",
+                    "diagnostician": "strong",
+                    "adversary": "strong",
+                    "engine_fixer": "strong",
+                    "case_author": "strong",
+                },
             },
             "budgets": {
                 "per_run_max_calls": 0,

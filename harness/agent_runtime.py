@@ -9,10 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .config import HarnessConfig, ROOT
 from .reporting import write_json
 
 
 AGENT_RESULT_SCHEMA_VERSION = 1
+DEFAULT_AGENT_TIERS = {
+    "triage": "cheap",
+    "coverage_planner": "cheap",
+    "memory_synth": "cheap",
+    "diagnostician": "strong",
+    "adversary": "strong",
+    "engine_fixer": "strong",
+    "case_author": "strong",
+}
 TRIAGE_CATEGORIES = {
     "engine_defect",
     "harness_defect",
@@ -32,6 +42,11 @@ def _now() -> str:
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _estimate_tokens(value: Any) -> int:
+    text = json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return max(1, (len(text) + 3) // 4)
 
 
 def validate_agent_output(task: dict, output: dict) -> dict:
@@ -127,29 +142,50 @@ def run_tasks(args: argparse.Namespace) -> int:
     if not isinstance(tasks, list):
         print("tasks file must contain a list")
         return 2
+    config = HarnessConfig.load(args.config if args.config.exists() else None)
     output_dir = args.output_dir or args.tasks.parent / "agent_outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     results = []
-    executor = shlex.split(args.executor) if args.executor else []
+    max_calls = int(args.max_calls if args.max_calls is not None else config.value("budgets", "per_run_max_calls", 0) or 0)
+    max_tokens = int(args.max_tokens if args.max_tokens is not None else config.value("budgets", "per_run_max_tokens", 0) or 0)
+    used_calls = 0
+    used_tokens = 0
     for index, task in enumerate(tasks):
         agent = task.get("agent") or "unknown"
         prefix = output_dir / f"{index:03d}_{agent}"
         request_path = prefix.with_suffix(".request.json")
         write_json(request_path, task)
+        tier, executor_text, model_name = _resolve_executor(args, config, task)
+        estimated_input_tokens = _estimate_tokens(task)
         if args.dry_run:
             results.append(
                 {
                     "task_index": index,
                     "agent": agent,
+                    "tier": tier,
+                    "model": model_name,
                     "request_path": str(request_path),
                     "output_path": None,
+                    "budget": {
+                        "estimated_input_tokens": estimated_input_tokens,
+                        "estimated_total_tokens": estimated_input_tokens,
+                        "max_calls": max_calls,
+                        "max_tokens": max_tokens,
+                    },
                     "validation": {"accepted": False, "warnings": ["dry_run"]},
                 }
             )
             continue
-        if not executor:
-            print("error: --executor is required unless --dry-run is used")
+        if not executor_text:
+            print(f"error: no executor configured for agent={agent} tier={tier}")
             return 2
+        if max_calls and used_calls + 1 > max_calls:
+            print(f"error: agent call budget exceeded before task {index}: max_calls={max_calls}")
+            return 3
+        if max_tokens and used_tokens + estimated_input_tokens > max_tokens:
+            print(f"error: agent token budget exceeded before task {index}: max_tokens={max_tokens}")
+            return 3
+        executor = shlex.split(executor_text)
         proc = subprocess.run(
             executor,
             input=json.dumps(task, ensure_ascii=False),
@@ -157,6 +193,7 @@ def run_tasks(args: argparse.Namespace) -> int:
             capture_output=True,
             check=False,
         )
+        used_calls += 1
         stdout_path = prefix.with_suffix(".stdout.txt")
         stderr_path = prefix.with_suffix(".stderr.txt")
         stdout_path.write_text(proc.stdout or "", encoding="utf-8")
@@ -168,15 +205,31 @@ def run_tasks(args: argparse.Namespace) -> int:
         output_path = prefix.with_suffix(".output.json")
         write_json(output_path, output)
         validation = validate_agent_output(task, output)
+        estimated_output_tokens = _estimate_tokens(output)
+        used_tokens += estimated_input_tokens + estimated_output_tokens
+        if max_tokens and used_tokens > max_tokens:
+            validation["accepted"] = False
+            validation.setdefault("errors", []).append(f"agent token budget exceeded: used={used_tokens}, max={max_tokens}")
         results.append(
             {
                 "task_index": index,
                 "agent": agent,
+                "tier": tier,
+                "model": model_name,
                 "request_path": str(request_path),
                 "output_path": str(output_path),
                 "stdout_path": str(stdout_path),
                 "stderr_path": str(stderr_path),
                 "returncode": proc.returncode,
+                "budget": {
+                    "estimated_input_tokens": estimated_input_tokens,
+                    "estimated_output_tokens": estimated_output_tokens,
+                    "estimated_total_tokens": estimated_input_tokens + estimated_output_tokens,
+                    "used_calls": used_calls,
+                    "used_tokens": used_tokens,
+                    "max_calls": max_calls,
+                    "max_tokens": max_tokens,
+                },
                 "validation": validation,
             }
         )
@@ -184,6 +237,20 @@ def run_tasks(args: argparse.Namespace) -> int:
     accepted = sum(1 for row in results if (row.get("validation") or {}).get("accepted"))
     print(f"agent tasks: {len(results)} result(s), accepted={accepted}, output={output_dir}")
     return 0 if all((row.get("validation") or {}).get("accepted") for row in results) else 1
+
+
+def _resolve_executor(args: argparse.Namespace, config: HarnessConfig, task: dict) -> tuple[str, str, str]:
+    agent = str(task.get("agent") or "")
+    agent_tiers = config.value("models", "agent_tiers", {}) or {}
+    tier = str(agent_tiers.get(agent) or DEFAULT_AGENT_TIERS.get(agent) or "strong")
+    model_name = str(config.value("models", tier, "") or "")
+    if args.executor:
+        return tier, args.executor, model_name
+    commands = config.value("models", "commands", {}) or {}
+    executor = str(commands.get(tier) or "")
+    if not executor and tier == "cheap":
+        executor = str(commands.get("strong") or "")
+    return tier, executor, model_name
 
 
 def validate_outputs(args: argparse.Namespace) -> int:
@@ -226,9 +293,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     run_p = sub.add_parser("run", help="Run tasks with an external JSON-in/JSON-out executor.")
+    run_p.add_argument("--config", type=Path, default=ROOT / "harness" / "config.yaml")
     run_p.add_argument("--tasks", type=Path, required=True)
     run_p.add_argument("--output-dir", type=Path, default=None)
-    run_p.add_argument("--executor", default="", help="Command that reads one task JSON on stdin and prints output JSON.")
+    run_p.add_argument("--executor", default="", help="Override command that reads one task JSON on stdin and prints output JSON.")
+    run_p.add_argument("--max-calls", type=int, default=None, help="Override per-run agent call budget. 0 means unlimited.")
+    run_p.add_argument("--max-tokens", type=int, default=None, help="Override approximate token budget. 0 means unlimited.")
     run_p.add_argument("--dry-run", action="store_true", help="Write request JSON files only.")
     run_p.set_defaults(func=run_tasks)
 

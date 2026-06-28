@@ -114,5 +114,16 @@
       "description": "why this baseline is pinned"
     },
     "_use": "I3 regression gate에서 사람이 선택한 기준 run을 이름으로 참조한다. baseline은 observed result이지 expected/oracle이 아니다."
+  },
+
+  "proposal_artifacts": {
+    "_key": "output/harness/<run_id>/proposal_manifest.json or proposed_cases/<run_id>/proposal_manifest.json",
+    "fields": {
+      "kind": "proposed_case|engine_fix_proposal|coverage_update_proposal",
+      "agent_result": "validated accepted agent result row",
+      "proposal": "agent output payload",
+      "policy": "expected_not_applied / engine_not_modified / requires_human_approval"
+    },
+    "_use": "accepted agent output을 사람이 검토할 proposal로만 materialize한다. expected/manifest/engine main은 직접 수정하지 않는다."
   }
 }

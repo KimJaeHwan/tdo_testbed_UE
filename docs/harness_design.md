@@ -236,7 +236,9 @@ PR6 Adapter        : Suite09/Suite10UE/Engine11 + dry-run (--suite 09/10/09,10 -
                      --include-ue-extract로 UE 5.8 Mac arm64 dylib를 Ghidra headless
                      low-pcode 추출까지 연결한다. P1은 build/extract/analyze/cache
                      end-to-end 확인. P0는 case-scoped low-pcode closure로 22 case 전체
-                     분석/cache 확인. full directory compose는 비교/debug용으로만 남긴다)
+                     분석/cache 확인. UE local binary는 profile별 discovery 계층에서
+                     식별하고 binary_hash를 artifact/cache identity에 기록한다.
+                     full directory compose는 비교/debug용으로만 남긴다)
 PR7 gates 강화     : harness_defect triage(8범주+unknown) + evidence_required + known_frontier_not_counted
                      (2026-06-28 부분 완료: hard gate는 crash/FP/oracle unlock을
                      human_gate.json으로 노출. frontier 후보는 자동 확정하지 않고
@@ -254,10 +256,15 @@ PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases appro
                      role prompt 파일 존재를 검증하고 triage/diagnostician/adversary/
                      coverage_planner task를 evidence_required envelope로 기록.
                      agent_runtime.py가 외부 JSON-in/JSON-out executor를 호출하고
-                     role별 schema/evidence를 검증해 accepted 여부를 기록한다.
+                     role별 schema/evidence를 검증해 accepted 여부를 기록한다. agent별
+                     cheap/strong tier routing과 per-run call/token budget accounting을
+                     적용한다.
                      human_approval.py는 queue item을 approve/reject/defer로
                      append-only 기록하고 capability_map에 human decision ref를 남긴다.
-                     실제 provider별 model-tier router/cost budget은 후속 배선)
+                     proposals.py는 accepted case_author/engine_fixer/coverage_planner
+                     output을 source-of-truth 변경이 아닌 proposal artifact로만
+                     materialize한다. 실제 provider command 설정과 engine patch
+                     worktree 실행은 후속 배선)
 ```
 
 ## 17. 최종 목표
