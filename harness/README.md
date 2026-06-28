@@ -3,14 +3,17 @@
 09/10/11 자동 반복 루프의 결정적 실행 하니스. 단일 진실 사양은
 [`docs/harness_design.md`](../docs/harness_design.md)이다.
 
-현재 구현 범위는 LLM 없는 deterministic vertical slice다. Config -> suite
+현재 구현 범위는 deterministic vertical slice + optional LLM provider hook이다. Config -> suite
 adapter -> Engine11 실행 -> expected 검증 -> FailureReport v2 -> suite summary -> gate
 -> JSON 원장 -> 동일 입력 캐시 재사용까지 실제로 동작한다. Suite10 Tier0는 local
 build/extract prepare step으로 NDK/Ghidra 산출물을 만들고 곧바로 Engine11 분석까지
 연결할 수 있다. UE 5.8 Mac local build 산출물도 prepare step에서 Ghidra
 low-pcode 추출까지 자동 연결할 수 있다. 큰 UE 디렉터리는 case-scoped low-pcode
-closure로 분석해 P0(DebugGame)도 전체 22개 case 회귀가 가능하다. LLM 호출 자체는
-아직 붙이지 않지만, human gate와 agent task artifact는 결정적으로 생성한다.
+closure로 분석해 P0(DebugGame)도 전체 22개 case 회귀가 가능하다. LLM 호출은
+provider command가 설정된 경우에만 실행되며, 결과는 proposal/work item으로만 남긴다.
+
+파일별 책임과 `harness/config.yaml` 작성법은
+[`docs/harness_file_guide.md`](../docs/harness_file_guide.md)에 정리되어 있다.
 
 ## 에이전트 7종
 `triage · diagnostician · adversary · engine_fixer · case_author · memory_synth · coverage_planner`
