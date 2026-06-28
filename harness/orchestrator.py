@@ -1,109 +1,278 @@
 #!/usr/bin/env python3
-"""
-orchestrator.py — 하니스 결정적 control loop (설계 A §3).
-
-이것은 스켈레톤이다. 결정적 control flow는 완성형이고, LLM 호출(agent())과
-실제 빌드/추출 연결부는 STUB로 두어 GPT5.5가 자기 에이전트 런타임에 배선한다.
-LLM은 판단 노드(triage/diagnose/adversary/fix/author)에만 들어간다(A §P1).
-"""
 from __future__ import annotations
-import subprocess, json
+
+import argparse
+import os
+import sys
+import uuid
 from pathlib import Path
-from gates import objective_vector, objective_improves, regression_ok, oracle_locked, INVARIANTS
-from memory.store import Memory   # harness/memory/store.py (스켈레톤)
 
-ROOT = Path(__file__).resolve().parents[1]
-
-
-# ── 결정적 층 (A §2 Test Runner) — 기존 도구 호출만 한다 (A §8) ──────────────
-def run_tests(changed_only: bool = True) -> dict:
-    """build → ghidra 추출(변경분만) → 엔진 실행 → expected diff.
-    산출: dist/failure_report.json 파싱 결과(verdict/missing/forbidden_found/cut)."""
-    # STUB 배선: 입력 해시 비교로 changed_only 캐시 스킵(A §P5, artifact_cache)
-    subprocess.run(["bash", str(ROOT / "build.sh"), "all"], check=False)
-    # extract는 변경된 바이너리만 (artifact_cache 키 = source/commit hash)
-    subprocess.run(["python", str(ROOT / "tools" / "collect_failures.py")], check=False)
-    return json.loads((ROOT / "dist" / "failure_report.json").read_text(encoding="utf-8"))
+from .adapters import Variant, selected_variants
+from .config import HarnessConfig, ROOT
+from .gates import invariant_status
+from .reporting import (
+    canonical_hash,
+    git_commit,
+    print_summary,
+    sha256_directory,
+    sha256_file,
+    summarize,
+    write_json,
+)
 
 
-def flatten_failures(report: list[dict]) -> list[dict]:
-    out = []
-    for variant in report:
-        for cid, c in variant.get("cases", {}).items():
-            if c.get("verdict") != "PASS":
-                out.append({"variant": variant["label"], "case": cid, **c})
-    return out
+def _add_engine_to_syspath(engine_root: Path) -> None:
+    sys.path.insert(0, str(engine_root))
 
 
-# ── 에이전트 호출 STUB (GPT5.5 런타임에 배선) ────────────────────────────────
-def agent(role: str, payload: dict) -> dict:
-    """role ∈ {triage,diagnose,adversary,engine_fix,case_author,memory_synth}.
-    계약(I/O 스키마·규칙)은 harness/agents/<role>.md. 반드시 그 스키마로 반환."""
-    raise NotImplementedError(f"wire agent({role}) to LLM runtime per harness/agents/{role}.md")
+def _ensure_engine_python(engine_root: Path) -> None:
+    if os.environ.get("TDO_HARNESS_NO_VENV_REEXEC") == "1":
+        return
+    venv_python = engine_root / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if not venv_python.exists():
+        return
+    current = Path(sys.executable).absolute()
+    target = venv_python.absolute()
+    if current == target:
+        return
+    os.environ["TDO_HARNESS_NO_VENV_REEXEC"] = "1"
+    os.execv(str(target), [str(target), "-m", "harness.orchestrator", *sys.argv[1:]])
 
 
-def adversary_panel(kind: str, subject: dict, n: int = 3) -> bool:
-    """서로 다른 렌즈(correctness/regression/fp_risk)로 독립 반박. 다수결 통과 여부 (A §P2)."""
-    lenses = ["correctness", "regression", "fp_risk"][:n]
-    votes = [agent("adversary", {"kind": kind, "subject": subject, "lens": L}) for L in lenses]
-    # 각 표는 {"refuted": bool, "evidence_ref": ...}. 증거 없는 confirm은 무효(refuted 취급).
-    confirms = [v for v in votes if not v.get("refuted") and v.get("evidence_ref")]
-    return len(confirms) > n // 2
+class Engine11Runner:
+    def __init__(self, config: HarnessConfig):
+        self.config = config
+        self.engine_root = config.path("repos", "engine_11")
+        _ensure_engine_python(self.engine_root)
+        _add_engine_to_syspath(self.engine_root)
+
+        from analysis.interprocedural_summary import ProgramSliceGraphBuilder
+        from core.edge import DATA_CONTROL_SLICE_EDGES
+        from query.backward_slice import BackwardSliceQuery
+        from report.expected_validator import ExpectedValidator
+
+        self.ProgramSliceGraphBuilder = ProgramSliceGraphBuilder
+        self.DATA_CONTROL_SLICE_EDGES = DATA_CONTROL_SLICE_EDGES
+        self.BackwardSliceQuery = BackwardSliceQuery
+        self.ExpectedValidator = ExpectedValidator
+
+    def run_variant(self, run_id: str, variant: Variant, run_config_hash: str) -> list[dict]:
+        if not variant.sample_dir.exists():
+            return [self._error_row(run_id, variant, "NO_SAMPLES", f"missing samples: {variant.sample_dir}", run_config_hash)]
+        cases = sorted(variant.sample_dir.rglob(variant.case_glob))
+        if not cases:
+            return [self._error_row(run_id, variant, "NO_CASES", f"no cases matching {variant.case_glob}", run_config_hash)]
+        validator = self.ExpectedValidator(variant.expected_path)
+        builder = self.ProgramSliceGraphBuilder()
+        rows = []
+        for json_path in cases:
+            rows.append(self._run_case(run_id, variant, json_path, validator, builder, run_config_hash))
+        return rows
+
+    def _run_case(
+        self,
+        run_id: str,
+        variant: Variant,
+        json_path: Path,
+        validator,
+        builder,
+        run_config_hash: str,
+    ) -> dict:
+        artifacts = self._artifacts(variant, json_path, run_config_hash)
+        try:
+            fg = builder.build_for_target(json_path)
+            data_sources: set[str] = set()
+            control_sources: set[str] = set()
+            cuts: list[str] = []
+            for sink in fg.sink_index.values():
+                data_query = self.BackwardSliceQuery(fg)
+                data_result = data_query.run(sink)
+                data_sources.update(data_result.source_labels)
+                control_query = self.BackwardSliceQuery(fg, self.DATA_CONTROL_SLICE_EDGES, mode="data+control")
+                control_sources.update(control_query.run(sink).source_labels)
+                cuts.extend(self._cut_points(fg, data_query, sink))
+            control_sources -= data_sources
+            validation = validator.validate(fg.function_name, data_sources, control_sources)
+            missing = validation.get("missing_expected_sources", []) + validation.get("missing_expected_control_sources", [])
+            forbidden = validation.get("forbidden_sources_found", []) + validation.get("forbidden_control_sources_found", [])
+            return {
+                "schema_version": 2,
+                "run_id": run_id,
+                "suite": variant.suite,
+                "variant_label": variant.label,
+                "case": validation.get("case_id") or fg.function_name,
+                "function": fg.function_name,
+                "variant": variant.variant_dict(),
+                "toolchain": self._toolchain(),
+                "engine": self._engine(run_config_hash),
+                "artifacts": artifacts,
+                "verdict": validation.get("verdict"),
+                "actual_sources": validation.get("actual_sources", []),
+                "actual_control_sources": validation.get("actual_control_sources", []),
+                "missing": missing,
+                "forbidden_found": forbidden,
+                "warnings": list(fg.warnings),
+                "features": [],
+                "edge_kinds_seen": self._edge_kinds(fg),
+                "cut": sorted(set(cuts)) if validation.get("verdict") != "PASS" else [],
+                "budgets": {"budget_exceeded": False, "details": []},
+            }
+        except Exception as exc:  # noqa: BLE001
+            row = self._error_row(run_id, variant, json_path.stem, str(exc), run_config_hash)
+            row["artifacts"] = artifacts
+            return row
+
+    def _error_row(
+        self,
+        run_id: str,
+        variant: Variant,
+        case: str,
+        error: str,
+        run_config_hash: str,
+    ) -> dict:
+        return {
+            "schema_version": 2,
+            "run_id": run_id,
+            "suite": variant.suite,
+            "variant_label": variant.label,
+            "case": case,
+            "function": case,
+            "variant": variant.variant_dict(),
+            "toolchain": self._toolchain(),
+            "engine": self._engine(run_config_hash),
+            "artifacts": self._artifacts(variant, None, run_config_hash),
+            "verdict": "ERROR",
+            "missing": [],
+            "forbidden_found": [],
+            "warnings": [error],
+            "features": [],
+            "edge_kinds_seen": [],
+            "cut": [],
+            "budgets": {"budget_exceeded": False, "details": []},
+        }
+
+    def _cut_points(self, fg, query, sink) -> list[str]:
+        result = query.run(sink)
+        graph = fg.slice_graph
+        leaves = []
+        for node in result.visited:
+            if any(graph.edges[pred, node].get("kind") in query.edge_policy for pred in graph.predecessors(node)):
+                continue
+            attrs = graph.nodes[node]
+            if attrs.get("kind") == "source_boundary":
+                continue
+            op = attrs.get("opcode") or attrs.get("kind")
+            storage = attrs.get("storage") or str(node)
+            leaves.append(f"{op}:{storage}")
+        return leaves
+
+    def _edge_kinds(self, fg) -> list[str]:
+        return sorted({str(attrs.get("kind")) for _, _, attrs in fg.slice_graph.edges(data=True) if attrs.get("kind")})
+
+    def _toolchain(self) -> dict:
+        return {
+            "android_ndk_version": str(self.config.value("tools", "android_ndk", "")),
+            "ghidra_home": str(self.config.value("tools", "ghidra_home", "")),
+            "unreal_engine_root": str(self.config.value("tools", "unreal_engine_root", "")),
+        }
+
+    def _engine(self, run_config_hash: str) -> dict:
+        return {
+            "repo": "trace_data_origin_lowpcode",
+            "commit": git_commit(self.engine_root),
+            "config_hash": run_config_hash,
+            "mode": "summary_first" if self.config.value("defaults", "summary_first", True) else "default",
+        }
+
+    def _artifacts(self, variant: Variant, json_path: Path | None, run_config_hash: str) -> dict:
+        return {
+            "binary_path": str(variant.binary_path) if variant.binary_path else None,
+            "binary_hash": sha256_file(variant.binary_path),
+            "pcode_path": str(json_path or variant.sample_dir),
+            "pcode_hash": sha256_file(json_path) if json_path else sha256_directory(variant.sample_dir, variant.case_glob),
+            "metadata_path": str(json_path or variant.sample_dir),
+            "result_path": None,
+            "diagnose_dump_path": None,
+            "expected_path": str(variant.expected_path),
+            "expected_hash": sha256_file(variant.expected_path)
+            if variant.expected_path.is_file()
+            else sha256_directory(variant.expected_path, "*.expected.json"),
+            "run_config_hash": run_config_hash,
+        }
 
 
-# ── 메인 루프 (A §3) ─────────────────────────────────────────────────────────
-def loop(mem: Memory, max_iter: int = 100):
-    for it in range(max_iter):
-        report = run_tests(changed_only=True)
-
-        # 불변검사 I1: 크래시 0 (A §5). 아니면 멈춤·에스컬레이트 — 절대 무시 금지.
-        crashes = [c for v in report for cid, c in v.get("cases", {}).items() if c["verdict"] == "ERROR"]
-        if crashes:
-            mem.escalate("crash", crashes); return "ESCALATE: analysis ERROR(I1) — 사람 확인 필요"
-
-        failures = flatten_failures(report)
-        if done(report):
-            return "DONE"  # A §7 종료조건
-
-        for f in failures:
-            tri = agent("triage", {"failure": f, "capability_map": mem.capability_map()})
-            if tri["category"] != "engine_defect":
-                mem.route(f, tri); continue  # harness_defect/frontier/env_artifact
-
-            diag = agent("diagnostician", {"failure": f})   # 증거 인용 필수(계약)
-            if not diag.get("evidence_ref") or not adversary_panel("diagnosis", diag):
-                mem.mark_refuted(diag); continue            # A §P2
-
-            fix = agent("engine_fixer", {"diagnosis": diag, "isolation": "worktree"})  # 11_ 격리
-            if not adversary_panel("fix", fix):
-                mem.discard(fix); continue
-
-            # 결정적 게이트 (A §5 불변식·목적함수)
-            after = run_tests(changed_only=False)           # 전수 회귀
-            if not oracle_locked(ROOT):                     # I4: 오라클 미변경
-                mem.escalate("oracle_touched", fix); return "ESCALATE: 오라클 변경 감지(I4)"
-            if regression_ok(report, after) and objective_improves(report, after):
-                mem.merge(fix, diag, votes=True);
-            else:
-                mem.discard(fix)                            # 회귀/FP/목적함수 미개선 → 폐기
-
-        # 갭/frontier 기반 신규 케이스 (오라클은 휴먼 게이트, A §P3/§P7)
-        gaps = agent("case_author", {"capability_map": mem.capability_map(), "report": report})
-        for c in gaps.get("proposed_cases", []):
-            mem.queue_for_human_approval(c)                 # 오라클 by-construction 검토 후 적용
-        mem.update_capability_map(report)
-    return "MAX_ITER"
+def _parse_suites(text: str) -> set[str]:
+    aliases = {"9": "09", "09": "09", "tdo": "09", "10": "10", "ue": "10"}
+    selected = set()
+    for part in text.split(","):
+        key = part.strip()
+        if not key:
+            continue
+        selected.add(aliases.get(key, key))
+    return selected
 
 
-def done(report) -> bool:
-    """A §7: FP=0 AND P0/DebugGame PASS 목표 AND frontier 문서화."""
-    fp = sum(1 for v in report for c in v["cases"].values() if c.get("forbidden_found"))
-    return fp == 0 and _pass_targets_met(report) and _frontier_documented()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run deterministic 09/10/11 TDO harness checks.")
+    parser.add_argument("--config", type=Path, default=ROOT / "harness" / "config.yaml")
+    parser.add_argument("--suite", default="10", help="Comma-separated suites: 09,10")
+    parser.add_argument("--mode", default=None, choices=["release-artifacts", "local-samples"])
+    parser.add_argument("--list-variants", action="store_true")
+    parser.add_argument("--case-filter", default="", help="Substring filter for case JSON filenames.")
+    parser.add_argument("--run-id", default="")
+    parser.add_argument("--output-dir", type=Path, default=None)
+    args = parser.parse_args(argv)
 
+    config = HarnessConfig.load(args.config if args.config.exists() else None)
+    mode = args.mode or str(config.value("defaults", "mode", "release-artifacts"))
+    suites = _parse_suites(args.suite)
+    variants = selected_variants(config, suites, mode)
+    if args.case_filter:
+        variants = [
+            Variant(
+                **{
+                    **variant.__dict__,
+                    "case_glob": f"*{args.case_filter}*",
+                }
+            )
+            for variant in variants
+        ]
 
-def _pass_targets_met(report) -> bool: ...   # STUB: P0/DebugGame 목표치 비교
-def _frontier_documented() -> bool: ...       # STUB: capability_map의 frontier 항목 문서화 확인
+    if args.list_variants:
+        for variant in variants:
+            print(f"{variant.suite:18} {variant.label:32} {variant.sample_dir}")
+        return 0
+
+    run_id = args.run_id or uuid.uuid4().hex[:12]
+    output_root = args.output_dir or (config.path("output", "root") / run_id)
+    run_config = {
+        "suite": sorted(suites),
+        "mode": mode,
+        "case_filter": args.case_filter,
+        "engine": str(config.path("repos", "engine_11")),
+    }
+    run_config_hash = canonical_hash(run_config)
+
+    runner = Engine11Runner(config)
+    reports: list[dict] = []
+    for variant in variants:
+        print(f"[harness] {variant.label}: {variant.sample_dir}")
+        reports.extend(runner.run_variant(run_id, variant, run_config_hash))
+
+    summary = summarize(reports)
+    gate = invariant_status(reports, ROOT)
+    for row in reports:
+        row["artifacts"]["result_path"] = str(output_root / "failure_report_v2.json")
+
+    write_json(output_root / "failure_report_v2.json", reports)
+    write_json(output_root / "summary.json", summary)
+    write_json(output_root / "gate.json", gate)
+
+    print_summary(summary)
+    print(f"gate: {gate}")
+    print(f"[saved] {output_root}")
+    return 1 if not gate.get("I1_crash_zero") or not gate.get("I2_false_positive_zero") else 0
 
 
 if __name__ == "__main__":
-    print(loop(Memory(ROOT / "harness" / "memory")))
+    raise SystemExit(main())

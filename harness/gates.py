@@ -3,25 +3,40 @@ gates.py — 결정적 게이트 (설계 A §5 목적함수·불변식, §P3 오
 LLM 아님. failure_report.json(수치)과 git 상태(오라클 변경)만으로 판정한다.
 """
 from __future__ import annotations
+
 import subprocess
 from pathlib import Path
 
 INVARIANTS = ["I1 crash=0", "I2 false_positive=0", "I3 regression=0", "I4 oracle_unchanged"]
 
 
+def _case_rows(report: list[dict]):
+    for row in report:
+        if "case" in row and "variant_label" in row:
+            yield row.get("variant_label"), row.get("case"), row
+            continue
+        for cid, case in row.get("cases", {}).items():
+            merged = dict(case)
+            merged.setdefault("case", cid)
+            yield row.get("label"), cid, merged
+
+
 def _counts(report: list[dict]) -> dict:
     crashes = fp = pass_p0 = pass_other = passes = 0
     per_case = {}  # (variant,case) -> verdict  (회귀 비교용)
-    for v in report:
-        p0 = ("P0" in v["label"]) or ("DebugGame" in v["label"])
-        for cid, c in v.get("cases", {}).items():
-            per_case[(v["label"], cid)] = c["verdict"]
-            if c["verdict"] == "ERROR": crashes += 1
-            if c.get("forbidden_found"): fp += 1
-            if c["verdict"] == "PASS":
-                passes += 1
-                pass_p0 += 1 if p0 else 0
-                pass_other += 0 if p0 else 1
+    for label, cid, case in _case_rows(report):
+        label = str(label or "")
+        verdict = str(case.get("verdict") or "ERROR")
+        p0 = ("P0" in label) or ("DebugGame" in label) or ("debuggame" in label.lower())
+        per_case[(label, str(cid))] = verdict
+        if verdict == "ERROR":
+            crashes += 1
+        if case.get("forbidden_found"):
+            fp += 1
+        if verdict == "PASS":
+            passes += 1
+            pass_p0 += 1 if p0 else 0
+            pass_other += 0 if p0 else 1
     return dict(crashes=crashes, fp=fp, pass_p0=pass_p0, pass_other=pass_other,
                 passes=passes, per_case=per_case)
 
@@ -57,3 +72,17 @@ def oracle_locked(root: Path) -> bool:
                           capture_output=True, text=True).stdout
     touched = [ln for ln in diff.splitlines() if any(p in ln for p in patterns)]
     return len(touched) == 0
+
+
+def invariant_status(report: list[dict], root: Path | None = None) -> dict:
+    counts = _counts(report)
+    status = {
+        "I1_crash_zero": counts["crashes"] == 0,
+        "I2_false_positive_zero": counts["fp"] == 0,
+        "crashes": counts["crashes"],
+        "false_positive": counts["fp"],
+        "objective_vector": objective_vector(report),
+    }
+    if root is not None:
+        status["I4_oracle_locked"] = oracle_locked(root)
+    return status

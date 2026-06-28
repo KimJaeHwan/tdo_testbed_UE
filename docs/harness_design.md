@@ -213,11 +213,15 @@ Diagnostician ← tools/diagnose_case.py (경로·메모리키 증거)
 ## 16. PR 계획 (수직 슬라이스 우선, R3/P1)
 ```
 PR1 문서 정리      : 본 v2 설계 확정(번호체계·role·R1~R6·P1~P4), FailureReport v2/캐시/config 스키마 인라인
-PR2 config         : harness/config.py + config.yaml.example + path validation + toolchain 핀(NDK 포함)  (완료: python -m harness.config --check)
+PR2 config         : harness/config.py + config.yaml.example + path validation + toolchain 핀(NDK 포함)
+                     (2026-06-28 부분 완료: config loader/defaults/config.yaml.example)
 PR3 09 수직 슬라이스: build→extract→engine→verify→report 최소. **known-PASS 케이스(예 DFB001)** 로 — 실패 시 하니스 결함으로 격리(P1). 엔진 출력 결정성(2회→동일 해시) 검증(P4)
+                     (2026-06-28 부분 완료: existing low-pcode 기반 DFB001 all-root smoke PASS 6)
 PR4 FailureReport v2: suite/variant/artifact/engine commit/hash 정식 + suite별 summary
+                     (2026-06-28 부분 완료: flat FailureReport v2, summary.json, gate.json 생성)
 PR5 계층 캐시      : build/pcode/engine/verify 4단 + canonical 정규화 (완료: 재실행 skip, engine commit/extractor/expected 변경별 정확 무효화)
 PR6 Adapter        : Suite09/Suite10UE/Engine11 + dry-run (--suite 09/10/09,10 --dry-run)
+                     (2026-06-28 부분 완료: --list-variants, Suite09, Suite10UE release/local-samples, Engine11 runner)
 PR7 gates 강화     : harness_defect triage(8범주+unknown) + evidence_required + known_frontier_not_counted
 PR8 capability/coverage_planner: missing/weakly/frontier/contradictory 관리
 PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases approval queue (완료: invalid output 무시, case_author가 expected 직접수정 불가)
