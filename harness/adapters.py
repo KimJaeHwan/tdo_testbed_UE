@@ -125,6 +125,7 @@ class Suite10UEAdapter:
 
         project = self.root / "unreal_playground" / "TraceUnrealPlayground"
         expected = self.root / "unreal_playground" / "expected" / "tv2_unreal.expected.json"
+        binaries = project / "Binaries" / "Mac"
         variants.extend(
             [
                 Variant(
@@ -133,12 +134,13 @@ class Suite10UEAdapter:
                     sample_dir=project / "samples" / "low_pcode",
                     expected_path=expected,
                     case_glob="case_TV2*_low_pcode.json",
-                    arch="x86_64",
+                    arch="aarch64",
                     compiler="local",
                     opt="O2",
                     build_config="Development",
                     pdb=False,
                     unreal_version="5.8.0",
+                    binary_path=binaries / "libUnrealEditor-TraceUnrealPlayground.dylib",
                     source_kind="local-samples",
                 ),
                 Variant(
@@ -147,12 +149,13 @@ class Suite10UEAdapter:
                     sample_dir=project / "samples" / "low_pcode_P0",
                     expected_path=expected,
                     case_glob="case_TV2*_low_pcode.json",
-                    arch="x86_64",
+                    arch="aarch64",
                     compiler="local",
                     opt="Od",
                     build_config="DebugGame",
                     pdb=False,
                     unreal_version="5.8.0",
+                    binary_path=binaries / "libUnrealEditor-TraceUnrealPlayground-Mac-DebugGame.dylib",
                     source_kind="local-samples",
                 ),
             ]
@@ -164,36 +167,40 @@ class Suite10UEAdapter:
         mode: str,
         profile: str,
         arches: list[str],
+        include_tier0: bool = True,
         include_ue_build: bool = False,
+        include_ue_extract: bool = False,
     ) -> list[PrepareStep]:
         if mode != "local-samples":
             return []
         env = self._tool_env()
-        steps = [
-            PrepareStep(
-                label=f"tier0-build-{profile}",
-                command=("bash", str(self.root / "build.sh"), "tier0", profile),
-                cwd=self.root,
-                env=env,
-                outputs=tuple(
-                    self.root / "cpp_like" / "build" / profile / arch / "libtv2_cpp_like.so"
-                    for arch in arches
-                ),
-            )
-        ]
-        for arch in arches:
-            sample_dir = self.root / "cpp_like" / "samples" / "low_pcode" / arch
-            if profile != "P0":
-                sample_dir = self.root / "cpp_like" / "samples" / "low_pcode" / f"{profile}_{arch}"
+        steps = []
+        if include_tier0:
             steps.append(
                 PrepareStep(
-                    label=f"tier0-extract-{profile}-{arch}",
-                    command=("bash", str(self.root / "cpp_like" / "scripts" / "extract_lowpcode.sh"), arch, profile),
+                    label=f"tier0-build-{profile}",
+                    command=("bash", str(self.root / "build.sh"), "tier0", profile),
                     cwd=self.root,
                     env=env,
-                    outputs=(sample_dir,),
+                    outputs=tuple(
+                        self.root / "cpp_like" / "build" / profile / arch / "libtv2_cpp_like.so"
+                        for arch in arches
+                    ),
                 )
             )
+            for arch in arches:
+                sample_dir = self.root / "cpp_like" / "samples" / "low_pcode" / arch
+                if profile != "P0":
+                    sample_dir = self.root / "cpp_like" / "samples" / "low_pcode" / f"{profile}_{arch}"
+                steps.append(
+                    PrepareStep(
+                        label=f"tier0-extract-{profile}-{arch}",
+                        command=("bash", str(self.root / "cpp_like" / "scripts" / "extract_lowpcode.sh"), arch, profile),
+                        cwd=self.root,
+                        env=env,
+                        outputs=(sample_dir,),
+                    )
+                )
         if include_ue_build:
             steps.append(
                 PrepareStep(
@@ -202,6 +209,19 @@ class Suite10UEAdapter:
                     cwd=self.root,
                     env=env,
                     outputs=(self.root / "unreal_playground" / "TraceUnrealPlayground" / "Binaries",),
+                )
+            )
+        if include_ue_extract:
+            sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode"
+            if profile == "P0":
+                sample_dir = self.root / "unreal_playground" / "TraceUnrealPlayground" / "samples" / "low_pcode_P0"
+            steps.append(
+                PrepareStep(
+                    label=f"ue-extract-{profile}",
+                    command=("bash", str(self.root / "unreal_playground" / "scripts" / "extract_lowpcode.sh"), profile),
+                    cwd=self.root,
+                    env=env,
+                    outputs=(sample_dir,),
                 )
             )
         return steps
@@ -279,9 +299,20 @@ def selected_prepare_steps(
     mode: str,
     profile: str,
     arches: list[str],
+    include_tier0: bool = True,
     include_ue_build: bool = False,
+    include_ue_extract: bool = False,
 ) -> list[PrepareStep]:
     steps: list[PrepareStep] = []
     if "10" in suites:
-        steps.extend(Suite10UEAdapter(config).prepare_steps(mode, profile, arches, include_ue_build))
+        steps.extend(
+            Suite10UEAdapter(config).prepare_steps(
+                mode,
+                profile,
+                arches,
+                include_tier0=include_tier0,
+                include_ue_build=include_ue_build,
+                include_ue_extract=include_ue_extract,
+            )
+        )
     return steps

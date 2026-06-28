@@ -231,7 +231,10 @@ PR6 Adapter        : Suite09/Suite10UE/Engine11 + dry-run (--suite 09/10/09,10 -
                      cpp_like/scripts/extract_lowpcode.sh를 실행하고 prepare_report/log를
                      남긴 뒤 Engine11 분석까지 연결한다. UE 5.8 Mac local build도
                      --include-ue-build로 P0(DebugGame), P1(Development) 성공 확인.
-                     UE build 산출물 low-pcode extraction adapter는 다음 단계)
+                     --include-ue-extract로 UE 5.8 Mac arm64 dylib를 Ghidra headless
+                     low-pcode 추출까지 연결한다. P1은 build/extract/analyze/cache
+                     end-to-end 확인. P0는 build/extract/22 case JSON 생성까지 확인,
+                     전체 분석은 Engine11 directory-wide graph compose 비용 개선 필요)
 PR7 gates 강화     : harness_defect triage(8범주+unknown) + evidence_required + known_frontier_not_counted
 PR8 capability/coverage_planner: missing/weakly/frontier/contradictory 관리
 PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases approval queue (완료: invalid output 무시, case_author가 expected 직접수정 불가)

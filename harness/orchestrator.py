@@ -320,7 +320,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prepare-dry-run", action="store_true", help="Print and record preparation commands without executing them.")
     parser.add_argument("--profile", default="P0", choices=["P0", "P1"], help="Local Tier0 build/extract profile.")
     parser.add_argument("--arch", default="x64", help="Local Tier0 arch list: x86,x64,armv7,aarch64 or all.")
+    parser.add_argument("--skip-tier0-prepare", action="store_true", help="Skip local Tier0 build/extract prepare steps.")
     parser.add_argument("--include-ue-build", action="store_true", help="Also try the local UE build step.")
+    parser.add_argument("--include-ue-extract", action="store_true", help="Also extract local UE build low-pcode with Ghidra.")
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
@@ -341,7 +343,9 @@ def main(argv: list[str] | None = None) -> int:
             mode,
             args.profile,
             arches,
+            include_tier0=not args.skip_tier0_prepare,
             include_ue_build=args.include_ue_build,
+            include_ue_extract=args.include_ue_extract,
         )
         prepare_records = _run_prepare_steps(steps, output_root, dry_run=args.prepare_dry_run)
         write_json(output_root / "prepare_report.json", prepare_records)

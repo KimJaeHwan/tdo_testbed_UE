@@ -7,8 +7,8 @@
 adapter -> Engine11 실행 -> expected 검증 -> FailureReport v2 -> suite summary -> gate
 -> JSON 원장 -> 동일 입력 캐시 재사용까지 실제로 동작한다. Suite10 Tier0는 local
 build/extract prepare step으로 NDK/Ghidra 산출물을 만들고 곧바로 Engine11 분석까지
-연결할 수 있다. UE 5.8 local build도 prepare step에서 실행할 수 있다. Agent와
-UE low-pcode extraction 자동화는 다음 단계다.
+연결할 수 있다. UE 5.8 Mac local build 산출물도 prepare step에서 Ghidra
+low-pcode 추출까지 자동 연결할 수 있다. Agent 판단 루프는 다음 단계다.
 
 ## 에이전트 7종
 `triage · diagnostician · adversary · engine_fixer · case_author · memory_synth · coverage_planner`
@@ -39,7 +39,7 @@ harness/
 2. lowpcode_data_origin/.venv에 Engine11 의존성(networkx 등)이 설치되어 있다.
 3. release-artifacts 모드는 dist/release_0.3.0 low-pcode/expected가 준비되어 있다.
 4. local-samples prepare 모드는 Android NDK, Ghidra, Ghidra Java가 설정되어 있다.
-5. UE local build는 `/Users/Shared/Epic Games/UE_5.8` + Xcode 26에서 검증되어 있다.
+5. UE local build/extract는 `/Users/Shared/Epic Games/UE_5.8` + Xcode 26에서 검증되어 있다.
 ```
 
 빠른 확인:
@@ -76,6 +76,18 @@ python -m harness.orchestrator --suite 10 --mode local-samples --prepare-only --
 python -m harness.orchestrator --suite 10 --mode local-samples --prepare-only --profile P1 --arch x64 --include-ue-build
 ```
 
+UE 5.8 local build/extract/analyze 원커맨드:
+
+```bash
+python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P1 --include-ue-build --include-ue-extract --variant-filter ue-local-development
+python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P0 --include-ue-build --include-ue-extract --variant-filter ue-local-debuggame
+```
+
+P1(Development)는 현재 end-to-end smoke로 검증되어 있다. P0(DebugGame)는
+UE 5.8 Mac arm64 dylib에서 22개 case low-pcode 추출까지 검증했지만, 전체 분석은
+Engine11의 directory-wide graph compose 비용이 커서 case-scoped graph/budget 개선
+후 정식 gate로 올린다.
+
 주요 옵션:
 
 ```text
@@ -87,6 +99,9 @@ python -m harness.orchestrator --suite 10 --mode local-samples --prepare-only --
 --prepare-dry-run         준비 명령을 기록만 하고 실행하지 않음
 --profile P0|P1           Tier0 빌드 프로파일
 --arch x64|x86|armv7|aarch64|all
+--skip-tier0-prepare      UE만 준비할 때 Tier0 build/extract 생략
+--include-ue-build        UE 5.8 Mac build step 포함
+--include-ue-extract      UE 5.8 Mac build output low-pcode extraction 포함
 --variant-filter TEXT     variant label substring으로 실행 대상 제한
 --case-filter TEXT        case JSON filename substring으로 실행 대상 제한
 --no-cache                engine/verify 캐시 재사용 끄기
@@ -137,18 +152,29 @@ prepare: tier0-build-P0 OK / tier0-extract-P0-x64 OK / ue-build-P0 OK
 
 python -m harness.orchestrator --suite 10 --mode local-samples --prepare-only --profile P1 --arch x64 --include-ue-build --run-id ue58_harness_p1_prepare
 prepare: tier0-build-P1 OK / tier0-extract-P1-x64 OK / ue-build-P1 OK
+
+python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P1 --include-ue-build --include-ue-extract --variant-filter ue-local-development --run-id ue58_dev_extract_analyze_v3 --no-cache
+10_tdo_testbed_UE/ue-local-development: PASS 2 / FAIL 20 / ERROR 0 / FP 2 / CACHE 0
+
+python -m harness.orchestrator --suite 10 --mode local-samples --variant-filter ue-local-development --run-id ue58_dev_hot_cache
+10_tdo_testbed_UE/ue-local-development: PASS 2 / FAIL 20 / ERROR 0 / FP 2 / CACHE 22
+
+python -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --skip-tier0-prepare --profile P0 --include-ue-build --include-ue-extract --variant-filter ue-local-debuggame --run-id ue58_debug_extract_analyze --no-cache
+prepare: ue-build-P0 OK / ue-extract-P0 OK / 22 case JSON produced
+analysis: interrupted at Engine11 directory-wide NetworkX compose budget
 ```
 
 ## 결정적 vs STUB
 | 완성(결정적) | STUB(배선 필요) |
 |---|---|
 | config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | build/extract changed-only cache |
-| artifact hash, engine commit, expected hash, run config hash 기록 | UE local low-pcode extraction adapter |
+| artifact hash, engine commit, expected hash, run config hash 기록 | UE build-output binary discovery/cache |
 | cache hit 기반 engine/verify result skip | LLM agent loop, adversary panel |
-| Suite10 Tier0 local build/extract prepare step | UE build-output binary discovery/cache |
-| UE 5.8 local DebugGame/Development build prepare step | UE Mac local expected baseline after extraction |
-| failure/capability/artifact JSON 원장 갱신 | triage/evidence schema 강화 |
-| crash=0, false_positive=0, oracle_locked gate | human approval queue |
+| Suite10 Tier0 local build/extract prepare step | UE Mac local expected baseline after extraction |
+| UE 5.8 local DebugGame/Development build prepare step | multi-arch/local UE variants beyond Mac arm64 |
+| UE 5.8 Mac build-output low-pcode extraction + local analysis | triage/evidence schema 강화 |
+| failure/capability/artifact JSON 원장 갱신 | human approval queue |
+| crash=0, false_positive=0, oracle_locked gate | P0 DebugGame case-scoped graph/budget optimization |
 
 ## 기존 자산에 grounding
 ```text
@@ -171,7 +197,8 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 엔진 출력에서 생성하지 않는다.
 
 ## 다음 배선 순서
-1. build/pcode 단계 캐시 무효화를 붙여 changed-only 실행을 완성한다.
-2. UE 5.8 Mac 빌드 산출물에서 Ghidra headless extraction adapter를 붙인다.
-3. `agent()`를 LLM 런타임에 연결하고, 7개 계약서의 I/O 스키마를 그대로 강제한다.
-4. 휴먼 게이트(오라클 변경/대형 패치/frontier 판정)를 큐로 노출한다.
+1. P0 DebugGame이 directory-wide graph compose에서 멈추지 않도록 case-scoped graph/budget 경로를 붙인다.
+2. build/pcode 단계 캐시 무효화를 붙여 changed-only 실행을 완성한다.
+3. UE Mac local 결과를 release-artifacts와 분리해 baseline/capability map으로 관리한다.
+4. `agent()`를 LLM 런타임에 연결하고, 7개 계약서의 I/O 스키마를 그대로 강제한다.
+5. 휴먼 게이트(오라클 변경/대형 패치/frontier 판정)를 큐로 노출한다.

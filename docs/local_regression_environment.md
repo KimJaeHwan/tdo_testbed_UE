@@ -88,6 +88,7 @@ Editor target build-environment override.
 ```text
 UE 5.8.0 DebugGame/P0    : build succeeded
 UE 5.8.0 Development/P1  : build succeeded
+UE 5.8.0 Mac artifacts   : Mach-O arm64 dylibs
 ```
 
 Use GitHub Release Win64 binaries for the existing release-artifacts regression
@@ -217,6 +218,43 @@ python3 -m harness.orchestrator \
   --include-ue-build
 ```
 
+Local UE 5.8 build/extract/analyze through the harness:
+
+```bash
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-artifacts \
+  --skip-tier0-prepare \
+  --profile P1 \
+  --include-ue-build \
+  --include-ue-extract \
+  --variant-filter ue-local-development
+
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-artifacts \
+  --skip-tier0-prepare \
+  --profile P0 \
+  --include-ue-build \
+  --include-ue-extract \
+  --variant-filter ue-local-debuggame
+```
+
+Current local UE 5.8 smoke:
+
+```text
+Development/P1: build OK, Ghidra extract OK, 22 case JSON, PASS 2 / FAIL 20 / ERROR 0 / FP 2
+Development/P1 hot cache: CACHE 22
+DebugGame/P0 : build OK, Ghidra extract OK, 22 case JSON; full analysis currently exceeds practical Engine11 directory-wide graph compose budget
+```
+
+Mach-O symbol note: Ghidra names C exported symbols with a leading underscore on
+Mac (`_case_TV2...`, `_dfb_...`). The UE extraction script normalizes only this
+object-format spelling at the extraction boundary, so Engine11 does not learn a
+new call-convention or source/sink naming convention.
+
 UE release Development validation:
 
 ```bash
@@ -238,5 +276,6 @@ python3 cpp_like/tools/run_v2_engine.py \
 - Do not commit generated `dist/`, `samples/`, binaries, PDBs, or low-pcode JSON.
 - Keep expected JSON under source control only when it is part of the testbed's
   source-of-truth manifest/generated expected set.
-- For UE regression on this Mac, prefer release binaries until a compatible
-  local UE/Xcode build profile is intentionally established.
+- For UE regression on this Mac, release binaries remain the stable historical
+  baseline. UE 5.8 local Mac artifacts are now the active local build/extract
+  development path because UE 5.1.1 is blocked by Xcode 26 SDK validation.
