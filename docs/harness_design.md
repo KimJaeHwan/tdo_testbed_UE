@@ -266,8 +266,11 @@ PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases appro
                      output을 source-of-truth 변경이 아닌 proposal artifact로만
                      materialize하고, --scaffold-work-items로 source skeleton,
                      engine fix plan, coverage update plan을 review artifact로만
-                     생성한다. 실제 provider command 값과 engine patch worktree
-                     실행은 후속 로컬/휴먼 승인 배선)
+                     생성한다. work_items.py는 proposal/work item doctor,
+                     guarded engine worktree dry-run/create, case bundle, case apply
+                     dry-run을 제공한다. engine-worktree --create와 case-apply
+                     --apply는 human approval key 없이는 실제 적용하지 않는다.
+                     실제 provider command 값은 로컬 설정 항목)
 ```
 
 ## 17. 최종 목표
@@ -275,7 +278,7 @@ PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases appro
 python -m harness.orchestrator --config harness/config.yaml --suite 09,10 --engine 11 --changed-only --budget standard
 # → 변경감지 → 필요 case만 build → 캐시 hit/miss → 추출 → 11 실행 → verify → report v2
 #   → gates → triage → diagnostics → adversary → (패치 제안|frontier 기록)
-#   → case gap이면 proposed_cases/work_items → capability/ledger 갱신
+#   → case gap이면 proposed_cases/work_items → approval-gated promotion → capability/ledger 갱신
 ```
 
 ## 18. 반드시 피할 것 (anti-patterns)

@@ -126,5 +126,16 @@
       "policy": "expected_not_applied / engine_not_modified / requires_human_approval"
     },
     "_use": "accepted agent output을 사람이 검토할 proposal/work_item으로만 materialize한다. expected/manifest/engine main은 직접 수정하지 않는다."
+  },
+
+  "work_item_promotions": {
+    "_key": "output/harness/<run_id>/work item promotion result",
+    "fields": {
+      "kind": "engine_worktree_plan|case_apply_plan",
+      "approval": "human approval decision ref/status",
+      "target": "engine worktree path or testbed source/manifest path",
+      "policy": "main_merge_forbidden / expected_not_applied / requires_human_approval"
+    },
+    "_use": "proposal work item을 실제 작업 후보로 승격할 때 approval gate와 적용 범위를 기록한다. main merge와 expected 생성은 별도 human-gated 단계다."
   }
 }

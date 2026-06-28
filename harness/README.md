@@ -29,6 +29,7 @@ harness/
   human_approval.py   human approval queue 조회/결정 append-only CLI.
   baseline.py         I3 regression baseline pin 관리 CLI.
   proposals.py        accepted agent output을 proposed artifact로 materialize.
+  work_items.py       proposal work item doctor + guarded engine/case promotion.
   memory/
     schema.json       외부 원장 스키마.
     store.py          JSON/JSONL 원장 구현.
@@ -184,6 +185,32 @@ engine fix plan, coverage update plan만 만들고, source-of-truth 오라클과
 자동 수정하지 않는다. 실제 provider command는 로컬 `harness/config.yaml`의
 `models.commands.{cheap,strong}`에 넣고 `agent_runtime doctor --strict`로 점검한다.
 
+Proposal work item promotion:
+
+```bash
+python -m harness.work_items doctor \
+  --proposal-root output/harness/proposal_scaffold_smoke
+
+python -m harness.work_items engine-worktree \
+  --plan output/harness/proposal_run/work_items/engine_fixes/<fix>/engine_fix_plan.json \
+  --dry-run
+
+python -m harness.work_items case-bundle \
+  --expected output/harness/proposal_run/work_items/source_cases/<case>.expected.proposal.json \
+  --target suite10-cpp \
+  --bundle-dir output/harness/case_bundles/<case>
+
+python -m harness.work_items case-apply \
+  --expected output/harness/proposal_run/work_items/source_cases/<case>.expected.proposal.json \
+  --target suite10-cpp \
+  --dry-run
+```
+
+`engine-worktree --create`와 `case-apply --apply`는 human approval key가 있어야 실제
+작동한다. 이 명령들도 Engine11 main merge나 expected 생성을 자동 진행하지 않는다.
+case apply는 source/manifest까지만 다루고, expected JSON은 승인 후 기존
+`generate_expected_from_manifest.py` 경로로 생성한다.
+
 검증된 smoke:
 
 ```text
@@ -262,15 +289,24 @@ materialized 10 proposal artifact(s)
 
 python -m harness.proposals --agent-results output/harness/agent_runtime_budget_smoke/agent_results.json --run-id proposal_scaffold_smoke --output-dir output/harness/proposal_scaffold_smoke --include-coverage --scaffold-work-items
 materialized 10 proposal artifact(s), scaffolded 10 proposal work item(s)
+
+python -m harness.work_items doctor --proposal-root output/harness/proposal_scaffold_smoke
+checked: 20 / all paths ok
+
+python -m harness.work_items engine-worktree --plan output/harness/proposal_scaffold_case_engine_smoke/work_items/engine_fixes/fix_TV2X999-smoke/engine_fix_plan.json --dry-run --allow-unapproved
+engine worktree dry-run: branch/worktree plan only
+
+python -m harness.work_items case-bundle --expected output/harness/proposal_scaffold_case_engine_smoke/work_items/source_cases/TV2X999.expected.proposal.json --target suite10-cpp --bundle-dir output/harness/case_bundle_smoke
+case bundle generated, real source/manifest not modified
 ```
 
 ## 결정적 vs STUB
 | 완성(결정적) | STUB(배선 필요) |
 |---|---|
-| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | automatic engine patch worktree loop |
+| config + Suite09/Suite10UE adapters + Engine11 runner + FailureReport v2 + summary/gate | local provider command values/secrets configuration |
 | artifact hash, engine commit, expected hash, run config hash 기록 | multi-arch/local UE variants beyond Mac arm64 |
-| cache hit 기반 engine/verify result skip | local provider command values/secrets configuration |
-| changed-only prepare cache | automatic approved source copy into real testbed repo |
+| cache hit 기반 engine/verify result skip | approved case expected generation/apply policy |
+| changed-only prepare cache | multi-arch/local UE variants beyond Mac arm64 |
 | Suite10 Tier0 local build/extract prepare step | multi-arch/local UE variants beyond Mac arm64 |
 | UE 5.8 local DebugGame/Development build prepare step | 결정적 core 기준 추가 STUB 없음 |
 | UE 5.8 Mac build-output low-pcode extraction + local analysis | 결정적 core 기준 추가 STUB 없음 |
@@ -279,6 +315,7 @@ materialized 10 proposal artifact(s), scaffolded 10 proposal work item(s)
 | agent runtime hook + output schema/evidence validation + tier/budget accounting + provider doctor | 결정적 core 기준 추가 STUB 없음 |
 | named regression baseline pins | 결정적 core 기준 추가 STUB 없음 |
 | proposal artifact materialization + review work item scaffolding | 결정적 core 기준 추가 STUB 없음 |
+| work item doctor + guarded engine worktree/case bundle/apply dry-run | 결정적 core 기준 추가 STUB 없음 |
 | P0 DebugGame case-scoped graph/budget path | 결정적 core 기준 추가 STUB 없음 |
 | baseline/capability/artifact JSON 원장 갱신 | 결정적 core 기준 추가 STUB 없음 |
 | human_gate.json + human_approval_queue.jsonl | 결정적 core 기준 추가 STUB 없음 |
@@ -307,7 +344,15 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 
 ## 다음 배선 순서
 1. 로컬 `harness/config.yaml`에 실제 모델 provider command를 `models.commands.{cheap,strong}`로 채우고 `agent_runtime doctor --strict`를 gate에 넣는다.
-2. accepted engine_fixer work item을 별도 11_ worktree patch branch로 생성하되 main merge는 계속 human gate로 둔다.
-3. accepted case_author work item을 사람이 승인한 뒤 실제 source/manifest/expected generation 단계로 복사한다.
+2. accepted engine_fixer work item을 `work_items engine-worktree --create --approval-key <key>`로 별도 11_ worktree branch에 연다. main merge는 계속 human gate다.
+3. accepted case_author work item은 `case-bundle`로 검토 bundle을 만들고, 승인 뒤 `case-apply --apply --approval-key <key>`로 source/manifest까지만 반영한다. expected JSON 생성은 기존 generator 경로로 따로 확인한다.
 4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
 5. 반복 실행 정책을 정해 어떤 baseline pin을 release/local gate로 승격할지 문서화한다.
+
+## 실제 harness loop 실행 직전 필요한 것
+```text
+1. harness/config.yaml의 models.commands.cheap/strong 값
+2. agent provider가 stdin JSON -> stdout JSON 계약을 지키는지 확인
+3. engine-worktree/case-apply를 실제 적용할 때 사용할 human approval key
+4. UE 재빌드/재추출까지 돌릴 경우 Xcode 26 + UE_5.8 + Ghidra/Java/NDK 경로 유지
+```
