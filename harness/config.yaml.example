@@ -16,12 +16,12 @@ output:
   memory: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness/memory"
 
 models:
-  cheap: "gpt-5.4-mini"
-  strong: "gpt-5.5"
+  cheap: "codex:gpt-5.4-mini"
+  strong: "codex:gpt-5.5"
   adversary_panel: []
   commands:
-    cheap: "python3 -m harness.providers.openai_agent_executor --model gpt-5.4-mini"
-    strong: "python3 -m harness.providers.openai_agent_executor --model gpt-5.5"
+    cheap: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.4-mini"
+    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.5"
   agent_tiers:
     triage: "cheap"
     coverage_planner: "cheap"

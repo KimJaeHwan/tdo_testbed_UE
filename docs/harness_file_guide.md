@@ -31,6 +31,7 @@ harness/
   agent_runtime.py
   providers/
     openai_agent_executor.py
+    codex_cli_agent_executor.py
   proposals.py
   work_items.py
   human_approval.py
@@ -188,6 +189,25 @@ OpenAI Responses API용 JSON-in/JSON-out provider wrapper다.
 - Models: https://developers.openai.com/api/docs/models
 - ChatGPT vs API billing: https://help.openai.com/en/articles/9039756-billing-settings-in-chatgpt-vs-platform
 
+### `harness/providers/codex_cli_agent_executor.py`
+
+Codex CLI용 JSON-in/JSON-out provider wrapper다.
+
+역할:
+- stdin의 agent task JSON 읽기
+- `codex exec`를 read-only sandbox / approval-never / ephemeral 모드로 호출
+- Codex final response를 JSON으로 파싱해서 stdout에 출력
+
+왜 필요한가:
+- OpenAI API billing을 열기 전, Codex/ChatGPT 계정 로그인 기반으로 agent loop를 시험할 수 있다.
+- 하네스는 여전히 파일을 직접 수정하지 않고 proposal/work item만 만든다.
+- Codex 한도 초과로 중간에 멈춰도 `agent_runtime --resume-existing`으로 accepted task를 건너뛰고 이어갈 수 있다.
+
+주의:
+- Codex CLI 사용량/한도는 계정/플랜 정책을 따른다.
+- 무제한 무료 대체가 아니라 API key 없는 provider 대안으로 보는 것이 안전하다.
+- 실제 실행 전에는 `--max-calls 1` 또는 `--max-calls 2`로 작은 smoke부터 한다.
+
 ### `harness/proposals.py`
 
 accepted agent output을 proposal artifact로 materialize한다.
@@ -313,12 +333,12 @@ LLM agent loop용 설정이다. deterministic 회귀 분석만 할 때는 없어
 
 ```yaml
 models:
-  cheap: "gpt-5.4-mini"
-  strong: "gpt-5.5"
+  cheap: "codex:gpt-5.4-mini"
+  strong: "codex:gpt-5.5"
   adversary_panel: []
   commands:
-    cheap: "python3 -m harness.providers.openai_agent_executor --model gpt-5.4-mini"
-    strong: "python3 -m harness.providers.openai_agent_executor --model gpt-5.5"
+    cheap: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.4-mini"
+    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.5"
   agent_tiers:
     triage: "cheap"
     coverage_planner: "cheap"
@@ -329,8 +349,20 @@ models:
     case_author: "strong"
 ```
 
-모델명은 예시다. 실제 사용 가능한 모델은 OpenAI API dashboard/model 문서에서 확인해서 바꾼다.
-ChatGPT Plus/Pro 결제와 API platform billing은 별도이므로, API key와 API billing이 준비되어야 한다.
+모델명은 예시다. Codex CLI가 해당 모델을 사용할 수 있어야 한다.
+
+OpenAI API를 직접 쓰고 싶으면 commands를 아래처럼 바꾼다.
+
+```yaml
+models:
+  cheap: "gpt-5.4-mini"
+  strong: "gpt-5.5"
+  commands:
+    cheap: "python3 -m harness.providers.openai_agent_executor --model gpt-5.4-mini"
+    strong: "python3 -m harness.providers.openai_agent_executor --model gpt-5.5"
+```
+
+이 경우 ChatGPT Plus/Pro 결제와 API platform billing은 별도이므로, API key와 API billing이 준비되어야 한다.
 
 API key는 환경변수로 설정한다.
 
@@ -366,7 +398,49 @@ defaults:
   case_scope_byte_threshold: 134217728
 ```
 
-## GPT/OpenAI provider 연결 확인
+## Codex CLI provider 연결 확인
+
+1. Codex 로그인 확인
+
+```bash
+codex login status
+```
+
+2. config 점검
+
+```bash
+python3 -m harness.agent_runtime doctor --strict
+```
+
+3. 작은 task로 smoke
+
+```bash
+python3 -m harness.agent_runtime run \
+  --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
+  --output-dir output/harness/codex_agent_smoke \
+  --max-calls 1 \
+  --max-tokens 20000 \
+  --stop-on-provider-error
+```
+
+4. 한도 초과나 provider error 이후 이어서 실행
+
+```bash
+python3 -m harness.agent_runtime run \
+  --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
+  --output-dir output/harness/codex_agent_smoke \
+  --max-calls 5 \
+  --max-tokens 50000 \
+  --resume-existing \
+  --stop-on-provider-error
+```
+
+`--resume-existing`은 이미 accepted 된 output을 건너뛰고 실패/미완료 task만 다시 시도한다.
+`--max-calls`나 provider error로 중간 종료되면 exit code 3이 날 수 있지만,
+`agent_results.json`에는 그 시점까지 accepted 된 결과가 저장된다. 나중에 한도가 돌아오면
+같은 `--output-dir`에 `--resume-existing`을 붙여 이어서 실행한다.
+
+## GPT/OpenAI API provider 연결 확인
 
 1. API key 설정
 
@@ -405,7 +479,7 @@ python3 -m harness.orchestrator --suite 10 --mode local-samples --variant-filter
 추가 준비 필요:
 
 ```text
-LLM agent loop    : OPENAI_API_KEY + models.commands 설정
+LLM agent loop    : Codex login 또는 OPENAI_API_KEY + models.commands 설정
 engine worktree   : human approval key
 case apply        : human approval key
 UE 재빌드/재추출 : Xcode 26 + UE_5.8 + Ghidra/Java/NDK 경로 유지

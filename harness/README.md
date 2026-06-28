@@ -168,9 +168,17 @@ python -m harness.agent_runtime doctor --strict --json
 python -m harness.agent_runtime run \
   --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
   --output-dir output/harness/agent_runtime \
-  --max-calls 30 \
+  --max-calls 2 \
   --max-tokens 200000 \
-  --executor "your-json-in-json-out-agent-command"
+  --stop-on-provider-error
+
+python -m harness.agent_runtime run \
+  --tasks output/harness/p0_case_scope_agent_tasks/agent_tasks.json \
+  --output-dir output/harness/agent_runtime \
+  --max-calls 10 \
+  --max-tokens 100000 \
+  --resume-existing \
+  --stop-on-provider-error
 
 python -m harness.proposals \
   --agent-results output/harness/agent_runtime/agent_results.json \
@@ -180,6 +188,10 @@ python -m harness.proposals \
   --scaffold-work-items
 ```
 
+`--max-calls`, `--max-tokens`, provider error로 중간 종료되면 exit code 3이 날 수 있다.
+이때도 accepted 결과는 `agent_results.json`에 저장되므로, 같은 output dir에
+`--resume-existing`을 붙여 이어서 실행한다.
+
 Agent executor output은 role별 JSON 계약과 evidence requirement를 통과해야 accepted로
 기록된다. 모델 출력은 PASS/FAIL, expected, manifest, engine merge를 직접 바꾸지 않는다.
 Accepted case_author/engine_fixer/coverage_planner output도 proposal artifact로만
@@ -187,6 +199,8 @@ materialize된다. `--scaffold-work-items`는 사람이 검토할 source skeleto
 engine fix plan, coverage update plan만 만들고, source-of-truth 오라클과 엔진 main은
 자동 수정하지 않는다. 실제 provider command는 로컬 `harness/config.yaml`의
 `models.commands.{cheap,strong}`에 넣고 `agent_runtime doctor --strict`로 점검한다.
+기본 예시는 Codex CLI provider를 사용한다. OpenAI API provider도 가능하지만 그 경우
+`OPENAI_API_KEY`와 API billing이 필요하다.
 
 Proposal work item promotion:
 
@@ -346,7 +360,7 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 엔진 출력에서 생성하지 않는다.
 
 ## 다음 배선 순서
-1. 로컬 `harness/config.yaml`에 실제 모델 provider command를 `models.commands.{cheap,strong}`로 채우고 `agent_runtime doctor --strict`를 gate에 넣는다.
+1. 로컬 `harness/config.yaml`에 실제 모델 provider command를 `models.commands.{cheap,strong}`로 채우고 `agent_runtime doctor --strict`를 gate에 넣는다. 기본 추천은 Codex CLI provider다.
 2. accepted engine_fixer work item을 `work_items engine-worktree --create --approval-key <key>`로 별도 11_ worktree branch에 연다. main merge는 계속 human gate다.
 3. accepted case_author work item은 `case-bundle`로 검토 bundle을 만들고, 승인 뒤 `case-apply --apply --approval-key <key>`로 source/manifest까지만 반영한다. expected JSON 생성은 기존 generator 경로로 따로 확인한다.
 4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
@@ -354,8 +368,9 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 
 ## 실제 harness loop 실행 직전 필요한 것
 ```text
-1. harness/config.yaml의 models.commands.cheap/strong 값
-2. agent provider가 stdin JSON -> stdout JSON 계약을 지키는지 확인
-3. engine-worktree/case-apply를 실제 적용할 때 사용할 human approval key
-4. UE 재빌드/재추출까지 돌릴 경우 Xcode 26 + UE_5.8 + Ghidra/Java/NDK 경로 유지
+1. Codex login 또는 OpenAI API key
+2. harness/config.yaml의 models.commands.cheap/strong 값
+3. agent provider가 stdin JSON -> stdout JSON 계약을 지키는지 확인
+4. engine-worktree/case-apply를 실제 적용할 때 사용할 human approval key
+5. UE 재빌드/재추출까지 돌릴 경우 Xcode 26 + UE_5.8 + Ghidra/Java/NDK 경로 유지
 ```

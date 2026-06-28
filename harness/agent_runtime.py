@@ -147,10 +147,12 @@ def run_tasks(args: argparse.Namespace) -> int:
     output_dir = args.output_dir or args.tasks.parent / "agent_outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     results = []
+    existing = _existing_accepted_results(output_dir) if args.resume_existing else {}
     max_calls = int(args.max_calls if args.max_calls is not None else config.value("budgets", "per_run_max_calls", 0) or 0)
     max_tokens = int(args.max_tokens if args.max_tokens is not None else config.value("budgets", "per_run_max_tokens", 0) or 0)
     used_calls = 0
     used_tokens = 0
+    stopped_reason = ""
     for index, task in enumerate(tasks):
         agent = task.get("agent") or "unknown"
         prefix = output_dir / f"{index:03d}_{agent}"
@@ -158,6 +160,12 @@ def run_tasks(args: argparse.Namespace) -> int:
         write_json(request_path, task)
         tier, executor_text, model_name = _resolve_executor(args, config, task)
         estimated_input_tokens = _estimate_tokens(task)
+        if index in existing:
+            row = dict(existing[index])
+            row["resumed"] = True
+            row["request_path"] = str(request_path)
+            results.append(row)
+            continue
         if args.dry_run:
             results.append(
                 {
@@ -181,11 +189,13 @@ def run_tasks(args: argparse.Namespace) -> int:
             print(f"error: no executor configured for agent={agent} tier={tier}")
             return 2
         if max_calls and used_calls + 1 > max_calls:
-            print(f"error: agent call budget exceeded before task {index}: max_calls={max_calls}")
-            return 3
+            stopped_reason = f"agent call budget exceeded before task {index}: max_calls={max_calls}"
+            print(f"error: {stopped_reason}")
+            break
         if max_tokens and used_tokens + estimated_input_tokens > max_tokens:
-            print(f"error: agent token budget exceeded before task {index}: max_tokens={max_tokens}")
-            return 3
+            stopped_reason = f"agent token budget exceeded before task {index}: max_tokens={max_tokens}"
+            print(f"error: {stopped_reason}")
+            break
         executor = shlex.split(executor_text)
         proc = subprocess.run(
             executor,
@@ -211,33 +221,62 @@ def run_tasks(args: argparse.Namespace) -> int:
         if max_tokens and used_tokens > max_tokens:
             validation["accepted"] = False
             validation.setdefault("errors", []).append(f"agent token budget exceeded: used={used_tokens}, max={max_tokens}")
-        results.append(
-            {
-                "task_index": index,
-                "agent": agent,
-                "tier": tier,
-                "model": model_name,
-                "request_path": str(request_path),
-                "output_path": str(output_path),
-                "stdout_path": str(stdout_path),
-                "stderr_path": str(stderr_path),
-                "returncode": proc.returncode,
-                "budget": {
-                    "estimated_input_tokens": estimated_input_tokens,
-                    "estimated_output_tokens": estimated_output_tokens,
-                    "estimated_total_tokens": estimated_input_tokens + estimated_output_tokens,
-                    "used_calls": used_calls,
-                    "used_tokens": used_tokens,
-                    "max_calls": max_calls,
-                    "max_tokens": max_tokens,
-                },
-                "validation": validation,
-            }
-        )
+        row = {
+            "task_index": index,
+            "agent": agent,
+            "tier": tier,
+            "model": model_name,
+            "request_path": str(request_path),
+            "output_path": str(output_path),
+            "stdout_path": str(stdout_path),
+            "stderr_path": str(stderr_path),
+            "returncode": proc.returncode,
+            "budget": {
+                "estimated_input_tokens": estimated_input_tokens,
+                "estimated_output_tokens": estimated_output_tokens,
+                "estimated_total_tokens": estimated_input_tokens + estimated_output_tokens,
+                "used_calls": used_calls,
+                "used_tokens": used_tokens,
+                "max_calls": max_calls,
+                "max_tokens": max_tokens,
+            },
+            "validation": validation,
+        }
+        results.append(row)
+        if args.stop_on_provider_error and proc.returncode != 0:
+            stopped_reason = f"provider stopped at task {index}: returncode={proc.returncode}"
+            print(stopped_reason)
+            break
     write_json(output_dir / "agent_results.json", results)
     accepted = sum(1 for row in results if (row.get("validation") or {}).get("accepted"))
     print(f"agent tasks: {len(results)} result(s), accepted={accepted}, output={output_dir}")
+    if stopped_reason or len(results) < len(tasks):
+        return 3
     return 0 if all((row.get("validation") or {}).get("accepted") for row in results) else 1
+
+
+def _existing_accepted_results(output_dir: Path) -> dict[int, dict]:
+    path = output_dir / "agent_results.json"
+    if not path.is_file():
+        return {}
+    try:
+        rows = _read_json(path)
+    except json.JSONDecodeError:
+        return {}
+    accepted: dict[int, dict] = {}
+    if not isinstance(rows, list):
+        return accepted
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        validation = row.get("validation") or {}
+        output_path = row.get("output_path")
+        if validation.get("accepted") and output_path and Path(str(output_path)).is_file():
+            try:
+                accepted[int(row.get("task_index"))] = row
+            except (TypeError, ValueError):
+                continue
+    return accepted
 
 
 def _resolve_executor(args: argparse.Namespace, config: HarnessConfig, task: dict) -> tuple[str, str, str]:
@@ -365,6 +404,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--executor", default="", help="Override command that reads one task JSON on stdin and prints output JSON.")
     run_p.add_argument("--max-calls", type=int, default=None, help="Override per-run agent call budget. 0 means unlimited.")
     run_p.add_argument("--max-tokens", type=int, default=None, help="Override approximate token budget. 0 means unlimited.")
+    run_p.add_argument("--resume-existing", action="store_true", help="Skip already accepted outputs in the output directory.")
+    run_p.add_argument("--stop-on-provider-error", action="store_true", help="Stop the run after a provider command exits non-zero.")
     run_p.add_argument("--dry-run", action="store_true", help="Write request JSON files only.")
     run_p.set_defaults(func=run_tasks)
 
