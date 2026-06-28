@@ -13,15 +13,74 @@ from pathlib import Path
 from harness.config import ROOT
 
 
-OUTPUT_SCHEMA = {
-    "type": "object",
-    "required": ["agent", "schema_version"],
-    "properties": {
+def _schema_for_agent(agent: str) -> dict:
+    base = {
         "agent": {"type": "string"},
-        "schema_version": {"type": ["integer", "null"]},
-    },
-    "additionalProperties": True,
-}
+        "schema_version": {"type": "integer"},
+    }
+    if agent == "triage":
+        props = {**base, "category": {"type": "string"}, "reason": {"type": "string"}, "evidence_ref": {"type": "string"}}
+        return _object_schema(props, list(props))
+    if agent == "coverage_planner":
+        props = {
+            **base,
+            "capability_updates": {
+                "type": "array",
+                "items": _object_schema(
+                    {
+                        "case_class": {"type": "string"},
+                        "status": {"type": "string"},
+                        "evidence_ref": {"type": "string"},
+                    },
+                    ["case_class", "status", "evidence_ref"],
+                ),
+            },
+        }
+        return _object_schema(props, list(props))
+    if agent == "diagnostician":
+        props = {**base, "root_cause": {"type": "string"}, "evidence_ref": {"type": "string"}}
+        return _object_schema(props, list(props))
+    if agent == "adversary":
+        props = {**base, "refuted": {"type": "boolean"}, "lens": {"type": "string"}, "evidence_ref": {"type": "string"}}
+        return _object_schema(props, list(props))
+    if agent == "engine_fixer":
+        props = {
+            **base,
+            "summary": {"type": "string"},
+            "selftest": {"type": "string"},
+            "files_changed": {"type": "array", "items": {"type": "string"}},
+        }
+        return _object_schema(props, list(props))
+    if agent == "case_author":
+        props = {
+            **base,
+            "proposed_cases": {
+                "type": "array",
+                "items": _object_schema(
+                    {
+                        "id": {"type": "string"},
+                        "oracle_basis": {"type": "string"},
+                        "independent_check": {"type": "string"},
+                    },
+                    ["id", "oracle_basis", "independent_check"],
+                ),
+            },
+        }
+        return _object_schema(props, list(props))
+    if agent == "memory_synth":
+        props = {**base, "updated": {"type": "array", "items": {"type": "string"}}}
+        return _object_schema(props, list(props))
+    props = {**base, "category": {"type": "string"}, "reason": {"type": "string"}, "evidence_ref": {"type": "string"}}
+    return _object_schema(props, list(props))
+
+
+def _object_schema(properties: dict, required: list[str]) -> dict:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
 
 
 def _read_stdin_json() -> dict:
@@ -106,7 +165,7 @@ def execute(args: argparse.Namespace) -> int:
         tmpdir = Path(tmp)
         schema_path = tmpdir / "agent_output_schema.json"
         output_path = tmpdir / "last_message.json"
-        schema_path.write_text(json.dumps(OUTPUT_SCHEMA, ensure_ascii=False, indent=2), encoding="utf-8")
+        schema_path.write_text(json.dumps(_schema_for_agent(agent), ensure_ascii=False, indent=2), encoding="utf-8")
         cmd = [
             codex_bin,
             "exec",
