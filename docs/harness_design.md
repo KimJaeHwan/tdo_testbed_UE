@@ -225,7 +225,13 @@ PR5 계층 캐시      : build/pcode/engine/verify 4단 + canonical 정규화
                      expected_hash가 동일할 때 cache hit로 skip한다. build/pcode 단계
                      changed-only 무효화는 local build/extract adapter 이후 작업)
 PR6 Adapter        : Suite09/Suite10UE/Engine11 + dry-run (--suite 09/10/09,10 --dry-run)
-                     (2026-06-28 부분 완료: --list-variants, Suite09, Suite10UE release/local-samples, Engine11 runner)
+                     (2026-06-28 부분 완료: --list-variants, --variant-filter,
+                     Suite09, Suite10UE release/local-samples, Engine11 runner.
+                     Suite10 Tier0는 --prepare-artifacts가 build.sh tier0 +
+                     cpp_like/scripts/extract_lowpcode.sh를 실행하고 prepare_report/log를
+                     남긴 뒤 Engine11 분석까지 연결한다. UE 5.8 Mac local build도
+                     --include-ue-build로 P0(DebugGame), P1(Development) 성공 확인.
+                     UE build 산출물 low-pcode extraction adapter는 다음 단계)
 PR7 gates 강화     : harness_defect triage(8범주+unknown) + evidence_required + known_frontier_not_counted
 PR8 capability/coverage_planner: missing/weakly/frontier/contradictory 관리
 PR9 agent JSON 계약: schema validation + role 정규화 + proposed_cases approval queue (완료: invalid output 무시, case_author가 expected 직접수정 불가)

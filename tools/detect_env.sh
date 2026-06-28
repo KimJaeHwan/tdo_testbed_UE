@@ -37,6 +37,8 @@ fi
 # ── Unreal Engine ─────────────────────────────────────
 if [ -z "${UE_ROOT:-}" ]; then
 	for c in \
+		"/c/Program Files/Epic Games/UE_5.8" "C:/Program Files/Epic Games/UE_5.8" \
+		"/Users/Shared/Epic Games/UE_5.8" "$HOME/UE_5.8" \
 		"/c/Program Files/Epic Games/UE_5.1" "C:/Program Files/Epic Games/UE_5.1" \
 		"/Users/Shared/Epic Games/UE_5.1" "$HOME/UnrealEngine" "$HOME/UE_5.1"; do
 		[ -d "$c" ] && UE_ROOT="$c" && break

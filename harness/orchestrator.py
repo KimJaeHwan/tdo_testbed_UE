@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 import uuid
 from pathlib import Path
 
-from .adapters import Variant, selected_variants
+from .adapters import PrepareStep, Variant, selected_prepare_steps, selected_variants
 from .config import HarnessConfig, ROOT
 from .gates import invariant_status
 from .memory.store import Memory
@@ -20,6 +21,9 @@ from .reporting import (
     summarize,
     write_json,
 )
+
+
+TIER0_ARCHES = ["x86", "x64", "armv7", "aarch64"]
 
 
 def _add_engine_to_syspath(engine_root: Path) -> None:
@@ -238,6 +242,67 @@ def _parse_suites(text: str) -> set[str]:
     return selected
 
 
+def _parse_arches(text: str) -> list[str]:
+    if text.strip().lower() == "all":
+        return list(TIER0_ARCHES)
+    arches = [part.strip() for part in text.split(",") if part.strip()]
+    unknown = sorted(set(arches) - set(TIER0_ARCHES))
+    if unknown:
+        raise ValueError(f"unknown arch for local prepare: {', '.join(unknown)}")
+    return arches or ["x64"]
+
+
+def _safe_label(text: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in text)
+
+
+def _run_prepare_steps(steps: list[PrepareStep], output_root: Path, dry_run: bool = False) -> list[dict]:
+    records: list[dict] = []
+    prepare_dir = output_root / "prepare"
+    prepare_dir.mkdir(parents=True, exist_ok=True)
+    for index, step in enumerate(steps, start=1):
+        log_path = prepare_dir / f"{index:02d}_{_safe_label(step.label)}.log"
+        record = {
+            "label": step.label,
+            "command": list(step.command),
+            "cwd": str(step.cwd),
+            "outputs": [str(path) for path in step.outputs],
+            "optional": step.optional,
+            "dry_run": dry_run,
+            "returncode": 0,
+            "log_path": str(log_path),
+        }
+        print(f"[prepare] {step.label}: {' '.join(step.command)}")
+        if dry_run:
+            log_path.write_text("dry-run: command not executed\n", encoding="utf-8")
+            records.append(record)
+            continue
+
+        env = {**os.environ, **step.env}
+        result = subprocess.run(
+            step.command,
+            cwd=step.cwd,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        log_path.write_text(result.stdout or "", encoding="utf-8")
+        record["returncode"] = result.returncode
+        record["output_exists"] = {str(path): path.exists() for path in step.outputs}
+        records.append(record)
+        if result.returncode != 0:
+            print(f"[prepare] FAILED {step.label}; see {log_path}")
+            if not step.optional:
+                break
+    return records
+
+
+def _prepare_failed(records: list[dict]) -> bool:
+    return any(row.get("returncode") != 0 and not row.get("optional") for row in records)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run deterministic 09/10/11 TDO harness checks.")
     parser.add_argument("--config", type=Path, default=ROOT / "harness" / "config.yaml")
@@ -249,12 +314,46 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
     parser.add_argument("--no-cache", action="store_true", help="Do not reuse cached verify results.")
+    parser.add_argument("--variant-filter", default="", help="Substring filter for variant labels.")
+    parser.add_argument("--prepare-artifacts", action="store_true", help="Run local build/extract preparation before analysis.")
+    parser.add_argument("--prepare-only", action="store_true", help="Run preparation and stop before Engine11 analysis.")
+    parser.add_argument("--prepare-dry-run", action="store_true", help="Print and record preparation commands without executing them.")
+    parser.add_argument("--profile", default="P0", choices=["P0", "P1"], help="Local Tier0 build/extract profile.")
+    parser.add_argument("--arch", default="x64", help="Local Tier0 arch list: x86,x64,armv7,aarch64 or all.")
+    parser.add_argument("--include-ue-build", action="store_true", help="Also try the local UE build step.")
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
     mode = args.mode or str(config.value("defaults", "mode", "release-artifacts"))
     suites = _parse_suites(args.suite)
+    run_id = args.run_id or uuid.uuid4().hex[:12]
+    output_root = args.output_dir or (config.path("output", "root") / run_id)
+
+    if args.prepare_artifacts or args.prepare_only:
+        try:
+            arches = _parse_arches(args.arch)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        steps = selected_prepare_steps(
+            config,
+            suites,
+            mode,
+            args.profile,
+            arches,
+            include_ue_build=args.include_ue_build,
+        )
+        prepare_records = _run_prepare_steps(steps, output_root, dry_run=args.prepare_dry_run)
+        write_json(output_root / "prepare_report.json", prepare_records)
+        if _prepare_failed(prepare_records):
+            return 1
+        if args.prepare_only:
+            print(f"[prepare] saved {output_root / 'prepare_report.json'}")
+            return 0
+
     variants = selected_variants(config, suites, mode)
+    if args.variant_filter:
+        variants = [variant for variant in variants if args.variant_filter in variant.label]
     if args.case_filter:
         variants = [
             Variant(
@@ -270,9 +369,10 @@ def main(argv: list[str] | None = None) -> int:
         for variant in variants:
             print(f"{variant.suite:18} {variant.label:32} {variant.sample_dir}")
         return 0
+    if not variants:
+        print("error: no variants selected", file=sys.stderr)
+        return 2
 
-    run_id = args.run_id or uuid.uuid4().hex[:12]
-    output_root = args.output_dir or (config.path("output", "root") / run_id)
     run_config = {
         "engine_mode": "summary_first" if config.value("defaults", "summary_first", True) else "default",
         "report_schema_version": 2,

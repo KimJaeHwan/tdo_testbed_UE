@@ -94,8 +94,9 @@ class HarnessConfig:
             "tools": {
                 "python": "",
                 "ghidra_home": "/opt/homebrew/Cellar/ghidra/12.0.4/libexec",
+                "ghidra_java_home": "/Applications/Android Studio.app/Contents/jbr/Contents/Home",
                 "android_ndk": "/Users/test2000/Library/Android/sdk/ndk/30.0.14904198",
-                "unreal_engine_root": "/Users/Shared/Epic Games/UE_5.1",
+                "unreal_engine_root": "/Users/Shared/Epic Games/UE_5.8",
                 "release_artifacts": str(root / "dist" / "release_0.3.0"),
             },
             "output": {

@@ -63,13 +63,14 @@ Verified by `./build.sh env`: `NDK clang ... OK`.
 ## Unreal Engine
 
 ```bash
-UE_ROOT="/Users/Shared/Epic Games/UE_5.1"
+UE_ROOT="/Users/Shared/Epic Games/UE_5.8"
 ```
 
-Installed UE version:
+Installed local UE versions:
 
 ```text
-UE 5.1.1
+UE 5.8.0  local Mac build target
+UE 5.1.1  legacy/release artifact reference
 ```
 
 Current Xcode:
@@ -80,13 +81,17 @@ MacOSX26.5.sdk
 ```
 
 Important: UE 5.1.1's UBT validator allows Apple SDK versions only up to
-`14.9.9`, so local UE Mac builds are currently blocked with:
+`14.9.9`, so local UE Mac builds are blocked with Xcode 26. UE 5.8.0 builds
+with Xcode 26 after the testbed target files explicitly set C++20 and allow the
+Editor target build-environment override.
 
 ```text
-Platform Mac is not a valid platform to build.
+UE 5.8.0 DebugGame/P0    : build succeeded
+UE 5.8.0 Development/P1  : build succeeded
 ```
 
-For now, use the GitHub Release Win64 binaries instead of building UE locally.
+Use GitHub Release Win64 binaries for the existing release-artifacts regression
+baseline. Use UE 5.8.0 for local Mac build/extract development.
 
 ## UE Release Artifacts
 
@@ -167,6 +172,49 @@ Tier0 x64 low-pcode extraction:
 
 ```bash
 ./cpp_like/scripts/extract_lowpcode.sh x64 P0
+```
+
+Harness Tier0 x64 build/extract only:
+
+```bash
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-only \
+  --profile P0 \
+  --arch x64
+```
+
+Harness Tier0 x64 build/extract/analyze:
+
+```bash
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-artifacts \
+  --profile P0 \
+  --arch x64 \
+  --variant-filter tv2-tier0-P0-x64
+```
+
+Local UE 5.8 build through the harness:
+
+```bash
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-only \
+  --profile P0 \
+  --arch x64 \
+  --include-ue-build
+
+python3 -m harness.orchestrator \
+  --suite 10 \
+  --mode local-samples \
+  --prepare-only \
+  --profile P1 \
+  --arch x64 \
+  --include-ue-build
 ```
 
 UE release Development validation:
