@@ -41,9 +41,11 @@ def _ensure_engine_python(engine_root: Path) -> None:
 
 
 class Engine11Runner:
-    def __init__(self, config: HarnessConfig):
+    def __init__(self, config: HarnessConfig, memory: Memory | None = None, use_cache: bool = True):
         self.config = config
         self.engine_root = config.path("repos", "engine_11")
+        self.memory = memory
+        self.use_cache = use_cache
         _ensure_engine_python(self.engine_root)
         _add_engine_to_syspath(self.engine_root)
 
@@ -80,6 +82,28 @@ class Engine11Runner:
         run_config_hash: str,
     ) -> dict:
         artifacts = self._artifacts(variant, json_path, run_config_hash)
+        engine = self._engine(run_config_hash)
+        if self.use_cache and self.memory is not None:
+            cached = self.memory.cached_result(
+                artifacts.get("pcode_hash"),
+                engine.get("commit"),
+                run_config_hash,
+                artifacts.get("expected_hash"),
+            )
+            if cached is not None:
+                cached["run_id"] = run_id
+                cached["suite"] = variant.suite
+                cached["variant_label"] = variant.label
+                cached["variant"] = variant.variant_dict()
+                cached["toolchain"] = self._toolchain()
+                cached["engine"] = engine
+                cached["artifacts"] = {**artifacts, "result_path": None}
+                source_cache = cached.get("cache") or {}
+                cached["cache"] = {
+                    "hit": True,
+                    "source_result_path": (source_cache.get("source_result_path") or source_cache.get("result_path")),
+                }
+                return cached
         try:
             fg = builder.build_for_target(json_path)
             data_sources: set[str] = set()
@@ -105,7 +129,7 @@ class Engine11Runner:
                 "function": fg.function_name,
                 "variant": variant.variant_dict(),
                 "toolchain": self._toolchain(),
-                "engine": self._engine(run_config_hash),
+                "engine": engine,
                 "artifacts": artifacts,
                 "verdict": validation.get("verdict"),
                 "actual_sources": validation.get("actual_sources", []),
@@ -117,6 +141,7 @@ class Engine11Runner:
                 "edge_kinds_seen": self._edge_kinds(fg),
                 "cut": sorted(set(cuts)) if validation.get("verdict") != "PASS" else [],
                 "budgets": {"budget_exceeded": False, "details": []},
+                "cache": {"hit": False},
             }
         except Exception as exc:  # noqa: BLE001
             row = self._error_row(run_id, variant, json_path.stem, str(exc), run_config_hash)
@@ -223,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-id", default="")
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
+    parser.add_argument("--no-cache", action="store_true", help="Do not reuse cached verify results.")
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
@@ -248,14 +274,14 @@ def main(argv: list[str] | None = None) -> int:
     run_id = args.run_id or uuid.uuid4().hex[:12]
     output_root = args.output_dir or (config.path("output", "root") / run_id)
     run_config = {
-        "suite": sorted(suites),
-        "mode": mode,
-        "case_filter": args.case_filter,
-        "engine": str(config.path("repos", "engine_11")),
+        "engine_mode": "summary_first" if config.value("defaults", "summary_first", True) else "default",
+        "report_schema_version": 2,
+        "validator": "expected_validator_v1",
     }
     run_config_hash = canonical_hash(run_config)
 
-    runner = Engine11Runner(config)
+    memory = None if args.no_ledger and args.no_cache else Memory(config.path("output", "memory"))
+    runner = Engine11Runner(config, memory=memory, use_cache=not args.no_cache)
     reports: list[dict] = []
     for variant in variants:
         print(f"[harness] {variant.label}: {variant.sample_dir}")
@@ -269,8 +295,8 @@ def main(argv: list[str] | None = None) -> int:
     write_json(output_root / "failure_report_v2.json", reports)
     write_json(output_root / "summary.json", summary)
     write_json(output_root / "gate.json", gate)
-    if not args.no_ledger:
-        Memory(config.path("output", "memory")).record_run(run_id, reports, summary, gate, output_root)
+    if not args.no_ledger and memory is not None:
+        memory.record_run(run_id, reports, summary, gate, output_root)
 
     print_summary(summary)
     print(f"gate: {gate}")

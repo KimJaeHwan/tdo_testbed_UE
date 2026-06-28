@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -174,6 +175,48 @@ class Memory:
         self._record_artifacts(run_id, report, summary, gate, output_root)
         self.update_capability_map(report)
 
+    def cached_result(
+        self,
+        pcode_hash: str | None,
+        engine_commit: str | None,
+        run_config_hash: str | None,
+        expected_hash: str | None,
+    ) -> dict | None:
+        if not pcode_hash or not engine_commit or not run_config_hash or not expected_hash:
+            return None
+        cache = _read_json(self.artifact_cache_path, {})
+        engine_key = "|".join([pcode_hash, engine_commit, run_config_hash])
+        verify_key = "|".join([engine_key, expected_hash, "expected_validator_v1"])
+        verify = (cache.get("verify_result") or {}).get(verify_key)
+        if not verify:
+            return None
+        engine_result = (cache.get("engine_result") or {}).get(engine_key) or {}
+        cached_row = verify.get("row")
+        if cached_row:
+            row = deepcopy(cached_row)
+            row["cache"] = {"hit": True, "source_result_path": engine_result.get("result_path")}
+            return row
+
+        result_path = engine_result.get("result_path")
+        if not result_path:
+            return None
+        path = Path(result_path)
+        if not path.exists():
+            return None
+        for row in _read_json(path, []):
+            artifacts = row.get("artifacts") or {}
+            engine = row.get("engine") or {}
+            if (
+                artifacts.get("pcode_hash") == pcode_hash
+                and artifacts.get("expected_hash") == expected_hash
+                and artifacts.get("run_config_hash") == run_config_hash
+                and engine.get("commit") == engine_commit
+            ):
+                cached = deepcopy(row)
+                cached["cache"] = {"hit": True, "source_result_path": result_path}
+                return cached
+        return None
+
     def _record_failures(self, run_id: str, report: list[dict]) -> None:
         for row in report:
             if row.get("verdict") == "PASS":
@@ -249,6 +292,7 @@ class Memory:
                         "verdict": row.get("verdict"),
                         "missing": row.get("missing", []),
                         "forbidden_found": row.get("forbidden_found", []),
+                        "row": self._cacheable_row(row),
                         "updated_at": _now(),
                     }
         cache["runs"][run_id] = {
@@ -278,3 +322,7 @@ class Memory:
             return "+".join(sorted(str(item) for item in features))
         return str(row.get("case") or row.get("function") or "unknown")
 
+    def _cacheable_row(self, row: dict) -> dict:
+        cached = deepcopy(row)
+        cached["cache"] = {"hit": False}
+        return cached

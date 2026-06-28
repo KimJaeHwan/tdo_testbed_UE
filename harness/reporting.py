@@ -57,7 +57,7 @@ def summarize(reports: list[dict]) -> dict:
         suite = row.get("suite") or "unknown"
         bucket = suites.setdefault(
             suite,
-            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "variants": {}},
+            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "cache_hits": 0, "variants": {}},
         )
         verdict = str(row.get("verdict") or "ERROR").lower()
         if verdict == "pass":
@@ -70,11 +70,13 @@ def summarize(reports: list[dict]) -> dict:
             bucket["fail"] += 1
         if row.get("forbidden_found"):
             bucket["false_positive"] += 1
+        if (row.get("cache") or {}).get("hit"):
+            bucket["cache_hits"] += 1
 
         variant = row.get("variant_label") or "unknown"
         vb = bucket["variants"].setdefault(
             variant,
-            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0},
+            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "cache_hits": 0},
         )
         if verdict == "pass":
             vb["pass"] += 1
@@ -86,6 +88,8 @@ def summarize(reports: list[dict]) -> dict:
             vb["fail"] += 1
         if row.get("forbidden_found"):
             vb["false_positive"] += 1
+        if (row.get("cache") or {}).get("hit"):
+            vb["cache_hits"] += 1
     return {"schema_version": 2, "suites": suites}
 
 
@@ -99,11 +103,10 @@ def print_summary(summary: dict) -> None:
         print(f"## {suite}")
         print(
             f"PASS {stats['pass']}  FAIL {stats['fail']}  ERROR {stats['error']}  "
-            f"DEGRADED {stats['degraded']}  FP {stats['false_positive']}"
+            f"DEGRADED {stats['degraded']}  FP {stats['false_positive']}  CACHE {stats['cache_hits']}"
         )
         for variant, vstats in sorted(stats.get("variants", {}).items()):
             print(
                 f"  {variant:32} PASS {vstats['pass']:3}  FAIL {vstats['fail']:3}  "
-                f"ERROR {vstats['error']:2}  FP {vstats['false_positive']:2}"
+                f"ERROR {vstats['error']:2}  FP {vstats['false_positive']:2}  CACHE {vstats['cache_hits']:3}"
             )
-
