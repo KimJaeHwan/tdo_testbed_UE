@@ -219,7 +219,9 @@ PR3 09 수직 슬라이스: build→extract→engine→verify→report 최소. *
                      (2026-06-28 부분 완료: existing low-pcode 기반 DFB001 all-root smoke PASS 6)
 PR4 FailureReport v2: suite/variant/artifact/engine commit/hash 정식 + suite별 summary
                      (2026-06-28 부분 완료: flat FailureReport v2, summary.json, gate.json 생성)
-PR5 계층 캐시      : build/pcode/engine/verify 4단 + canonical 정규화 (완료: 재실행 skip, engine commit/extractor/expected 변경별 정확 무효화)
+PR5 계층 캐시      : build/pcode/engine/verify 4단 + canonical 정규화
+                     (2026-06-28 부분 완료: artifact_cache.json에 build/pcode/engine/verify 키 기록.
+                     cache hit 기반 skip과 무효화 실행은 다음 단계)
 PR6 Adapter        : Suite09/Suite10UE/Engine11 + dry-run (--suite 09/10/09,10 --dry-run)
                      (2026-06-28 부분 완료: --list-variants, Suite09, Suite10UE release/local-samples, Engine11 runner)
 PR7 gates 강화     : harness_defect triage(8범주+unknown) + evidence_required + known_frontier_not_counted

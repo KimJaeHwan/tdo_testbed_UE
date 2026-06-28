@@ -12,8 +12,8 @@ tools:
 
 output:
   root: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness"
+  memory: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness/memory"
 
 defaults:
   mode: "release-artifacts"
   summary_first: true
-

@@ -100,6 +100,7 @@ class HarnessConfig:
             },
             "output": {
                 "root": str(root / "output" / "harness"),
+                "memory": str(root / "output" / "harness" / "memory"),
             },
             "defaults": {
                 "mode": "release-artifacts",
@@ -120,4 +121,3 @@ class HarnessConfig:
 
     def value(self, section: str, key: str, default: Any = None) -> Any:
         return self.data.get(section, {}).get(key, default)
-

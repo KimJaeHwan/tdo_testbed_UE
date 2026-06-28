@@ -10,6 +10,7 @@ from pathlib import Path
 from .adapters import Variant, selected_variants
 from .config import HarnessConfig, ROOT
 from .gates import invariant_status
+from .memory.store import Memory
 from .reporting import (
     canonical_hash,
     git_commit,
@@ -221,6 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--case-filter", default="", help="Substring filter for case JSON filenames.")
     parser.add_argument("--run-id", default="")
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
@@ -267,6 +269,8 @@ def main(argv: list[str] | None = None) -> int:
     write_json(output_root / "failure_report_v2.json", reports)
     write_json(output_root / "summary.json", summary)
     write_json(output_root / "gate.json", gate)
+    if not args.no_ledger:
+        Memory(config.path("output", "memory")).record_run(run_id, reports, summary, gate, output_root)
 
     print_summary(summary)
     print(f"gate: {gate}")
