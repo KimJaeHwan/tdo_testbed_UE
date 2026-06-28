@@ -58,7 +58,7 @@ def _prompt(task: dict) -> str:
 def _error_output(agent: str, message: str) -> dict:
     return {
         "agent": agent,
-        "schema_version": None,
+        "schema_version": 1,
         "category": "environment_defect",
         "reason": message,
         "evidence_ref": "codex_cli_agent_executor",
@@ -113,7 +113,7 @@ def execute(args: argparse.Namespace) -> int:
             "--ephemeral",
             "--sandbox",
             args.sandbox,
-            "--ask-for-approval",
+            "-a",
             "never",
             "--output-schema",
             str(schema_path),
