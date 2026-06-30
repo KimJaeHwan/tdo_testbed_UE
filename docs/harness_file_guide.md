@@ -30,6 +30,7 @@ harness/
   agent_tasks.py
   agent_runtime.py
   agent_loop.py
+  engine_dev_loop.py
   providers/
     openai_agent_executor.py
     codex_cli_agent_executor.py
@@ -197,6 +198,100 @@ python3 -m harness.agent_loop \
   --include-coverage \
   --scaffold-work-items \
   --stop-on-no-progress
+```
+
+### `harness/engine_dev_loop.py`
+
+`lowpcode_data_origin`을 직접 수정하는 개발 루프다. 분석 전용 `agent_loop`와 달리
+Codex CLI를 Engine11 repo에서 `workspace-write`로 실행할 수 있다.
+
+역할:
+- 09/10 회귀를 cycle별로 실행
+- 개발 중 cache 오염을 피하기 위해 기본적으로 `--no-cache` 회귀 사용
+- 실패 리포트, gate, summary, 선택적 agent proposal을 Codex 편집 프롬프트로 연결
+- 편집 대상 repo를 `repos.engine_11`로 제한
+- 편집 후 `compileall`과 사후 회귀 실행
+- 이전 PASS 회귀, ERROR 증가, false positive 증가를 감지하면 중단
+- cycle별 `engine.diff`, Codex prompt/log, pre/post regression artifact 기록
+
+설계 철학 보호:
+- expected/manifest/testbed 파일은 자동 편집 대상이 아니다.
+- core graph에 ABI/argument/return/calling convention 개념을 도입하지 말라는 제약을
+  Codex prompt에 항상 포함한다.
+- Ghidra signature/prototype/parameter metadata는 optional fact/hint로만 사용할 수 있고,
+  observed low-pcode dataflow를 덮어쓸 수 없다.
+- PASS 수를 늘리기 위한 broad over-approx는 false positive gate로 차단한다.
+
+실제 09/10 개발 루프:
+
+```bash
+python3 -m harness.engine_dev_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id engine_dev_09_10 \
+  --clean-output \
+  --duration-hours 4.5 \
+  --max-cycles 3 \
+  --analysis-calls 10 \
+  --analysis-chunk-calls 5 \
+  --analysis-chunk-tokens 50000
+```
+
+작은 smoke:
+
+```bash
+python3 -m harness.engine_dev_loop \
+  --config harness/config.yaml.example \
+  --suite 09 \
+  --mode local-samples \
+  --case-filter case_DFB001 \
+  --run-id engine_dev_loop_smoke_dfb001 \
+  --clean-output \
+  --max-cycles 1 \
+  --no-edit
+```
+
+주의:
+- 루프 시작 시 `lowpcode_data_origin`이 dirty면 기본적으로 중단한다. 기존 사용자 변경을
+  자동으로 섞지 않기 위해서다.
+- 이전 실행을 이어가려면 `--resume-existing`을 사용한다.
+- 이미 알고 있는 dirty 상태에서 강제로 시작하려면 `--allow-dirty-engine`이 필요하다.
+- `--analysis-calls 0`이면 agent proposal 없이 failure report만 보고 Codex editor를 호출한다.
+- `--editor-dry-run`은 회귀와 prompt 생성은 하되 Codex 편집 호출만 기록한다.
+- `--editor-reasoning-effort high|medium|low|xhigh`는 실제 엔진 수정 담당 Codex CLI에만
+  적용한다. 개발은 보통 `high`, 한도 절약이 필요하면 `medium`이 적절하다.
+- 사람이 중간 개입해야 하면 `--editor-extra-instructions` 또는
+  `--editor-extra-instructions-file`로 다음 Codex 편집 프롬프트에 운영자 지시를 추가한다.
+- `--repair-on-regression`은 post-regression에서 기존 PASS 회귀나 새 false positive가
+  발견되었을 때 즉시 종료하지 않고, 다음 cycle의 `Active repair context`에 그 악화
+  정보를 넣어 재개한다. repair cycle은 직전 pre뿐 아니라 악화 전 baseline report와도
+  비교한다.
+
+Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
+나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은
+`strong` tier의 `high`, coverage/memory 정리는 `cheap` tier의 `medium`을 사용한다.
+
+중간에 멈춘 뒤 재개하면서 지시를 추가하는 예:
+
+```bash
+cat > output/harness/engine_dev_09_10/operator_note.md <<'EOF'
+Next cycle: inspect TV2R001 observed-memory cut first.
+Preserve no-arg/no-ret and do not trust ABI parameter metadata as core truth.
+EOF
+
+python3 -m harness.engine_dev_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id engine_dev_09_10 \
+  --resume-existing \
+  --duration-hours 4.5 \
+  --max-cycles 4 \
+  --analysis-calls 10 \
+  --repair-on-regression \
+  --editor-reasoning-effort high \
+  --editor-extra-instructions-file output/harness/engine_dev_09_10/operator_note.md
 ```
 
 ### `harness/providers/openai_agent_executor.py`

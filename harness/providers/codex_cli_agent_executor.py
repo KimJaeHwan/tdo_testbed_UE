@@ -12,6 +12,8 @@ from pathlib import Path
 
 from harness.config import ROOT
 
+REASONING_EFFORTS = {"low", "medium", "high", "xhigh"}
+
 
 def _schema_for_agent(agent: str) -> dict:
     base = {
@@ -143,6 +145,14 @@ def _dry_run_output(agent: str, cmd: list[str]) -> dict:
     return {**base, "category": "unknown", "reason": "codex cli dry-run"}
 
 
+def _append_reasoning_effort(cmd: list[str], effort: str) -> None:
+    if not effort:
+        return
+    if effort not in REASONING_EFFORTS:
+        raise ValueError(f"unsupported reasoning effort: {effort}")
+    cmd.extend(["-c", f'model_reasoning_effort="{effort}"'])
+
+
 def _parse_json_text(text: str) -> dict:
     try:
         return json.loads(text)
@@ -181,6 +191,11 @@ def execute(args: argparse.Namespace) -> int:
         ]
         if args.model:
             cmd.extend(["--model", args.model])
+        try:
+            _append_reasoning_effort(cmd, args.reasoning_effort)
+        except ValueError as exc:
+            print(json.dumps(_error_output(agent, str(exc)), ensure_ascii=False))
+            return 2
         if args.profile:
             cmd.extend(["--profile", args.profile])
         if args.oss:
@@ -220,6 +235,7 @@ def execute(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Codex CLI executor for harness agent tasks.")
     parser.add_argument("--model", default=os.environ.get("CODEX_AGENT_MODEL", ""))
+    parser.add_argument("--reasoning-effort", default=os.environ.get("CODEX_AGENT_REASONING_EFFORT", ""), choices=["", *sorted(REASONING_EFFORTS)])
     parser.add_argument("--profile", default=os.environ.get("CODEX_AGENT_PROFILE", ""))
     parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
     parser.add_argument("--cwd", type=Path, default=ROOT)
