@@ -61,10 +61,26 @@ def _schema_for_agent(agent: str) -> dict:
                 "items": _object_schema(
                     {
                         "id": {"type": "string"},
+                        "target": {"type": "string"},
+                        "tier": {"type": "integer"},
+                        "cpp_or_ue": {"type": "string"},
+                        "expected": _case_expected_schema(),
+                        "expected_flow": {"type": "array", "items": _flow_step_schema()},
+                        "forbidden_flow": {"type": "array", "items": _flow_step_schema()},
                         "oracle_basis": {"type": "string"},
                         "independent_check": {"type": "string"},
                     },
-                    ["id", "oracle_basis", "independent_check"],
+                    [
+                        "id",
+                        "target",
+                        "tier",
+                        "cpp_or_ue",
+                        "expected",
+                        "expected_flow",
+                        "forbidden_flow",
+                        "oracle_basis",
+                        "independent_check",
+                    ],
                 ),
             },
         }
@@ -83,6 +99,79 @@ def _object_schema(properties: dict, required: list[str]) -> dict:
         "required": required,
         "properties": properties,
     }
+
+
+def _string_array_schema() -> dict:
+    return {"type": "array", "items": {"type": "string"}}
+
+
+def _anchor_schema() -> dict:
+    props = {
+        "callee": {"type": "string"},
+        "arg_index": {"type": "integer"},
+        "storage": {"type": "string"},
+    }
+    return _object_schema(props, list(props))
+
+
+def _manifest_case_schema() -> dict:
+    props = {
+        "id": {"type": "string"},
+        "tier": {"type": "integer"},
+        "severity": {"type": "string"},
+        "binary": {"type": "string"},
+        "name": {"type": "string"},
+        "function": {"type": "string"},
+        "source_file": {"type": "string"},
+        "anchor": _anchor_schema(),
+        "expected_data_sources": _string_array_schema(),
+        "expected_control_sources": _string_array_schema(),
+        "expected_global_sources": _string_array_schema(),
+        "forbidden_data_sources": _string_array_schema(),
+        "forbidden_control_sources": _string_array_schema(),
+        "expected_features": _string_array_schema(),
+        "allowed_warnings": _string_array_schema(),
+    }
+    return _object_schema(props, list(props))
+
+
+def _case_expected_schema() -> dict:
+    props = {
+        "tier": {"type": "integer"},
+        "severity": {"type": "string"},
+        "binary": {"type": "string"},
+        "name": {"type": "string"},
+        "function": {"type": "string"},
+        "source_file": {"type": "string"},
+        "anchor": _anchor_schema(),
+        "expected_data_sources": _string_array_schema(),
+        "expected_control_sources": _string_array_schema(),
+        "expected_global_sources": _string_array_schema(),
+        "forbidden_data_sources": _string_array_schema(),
+        "forbidden_control_sources": _string_array_schema(),
+        "expected_features": _string_array_schema(),
+        "allowed_warnings": _string_array_schema(),
+        "manifest_case": _manifest_case_schema(),
+    }
+    return _object_schema(props, list(props))
+
+
+def _flow_step_schema() -> dict:
+    props = {
+        "kind": {"type": "string"},
+        "node": {"type": "string"},
+        "function": {"type": "string"},
+        "field": {"type": "string"},
+        "offset": {"type": "string"},
+        "size": {"type": "string"},
+        "carries": {"type": "string"},
+        "source": {"type": "string"},
+        "sink": {"type": "string"},
+        "from": {"type": "string"},
+        "to": {"type": "string"},
+        "reason": {"type": "string"},
+    }
+    return _object_schema(props, list(props))
 
 
 def _read_stdin_json() -> dict:

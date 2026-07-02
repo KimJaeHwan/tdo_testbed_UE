@@ -12,8 +12,41 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 ```json
 { "proposed_cases": [
     { "id": "TV2x###", "tier": 0,
+      "target": "suite10-cpp | suite10-ue",
       "cpp_or_ue": "...소스 스니펫...",
-      "expected": {"data_sources","control_sources","forbidden_*"},
+      "expected": {
+        "tier": 0,
+        "severity": "proposed-regression",
+        "binary": "tv2_cpp_like | tv2_unreal",
+        "name": "...",
+        "function": "case_...",
+        "source_file": "src/cases_fusion.cpp | Source/TraceUnrealPlayground/TraceCases2.cpp",
+        "anchor": {"callee": "dfb_sink_int", "arg_index": 0, "storage": "test-wrapper-only"},
+        "expected_data_sources": ["..."],
+        "expected_control_sources": [],
+        "expected_global_sources": [],
+        "forbidden_data_sources": ["..."],
+        "forbidden_control_sources": [],
+        "expected_features": ["fusion", "..."],
+        "allowed_warnings": [],
+        "manifest_case": {
+          "id": "TV2x###",
+          "tier": 0,
+          "severity": "proposed-regression",
+          "binary": "tv2_cpp_like | tv2_unreal",
+          "name": "...",
+          "function": "case_...",
+          "source_file": "src/cases_fusion.cpp | Source/TraceUnrealPlayground/TraceCases2.cpp",
+          "anchor": {"callee": "dfb_sink_int", "arg_index": 0, "storage": "test-wrapper-only"},
+          "expected_data_sources": ["..."],
+          "expected_control_sources": [],
+          "expected_global_sources": [],
+          "forbidden_data_sources": ["..."],
+          "forbidden_control_sources": [],
+          "expected_features": ["fusion", "..."],
+          "allowed_warnings": []
+        }
+      },
       "expected_flow": [ ... ], "forbidden_flow": [ ... ],
       "oracle_basis": "by-construction 근거 (내가 이 소스를 짜서 정답을 안다)",
       "independent_check": "DFSan/매직값 실행으로 끝점 교차검증 결과" } ] }
@@ -25,3 +58,4 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - 끝점은 가능하면 **독립 동적 검증**(DFSan 또는 매직값 실행)으로 교차확인 첨부.
 - 출력은 **제안일 뿐** — 오라클 추가는 사람 승인(A §P7) 후 manifest 반영 → `generate_expected_from_manifest.py` → `verify_flows.py`.
 - 새 케이스가 기존 09/10과 중복인지 확인(중복 금지).
+- `anchor`는 테스트 하네스 wrapper가 sink 위치를 찾기 위한 정보다. Engine11 코어 설계에는 arg/ret/calling convention 의미를 새로 주입하지 않는다.
