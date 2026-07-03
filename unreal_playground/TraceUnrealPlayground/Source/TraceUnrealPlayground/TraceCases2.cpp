@@ -114,6 +114,8 @@ extern "C" TV2_NOINLINE void case_TV2R012_fvector_simd()
 
 extern "C" TV2_NOINLINE void case_TV2R201_tarray_realloc_indexed_read_wrong_index();
 extern "C" TV2_NOINLINE void case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
+extern "C" TV2_NOINLINE void case_TV2R301_tarray_swap_remove_reindexed_field();
+extern "C" TV2_NOINLINE void case_TV2R302_tmap_fname_wrong_key_field();
 
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
@@ -129,6 +131,8 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R012_fvector_simd();
 	case_TV2R201_tarray_realloc_indexed_read_wrong_index();
 	case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
+	case_TV2R301_tarray_swap_remove_reindexed_field();
+	case_TV2R302_tmap_fname_wrong_key_field();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -189,4 +193,60 @@ extern "C" TV2_NOINLINE void case_TV2R202_tarray_struct_field_neighbor_kill_afte
     Inners[0].Noise = 0;
     Inners.Add(Second);
     dfb_sink_int(Inners[0].Secret);
+}
+
+/* TV2R301 - TArray swap/remove reindexes element. expect C / forbid A,B */
+extern "C" TV2_NOINLINE void case_TV2R301_tarray_swap_remove_reindexed_field()
+{
+    TArray<FTraceItem> Items;
+    Items.Reserve(1);
+
+    FTraceItem A;
+    FTraceItem B;
+    FTraceItem C;
+    A.ItemId = dfb_source_A();
+    A.Count = 0;
+    B.ItemId = dfb_source_B();
+    B.Count = 0;
+    C.ItemId = dfb_source_C();
+    C.Count = 0;
+
+    Items.Add(A);
+    Items.Add(B);
+    Items.Add(C);
+
+    for (int32 I = 0; I < 32; ++I)
+    {
+        FTraceItem Padding;
+        Padding.ItemId = 0;
+        Padding.Count = I;
+        Items.Add(Padding);
+    }
+
+    Items.Swap(0, 2);
+    Items.RemoveAt(1, 1, EAllowShrinking::No);
+    dfb_sink_int(Items[0].ItemId);
+}
+
+/* TV2R302 - TMap FName wrong-key field. expect A / forbid B,C */
+extern "C" TV2_NOINLINE void case_TV2R302_tmap_fname_wrong_key_field()
+{
+    TMap<FName, FTraceItem> Map;
+
+    FTraceItem Target;
+    FTraceItem Noise;
+    Target.ItemId = dfb_source_A();
+    Target.Count = dfb_source_B();
+    Noise.ItemId = dfb_source_C();
+    Noise.Count = 0;
+
+    Map.Add(FName(TEXT("target")), Target);
+    Map.Add(FName(TEXT("noise")), Noise);
+
+    FTraceItem *Found = Map.Find(FName(TEXT("target")));
+    if (Found)
+    {
+        Found->Count = 0;
+        dfb_sink_int(Found->ItemId);
+    }
 }

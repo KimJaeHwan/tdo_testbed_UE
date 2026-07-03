@@ -1525,6 +1525,70 @@
         "struct-field-neighbor-kill"
       ],
       "allowed_warnings": []
+    },
+    {
+      "id": "TV2R301",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "proposed-regression",
+      "function": "case_TV2R301_tarray_swap_remove_reindexed_field",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tarray",
+        "reallocation",
+        "swap",
+        "remove",
+        "reindexed-element-read",
+        "wrong-index-forbidden-flow"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2R302",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "proposed-regression",
+      "function": "case_TV2R302_tmap_fname_wrong_key_field",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tmap",
+        "fname-key",
+        "wrong-key-forbidden-flow",
+        "field-sensitive"
+      ],
+      "allowed_warnings": []
     }
   ]
 }

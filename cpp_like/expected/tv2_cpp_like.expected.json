@@ -800,6 +800,68 @@
         "partial-overwrite-kill"
       ],
       "allowed_warnings": []
+    },
+    {
+      "id": "TV2C601",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C601_indirect_callback_field_write",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "indirect-call",
+        "callback",
+        "field-sensitive",
+        "wrong-callback-forbidden",
+        "pointer-to-field-read"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C602",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C602_global_pointer_loop_phi",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "global-pointer",
+        "helper-call",
+        "loop-phi",
+        "field-sensitive",
+        "neighbor-field-forbidden"
+      ],
+      "allowed_warnings": []
     }
   ]
 }

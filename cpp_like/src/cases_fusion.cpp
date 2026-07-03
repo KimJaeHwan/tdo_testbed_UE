@@ -174,4 +174,73 @@ TV2_CASE void case_TV2C502_nested_assignment_partial_overwrite_kill(void) {
     dfb_sink_int(*p);
 }
 
+
+/* TV2C601 - Indirect helper writes selected field. expect A / forbid B,C */
+struct TV2x601_Cell {
+    int payload;
+    int noise;
+};
+
+struct TV2x601_Box {
+    TV2x601_Cell cells[3];
+};
+
+typedef void (*TV2x601_Callback)(TV2x601_Box *);
+
+TV2_HELPER void tv2x601_write_expected(TV2x601_Box *box) {
+    box->cells[1].payload = dfb_source_A();
+}
+
+TV2_HELPER void tv2x601_write_neighbor(TV2x601_Box *box) {
+    box->cells[0].noise = dfb_source_B();
+}
+
+TV2_CASE void case_TV2C601_indirect_callback_field_write(void) {
+    TV2x601_Box box = {};
+    TV2x601_Callback callbacks[2] = {
+        tv2x601_write_neighbor,
+        tv2x601_write_expected,
+    };
+
+    callbacks[1](&box);
+    box.cells[2].payload = dfb_source_C();
+
+    int *p = &box.cells[1].payload;
+    dfb_sink_int(*p);
+}
+
+
+/* TV2C602 - Global pointer selected through helper + loop noise. expect B / forbid A,C */
+struct TV2x602_Node {
+    int value;
+    int noise;
+};
+
+struct TV2x602_Graph {
+    TV2x602_Node nodes[4];
+};
+
+static TV2x602_Node *g_tv2x602_selected = 0;
+
+TV2_HELPER void tv2x602_select_node(TV2x602_Graph *graph, int index) {
+    g_tv2x602_selected = &graph->nodes[index];
+}
+
+TV2_CASE void case_TV2C602_global_pointer_loop_phi(void) {
+    TV2x602_Graph graph = {};
+    graph.nodes[0].value = dfb_source_A();
+    graph.nodes[2].value = dfb_source_B();
+    graph.nodes[3].noise = dfb_source_C();
+
+    tv2x602_select_node(&graph, 2);
+
+    for (int i = 0; i < 4; ++i) {
+        if (i != 2) {
+            graph.nodes[i].noise = i;
+        }
+    }
+
+    dfb_sink_int(g_tv2x602_selected->value);
+}
+
 } /* extern "C" */

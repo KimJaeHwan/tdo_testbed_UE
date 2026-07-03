@@ -1555,6 +1555,74 @@
       "severity": "target",
       "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
       "tier": 3
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tarray",
+        "reallocation",
+        "swap",
+        "remove",
+        "reindexed-element-read",
+        "wrong-index-forbidden-flow"
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "function": "case_TV2R301_tarray_swap_remove_reindexed_field",
+      "id": "TV2R301",
+      "name": "tarray_swap_remove_reindexed_field",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 3
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tmap",
+        "fname-key",
+        "wrong-key-forbidden-flow",
+        "field-sensitive"
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "function": "case_TV2R302_tmap_fname_wrong_key_field",
+      "id": "TV2R302",
+      "name": "tmap_fname_wrong_key_field",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 3
     }
   ],
   "schema_version": 2
