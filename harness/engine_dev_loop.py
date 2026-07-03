@@ -230,6 +230,8 @@ def _run_regression(args: argparse.Namespace, config: HarnessConfig, cycle_dir: 
         cmd.extend(["--variant-filter", args.variant_filter])
     if args.case_filter:
         cmd.extend(["--case-filter", args.case_filter])
+    if args.include_proposed_regression:
+        cmd.append("--include-proposed-regression")
     if not args.use_cache:
         cmd.append("--no-cache")
     if args.prepare_artifacts:
@@ -689,6 +691,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--case-scope", default="auto", choices=["auto", "always", "never"])
     parser.add_argument("--case-filter", default="")
     parser.add_argument("--variant-filter", default="")
+    parser.add_argument(
+        "--include-proposed-regression",
+        action="store_true",
+        help="Run case_author proposed-regression cases instead of keeping them quarantined from stable regression.",
+    )
     parser.add_argument("--use-cache", action="store_true", help="Allow regression cache reuse. Default is no-cache for dirty engine safety.")
 
     parser.add_argument("--prepare-artifacts", action="store_true")

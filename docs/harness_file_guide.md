@@ -68,6 +68,10 @@ python3 -m harness.orchestrator --suite 10 --mode local-samples --variant-filter
 python3 -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifacts --include-ue-build --include-ue-extract
 ```
 
+`case_author`가 만든 `severity: proposed-regression` 케이스는 기본 회귀에서 격리된다.
+새 융합/frontier 케이스까지 엔진 개발 대상으로 포함하려면
+`--include-proposed-regression`을 명시한다.
+
 ### `harness/adapters.py`
 
 테스트베드별 차이를 숨기는 adapter 계층이다.
@@ -213,6 +217,7 @@ Codex CLI를 Engine11 repo에서 `workspace-write`로 실행할 수 있다.
 - 편집 후 `compileall`과 사후 회귀 실행
 - 이전 PASS 회귀, ERROR 증가, false positive 증가를 감지하면 중단
 - cycle별 `engine.diff`, Codex prompt/log, pre/post regression artifact 기록
+- `--include-proposed-regression`을 줄 때만 case_author frontier 케이스를 회귀 입력에 포함
 
 설계 철학 보호:
 - expected/manifest/testbed 파일은 자동 편집 대상이 아니다.

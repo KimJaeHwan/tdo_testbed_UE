@@ -30,6 +30,7 @@ TIER0_ARCHES = ["x86", "x64", "armv7", "aarch64"]
 DEFAULT_CASE_SCOPE_FILE_THRESHOLD = 32
 DEFAULT_CASE_SCOPE_BYTE_THRESHOLD = 128 * 1024 * 1024
 PREPARE_CACHE_SCHEMA_VERSION = 1
+PROPOSED_REGRESSION_SEVERITY = "proposed-regression"
 PREPARE_HASH_EXCLUDED_DIRS = {
     "__pycache__",
     ".git",
@@ -73,6 +74,7 @@ class Engine11Runner:
         case_scope_policy: str = "auto",
         case_scope_file_threshold: int = DEFAULT_CASE_SCOPE_FILE_THRESHOLD,
         case_scope_byte_threshold: int = DEFAULT_CASE_SCOPE_BYTE_THRESHOLD,
+        include_proposed_regressions: bool = False,
     ):
         self.config = config
         self.engine_root = config.path("repos", "engine_11")
@@ -82,6 +84,7 @@ class Engine11Runner:
         self.case_scope_policy = case_scope_policy
         self.case_scope_file_threshold = case_scope_file_threshold
         self.case_scope_byte_threshold = case_scope_byte_threshold
+        self.include_proposed_regressions = include_proposed_regressions
         _ensure_engine_python(self.engine_root)
         _add_engine_to_syspath(self.engine_root)
 
@@ -99,6 +102,12 @@ class Engine11Runner:
         if not variant.sample_dir.exists():
             return [self._error_row(run_id, variant, "NO_SAMPLES", f"missing samples: {variant.sample_dir}", run_config_hash)]
         cases = sorted(variant.sample_dir.rglob(variant.case_glob))
+        cases, skipped = self._filter_cases_by_severity(cases, variant.expected_path)
+        if skipped:
+            print(
+                f"[harness] {variant.label}: skipped {len(skipped)} proposed-regression case(s); "
+                "pass --include-proposed-regression to run them"
+            )
         if not cases:
             return [self._error_row(run_id, variant, "NO_CASES", f"no cases matching {variant.case_glob}", run_config_hash)]
         validator = self.ExpectedValidator(variant.expected_path)
@@ -250,6 +259,39 @@ class Engine11Runner:
             "ghidra_home": str(self.config.value("tools", "ghidra_home", "")),
             "unreal_engine_root": str(self.config.value("tools", "unreal_engine_root", "")),
         }
+
+    def _filter_cases_by_severity(self, cases: list[Path], expected_path: Path) -> tuple[list[Path], list[Path]]:
+        if self.include_proposed_regressions:
+            return cases, []
+        metadata = self._expected_case_metadata(expected_path)
+        kept: list[Path] = []
+        skipped: list[Path] = []
+        for path in cases:
+            case = metadata.get(self._function_name_from_low_pcode_path(path))
+            if case and case.get("severity") == PROPOSED_REGRESSION_SEVERITY:
+                skipped.append(path)
+            else:
+                kept.append(path)
+        return kept, skipped
+
+    def _expected_case_metadata(self, expected_path: Path) -> dict[str, dict]:
+        metadata: dict[str, dict] = {}
+        paths = [expected_path] if expected_path.is_file() else sorted(expected_path.glob("*.expected.json"))
+        for path in paths:
+            if not path.is_file():
+                continue
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            for case in data.get("cases", []):
+                function = case.get("function")
+                if function:
+                    metadata[str(function)] = case
+        return metadata
+
+    def _function_name_from_low_pcode_path(self, path: Path) -> str:
+        stem = path.stem
+        suffix = "_low_pcode"
+        return stem[: -len(suffix)] if stem.endswith(suffix) else stem
 
     def _engine(self, run_config_hash: str) -> dict:
         return {
@@ -481,6 +523,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--mode", default=None, choices=["release-artifacts", "local-samples"])
     parser.add_argument("--list-variants", action="store_true")
     parser.add_argument("--case-filter", default="", help="Substring filter for case JSON filenames.")
+    parser.add_argument(
+        "--include-proposed-regression",
+        action="store_true",
+        help="Include case_author proposed-regression cases. Default keeps them quarantined from stable regression.",
+    )
     parser.add_argument("--run-id", default="")
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
@@ -591,6 +638,7 @@ def main(argv: list[str] | None = None) -> int:
         "case_scope_byte_threshold": args.case_scope_byte_threshold
         if args.case_scope_byte_threshold is not None
         else int(config.value("defaults", "case_scope_byte_threshold", DEFAULT_CASE_SCOPE_BYTE_THRESHOLD)),
+        "include_proposed_regression": bool(args.include_proposed_regression),
     }
     run_config_hash = canonical_hash(run_config)
 
@@ -602,6 +650,7 @@ def main(argv: list[str] | None = None) -> int:
         case_scope_policy=str(run_config["case_scope"]),
         case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
         case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
+        include_proposed_regressions=bool(run_config["include_proposed_regression"]),
     )
     reports: list[dict] = []
     for variant in variants:

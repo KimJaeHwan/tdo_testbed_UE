@@ -117,6 +117,8 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
                            큰 low-pcode directory를 case별 closure로 materialize
 --variant-filter TEXT     variant label substring으로 실행 대상 제한
 --case-filter TEXT        case JSON filename substring으로 실행 대상 제한
+--include-proposed-regression
+                           case_author proposed-regression 케이스까지 실행
 --regression-baseline ID|PATH
                            이전 run id/output dir/failure_report_v2.json 기준 I3 비교
 --no-cache                engine/verify 캐시 재사용 끄기
@@ -484,7 +486,7 @@ metadata는 입력 식별·아키텍처 grounding·주소공간/레지스터 정
 ## 다음 배선 순서
 1. 로컬 `harness/config.yaml`에 실제 모델 provider command를 `models.commands.{cheap,strong}`로 채우고 `agent_runtime doctor --strict`를 gate에 넣는다. 기본 추천은 Codex CLI provider다.
 2. accepted engine_fixer work item을 `work_items engine-worktree --create --approval-key <key>`로 별도 11_ worktree branch에 연다. main merge는 계속 human gate다.
-3. accepted case_author work item은 `case-bundle`로 검토 bundle을 만들고, 승인 뒤 `case-apply --apply --approval-key <key>`로 source/manifest까지만 반영한다. expected JSON 생성은 기존 generator 경로로 따로 확인한다.
+3. accepted case_author work item은 `case-bundle`로 검토 bundle을 만들고, 승인 뒤 `case-apply --apply --approval-key <key>`로 source/manifest까지만 반영한다. expected JSON 생성은 기존 generator 경로로 따로 확인한다. `severity: proposed-regression` 케이스는 기본 회귀에서 격리되며, `--include-proposed-regression`을 준 실행에서만 frontier 개발 대상으로 돌린다.
 4. Mac arm64 외 local UE variant는 별도 toolchain이 준비될 때 추가한다.
 5. 반복 실행 정책을 정해 어떤 baseline pin을 release/local gate로 승격할지 문서화한다.
 
