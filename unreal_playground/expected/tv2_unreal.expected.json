@@ -14,8 +14,8 @@
       "severity": "core-regression",
       "function": "case_TV2U001_direct_field",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -35,33 +35,33 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "s.Secret",
+          "offset": 0,
           "op": "store",
-          "field": "s.Secret",
-          "offset": 0,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "load",
-          "field": "s.Secret",
-          "offset": 0,
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "s.Secret",
+          "offset": 0,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "s.Noise",
-          "offset": 4,
           "carries": "dfb_source_B",
+          "field": "s.Noise",
+          "node": "store",
+          "offset": 4,
           "reason": "같은 USTRUCT 다른 field"
         }
       ]
@@ -73,8 +73,8 @@
       "severity": "core-regression",
       "function": "case_TV2U002_large_struct_copy",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -95,38 +95,38 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "A.Inner.Secret",
           "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "copy",
-          "edge": "range_copy",
-          "detail": "B = A (USTRUCT 복사)"
-        },
-        {
-          "op": "load",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "B = A (USTRUCT 복사)",
+          "edge": "range_copy",
+          "op": "copy"
+        },
+        {
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Other / B.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "A.Other / B.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "wide copy 번짐 금지"
         }
       ]
@@ -138,8 +138,8 @@
       "severity": "core-regression",
       "function": "case_TV2U003_nested_ustruct",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -159,33 +159,33 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "A.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "load",
-          "field": "A.Inner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "A.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "다른 field"
         }
       ]
@@ -197,8 +197,8 @@
       "severity": "core-regression",
       "function": "case_TV2U004_return_buffer",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -218,39 +218,39 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
+          "detail": "tv2_make_tainted_large 내부",
           "field": "t.Inner.Secret",
           "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A",
-          "detail": "tv2_make_tainted_large 내부"
-        },
-        {
-          "op": "copy",
-          "edge": "range_copy",
-          "detail": "sret 반환버퍼 복사 (r = make())"
-        },
-        {
-          "op": "load",
-          "field": "r.Inner.Secret",
-          "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "sret 반환버퍼 복사 (r = make())",
+          "edge": "range_copy",
+          "op": "copy"
+        },
+        {
+          "field": "r.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "t.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "t.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "반환 struct 다른 field"
         }
       ]
@@ -262,8 +262,8 @@
       "severity": "core-regression",
       "function": "case_TV2U005_control_vs_data_struct_phi",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret",
@@ -287,60 +287,60 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
           "label": "dfb_source_C.ret",
+          "op": "source",
           "role": "control"
         },
         {
-          "op": "branch_cond",
           "carries": "dfb_source_C",
-          "note": "if 조건(control)"
+          "note": "if 조건(control)",
+          "op": "branch_cond"
         },
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
+          "branch": "if(true)",
           "carries": "dfb_source_A",
-          "branch": "if(true)"
-        },
-        {
-          "op": "source",
-          "label": "dfb_source_B.ret"
-        },
-        {
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_B",
-          "branch": "else"
-        },
-        {
-          "op": "phi",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
-          "note": "data 병합 {A,B}"
-        },
-        {
-          "op": "load",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "label": "dfb_source_B.ret",
+          "op": "source"
+        },
+        {
+          "branch": "else",
+          "carries": "dfb_source_B",
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "op": "store",
+          "size": 4
+        },
+        {
+          "field": "B.Inner.Secret",
+          "note": "data 병합 {A,B}",
+          "offset": "pdb",
+          "op": "phi"
+        },
+        {
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "data_use",
           "carries": "dfb_source_C",
+          "node": "data_use",
           "reason": "C는 control일 뿐 data source로 쓰이면 안 됨"
         }
       ]
@@ -352,8 +352,8 @@
       "severity": "core-regression",
       "function": "case_TV2U006_partial_overwrite_kill",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_C.ret"
@@ -375,34 +375,34 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_C.ret"
+          "label": "dfb_source_C.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
           "carries": "dfb_source_C",
-          "detail": "B=A 이후 덮어쓰기"
-        },
-        {
-          "op": "load",
+          "detail": "B=A 이후 덮어쓰기",
           "field": "B.Inner.Secret",
           "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "B.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "B.Inner.Secret",
-          "offset": "pdb",
           "carries": "dfb_source_A",
+          "field": "B.Inner.Secret",
+          "node": "store",
+          "offset": "pdb",
           "reason": "덮어쓰기로 kill된 옛 값"
         }
       ]
@@ -414,8 +414,8 @@
       "severity": "core-regression",
       "function": "case_TV2U007_wide_copy_narrow_forbidden",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_B.ret"
@@ -436,38 +436,38 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_B.ret"
+          "label": "dfb_source_B.ret",
+          "op": "source"
         },
         {
-          "op": "copy",
+          "detail": "B = A",
           "edge": "range_copy",
-          "detail": "B = A"
+          "op": "copy"
         },
         {
+          "carries": "dfb_source_B",
+          "field": "B.Other",
+          "offset": "pdb",
           "op": "store",
-          "field": "B.Other",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_B"
-        },
-        {
-          "op": "load",
-          "field": "B.Other",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "B.Other",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Inner.Secret",
-          "offset": "pdb",
           "carries": "dfb_source_A",
+          "field": "A.Inner.Secret",
+          "node": "store",
+          "offset": "pdb",
           "reason": "Inner 오염이 Other read로 번지면 false positive"
         }
       ]
@@ -479,8 +479,8 @@
       "severity": "core-regression",
       "function": "case_TV2U010_multi_property_partial",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -502,40 +502,40 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "A.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "load",
-          "field": "A.Inner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "A.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Inner.Noise",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "A.Inner.Noise",
+          "node": "store",
+          "offset": "pdb",
           "reason": "distractor field"
         },
         {
-          "node": "store",
-          "field": "A.Other",
-          "offset": "pdb",
           "carries": "dfb_source_C",
+          "field": "A.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "distractor field"
         }
       ]
@@ -547,8 +547,8 @@
       "severity": "core-regression",
       "function": "case_TV2R003_fvector_field",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -569,34 +569,34 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "V.X",
-          "offset": 0,
-          "size": 8,
           "carries": "dfb_source_A",
-          "detail": "FVector(double)"
-        },
-        {
-          "op": "load",
+          "detail": "FVector(double)",
           "field": "V.X",
           "offset": 0,
+          "op": "store",
           "size": 8
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "V.X",
+          "offset": 0,
+          "op": "load",
+          "size": 8
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "V.Y",
-          "offset": 8,
           "carries": "dfb_source_B",
+          "field": "V.Y",
+          "node": "store",
+          "offset": 8,
           "reason": "FVector 다른 성분"
         }
       ]
@@ -608,8 +608,8 @@
       "severity": "core-regression",
       "function": "case_TV2R004_ftransform_translation",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -630,38 +630,38 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "V.X",
           "offset": 0,
-          "size": 8,
-          "carries": "dfb_source_A"
+          "op": "store",
+          "size": 8
         },
         {
-          "op": "call_out_mem",
-          "detail": "T.SetTranslation(V) → FTransform.Translation에 기록"
+          "detail": "T.SetTranslation(V) → FTransform.Translation에 기록",
+          "op": "call_out_mem"
         },
         {
-          "op": "load",
+          "detail": "GetTranslation() 반환",
           "field": "Out.X",
           "offset": "pdb",
-          "size": 8,
-          "detail": "GetTranslation() 반환"
+          "op": "load",
+          "size": 8
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "V.Y",
-          "offset": 8,
           "carries": "dfb_source_B",
+          "field": "V.Y",
+          "node": "store",
+          "offset": 8,
           "reason": "다른 성분"
         }
       ]
@@ -673,8 +673,8 @@
       "severity": "target",
       "function": "case_TV2R001_tarray_element",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -697,41 +697,41 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "Item.ItemId",
           "offset": 0,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "call_out_mem",
-          "detail": "Items.Add(Item) → heap 배열로 복사"
-        },
-        {
-          "op": "deref",
-          "detail": "TArray data ptr → element[0] (1-deref)"
-        },
-        {
-          "op": "load",
-          "field": "Items[0].ItemId",
-          "offset": "heap",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "Items.Add(Item) → heap 배열로 복사",
+          "op": "call_out_mem"
+        },
+        {
+          "detail": "TArray data ptr → element[0] (1-deref)",
+          "op": "deref"
+        },
+        {
+          "field": "Items[0].ItemId",
+          "offset": "heap",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "Item.Count",
-          "offset": 4,
           "carries": "dfb_source_B",
+          "field": "Item.Count",
+          "node": "store",
+          "offset": 4,
           "reason": "element 다른 field"
         }
       ]
@@ -743,8 +743,8 @@
       "severity": "target",
       "function": "case_TV2R002_tarray_wrong_index",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_B.ret"
@@ -767,41 +767,41 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_B.ret"
+          "label": "dfb_source_B.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_B",
           "field": "I1.ItemId",
           "offset": 0,
-          "size": 4,
-          "carries": "dfb_source_B"
-        },
-        {
-          "op": "call_out_mem",
-          "detail": "Items.Add(I1) → heap index1"
-        },
-        {
-          "op": "deref",
-          "detail": "TArray data ptr → element[1]"
-        },
-        {
-          "op": "load",
-          "field": "Items[1].ItemId",
-          "offset": "heap",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "Items.Add(I1) → heap index1",
+          "op": "call_out_mem"
+        },
+        {
+          "detail": "TArray data ptr → element[1]",
+          "op": "deref"
+        },
+        {
+          "field": "Items[1].ItemId",
+          "offset": "heap",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "Items[0].ItemId",
-          "offset": "heap",
           "carries": "dfb_source_A",
+          "field": "Items[0].ItemId",
+          "node": "store",
+          "offset": "heap",
           "reason": "다른 index(0)의 element"
         }
       ]
@@ -813,8 +813,8 @@
       "severity": "core-regression",
       "function": "case_TV2U008_uobject_header_offset",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -836,34 +836,34 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "self->Payload.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
           "carries": "dfb_source_A",
-          "detail": "UObject 헤더 뒤 offset, self 포인터 경유"
-        },
-        {
-          "op": "load",
+          "detail": "UObject 헤더 뒤 offset, self 포인터 경유",
           "field": "self->Payload.Inner.Secret",
           "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "self->Payload.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "self->Payload.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "self->Payload.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "같은 struct 다른 field — offset 혼동 시 false positive(실제 발생 버그)"
         }
       ]
@@ -875,8 +875,8 @@
       "severity": "core-regression",
       "function": "case_TV2U009_uobject_member_chain",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -898,33 +898,33 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "self->MemberInner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "self->MemberInner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "load",
-          "field": "self->MemberInner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "self->MemberInner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "self->MemberInner.Noise",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "self->MemberInner.Noise",
+          "node": "store",
+          "offset": "pdb",
           "reason": "다른 field"
         }
       ]
@@ -936,8 +936,8 @@
       "severity": "target",
       "function": "case_TV2R007_tobjectptr_chain",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -960,37 +960,37 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "Sub->Inner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "Sub->Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "deref",
-          "detail": "self → Sub(TObjectPtr→raw, ResolveObjectHandle) → Inner.Secret (2-deref)"
-        },
-        {
-          "op": "load",
-          "field": "Sub->Inner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "self → Sub(TObjectPtr→raw, ResolveObjectHandle) → Inner.Secret (2-deref)",
+          "op": "deref"
+        },
+        {
+          "field": "Sub->Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "Sub->Inner.Noise",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "Sub->Inner.Noise",
+          "node": "store",
+          "offset": "pdb",
           "reason": "다른 field"
         }
       ]
@@ -1002,8 +1002,8 @@
       "severity": "frontier",
       "function": "case_TV2R008_component_chain",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1026,37 +1026,37 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
+          "carries": "dfb_source_A",
+          "field": "Comp->SubStruct.Inner.Secret",
+          "offset": "pdb",
           "op": "store",
-          "field": "Comp->SubStruct.Inner.Secret",
-          "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "deref",
-          "detail": "self → Comp → SubStruct.Inner.Secret (2단 포인터 체인)"
-        },
-        {
-          "op": "load",
-          "field": "Comp->SubStruct.Inner.Secret",
-          "offset": "pdb",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "self → Comp → SubStruct.Inner.Secret (2단 포인터 체인)",
+          "op": "deref"
+        },
+        {
+          "field": "Comp->SubStruct.Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "Comp->SubStruct.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "Comp->SubStruct.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "다른 field"
         }
       ]
@@ -1068,8 +1068,8 @@
       "severity": "frontier",
       "function": "case_TV2R005_fstring_buffer",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1092,41 +1092,41 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "(TCHAR)A",
           "offset": "-",
-          "size": 2,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "call_out_mem",
-          "detail": "S.AppendChar → FString heap 버퍼에 기록"
-        },
-        {
-          "op": "deref",
-          "detail": "FString → TArray<TCHAR> data ptr → char (2-deref)"
-        },
-        {
-          "op": "load",
-          "field": "S[0]",
-          "offset": "heap",
+          "op": "store",
           "size": 2
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "S.AppendChar → FString heap 버퍼에 기록",
+          "op": "call_out_mem"
+        },
+        {
+          "detail": "FString → TArray<TCHAR> data ptr → char (2-deref)",
+          "op": "deref"
+        },
+        {
+          "field": "S[0]",
+          "offset": "heap",
+          "op": "load",
+          "size": 2
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "T[0]",
-          "offset": "heap",
           "carries": "dfb_source_B",
+          "field": "T[0]",
+          "node": "store",
+          "offset": "heap",
           "reason": "다른 FString 버퍼(T)"
         }
       ]
@@ -1138,8 +1138,8 @@
       "severity": "frontier",
       "function": "case_TV2R009_tmap_value",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1162,41 +1162,41 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "It.ItemId",
           "offset": 0,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "call_out_mem",
-          "detail": "M.Add(5,It) → TMap bucket heap"
-        },
-        {
-          "op": "deref",
-          "detail": "TMap → bucket → value (2-deref)"
-        },
-        {
-          "op": "load",
-          "field": "M[5].ItemId",
-          "offset": "heap",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "M.Add(5,It) → TMap bucket heap",
+          "op": "call_out_mem"
+        },
+        {
+          "detail": "TMap → bucket → value (2-deref)",
+          "op": "deref"
+        },
+        {
+          "field": "M[5].ItemId",
+          "offset": "heap",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "It.Count",
-          "offset": 4,
           "carries": "dfb_source_B",
+          "field": "It.Count",
+          "node": "store",
+          "offset": 4,
           "reason": "value 다른 field"
         }
       ]
@@ -1208,8 +1208,8 @@
       "severity": "frontier",
       "function": "case_TV2R010_nested_container",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1231,38 +1231,38 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "call_out_mem",
-          "detail": "Inner0.Add(A) → 내부 TArray heap"
+          "detail": "Inner0.Add(A) → 내부 TArray heap",
+          "op": "call_out_mem"
         },
         {
-          "op": "call_out_mem",
-          "detail": "Outer.Add(Inner0) → 외부 TArray heap"
+          "detail": "Outer.Add(Inner0) → 외부 TArray heap",
+          "op": "call_out_mem"
         },
         {
-          "op": "deref",
-          "detail": "Outer data ptr → Inner data ptr → int (3-deref)"
+          "detail": "Outer data ptr → Inner data ptr → int (3-deref)",
+          "op": "deref"
         },
         {
-          "op": "load",
           "field": "Outer[0][0]",
           "offset": "heap",
+          "op": "load",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "Outer[1][0]",
-          "offset": "heap",
           "carries": "dfb_source_B",
+          "field": "Outer[1][0]",
+          "node": "store",
+          "offset": "heap",
           "reason": "다른 외부 index"
         }
       ]
@@ -1274,8 +1274,8 @@
       "severity": "frontier",
       "function": "case_TV2R011_tarray_large_elem",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1298,41 +1298,41 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "L.Inner.Secret",
           "offset": "pdb",
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "call_out_mem",
-          "detail": "Arr.Add(L) → heap 배열로 large elem 복사"
-        },
-        {
-          "op": "deref",
-          "detail": "TArray data ptr → element[0] (1-deref + large elem)"
-        },
-        {
-          "op": "load",
-          "field": "Arr[0].Inner.Secret",
-          "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "Arr.Add(L) → heap 배열로 large elem 복사",
+          "op": "call_out_mem"
+        },
+        {
+          "detail": "TArray data ptr → element[0] (1-deref + large elem)",
+          "op": "deref"
+        },
+        {
+          "field": "Arr[0].Inner.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "L.Other",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "L.Other",
+          "node": "store",
+          "offset": "pdb",
           "reason": "element 다른 field"
         }
       ]
@@ -1344,8 +1344,8 @@
       "severity": "core-regression",
       "function": "case_TV2R006_fname_layout",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1366,34 +1366,34 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "s.Secret",
-          "offset": "pdb",
-          "size": 4,
           "carries": "dfb_source_A",
-          "detail": "FName(layout noise) 뒤 offset"
-        },
-        {
-          "op": "load",
+          "detail": "FName(layout noise) 뒤 offset",
           "field": "s.Secret",
           "offset": "pdb",
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "s.Secret",
+          "offset": "pdb",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "s.Noise",
-          "offset": "pdb",
           "carries": "dfb_source_B",
+          "field": "s.Noise",
+          "node": "store",
+          "offset": "pdb",
           "reason": "다른 field"
         }
       ]
@@ -1405,8 +1405,8 @@
       "severity": "target",
       "function": "case_TV2R012_fvector_simd",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -1428,41 +1428,103 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "A.X",
           "offset": 0,
-          "size": 8,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "copy",
-          "edge": "range_copy",
-          "detail": "B = A (FVector, /O2서 SIMD movaps)"
-        },
-        {
-          "op": "load",
-          "field": "B.X",
-          "offset": 0,
+          "op": "store",
           "size": 8
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "B = A (FVector, /O2서 SIMD movaps)",
+          "edge": "range_copy",
+          "op": "copy"
+        },
+        {
+          "field": "B.X",
+          "offset": 0,
+          "op": "load",
+          "size": 8
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Y",
-          "offset": 8,
           "carries": "dfb_source_B",
+          "field": "A.Y",
+          "node": "store",
+          "offset": 8,
           "reason": "다른 성분"
         }
       ]
+    },
+    {
+      "id": "TV2R201",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R201_tarray_realloc_indexed_read_wrong_index",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tarray",
+        "reallocation",
+        "indexed-element-read",
+        "wrong-index-forbidden-flow"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2R202",
+      "binary": "tv2_unreal",
+      "tier": 3,
+      "severity": "target",
+      "function": "case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tarray",
+        "reallocation",
+        "indexed-element-read",
+        "struct-field-neighbor-kill"
+      ],
+      "allowed_warnings": []
     }
   ]
 }

@@ -118,4 +118,60 @@ TV2_CASE void case_TV2C020_very_large_struct(void) {
     dfb_sink_int(B.Fields[10]);
 }
 
+
+/* TV2C501 — Nested memcpy + pointer-to-field demand. expect A / forbid B,C */
+struct TV2x501_Leaf {
+    int hot;
+    int cold;
+};
+
+struct TV2x501_Outer {
+    TV2x501_Leaf left;
+    TV2x501_Leaf right;
+};
+
+TV2_CASE void case_TV2C501_nested_memcpy_field_ptr_neighbor(void) {
+    TV2x501_Outer src = {};
+    TV2x501_Outer dst = {};
+    src.left.hot = dfb_source_A();
+    src.left.cold = dfb_source_B();
+    src.right.hot = dfb_source_C();
+
+    std::memcpy(&dst, &src, sizeof(dst));
+
+    int *p = &dst.left.hot;
+    dfb_sink_int(*p);
+}
+
+
+/* TV2C502 — Subobject copy + partial overwrite kill. expect B / forbid A,C */
+struct TV2x502_Inner {
+    int keep;
+    int killed;
+};
+
+struct TV2x502_Box {
+    int prefix;
+    TV2x502_Inner inner;
+    int tail;
+};
+
+TV2_HELPER void tv2x502_copy_inner(TV2x502_Inner *dst, const TV2x502_Inner *src) {
+    *dst = *src;
+}
+
+TV2_CASE void case_TV2C502_nested_assignment_partial_overwrite_kill(void) {
+    TV2x502_Box src = {};
+    TV2x502_Box dst = {};
+    src.prefix = dfb_source_A();
+    src.inner.keep = dfb_source_B();
+    src.inner.killed = dfb_source_C();
+
+    tv2x502_copy_inner(&dst.inner, &src.inner);
+    dst.inner.killed = 0;
+
+    int *p = &dst.inner.keep;
+    dfb_sink_int(*p);
+}
+
 } /* extern "C" */

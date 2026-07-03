@@ -112,6 +112,9 @@ extern "C" TV2_NOINLINE void case_TV2R012_fvector_simd()
 // ───────────────────────── keep-alive ─────────────────────────
 // 실행되지 않는다(포인터 인자는 분석용 placeholder). 심볼 보존 목적.
 
+extern "C" TV2_NOINLINE void case_TV2R201_tarray_realloc_indexed_read_wrong_index();
+extern "C" TV2_NOINLINE void case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
+
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -124,6 +127,66 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R011_tarray_large_elem();
 	case_TV2R006_fname_layout();
 	case_TV2R012_fvector_simd();
+	case_TV2R201_tarray_realloc_indexed_read_wrong_index();
+	case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
+
+/* TV2R201 — TArray reallocation + same-index overwrite. expect C / forbid A,B */
+extern "C" TV2_NOINLINE void case_TV2R201_tarray_realloc_indexed_read_wrong_index()
+{
+    TArray<FTraceItem> Items;
+    Items.Reserve(1);
+
+    FTraceItem A;
+    FTraceItem B;
+    FTraceItem C;
+    A.ItemId = dfb_source_A();
+    B.ItemId = dfb_source_B();
+    C.ItemId = dfb_source_C();
+
+    Items.Add(A);
+    Items.Add(B);
+
+    // Force backing-store growth after the first two element writes.
+    for (int32 I = 0; I < 64; ++I)
+    {
+        FTraceItem Padding;
+        Padding.ItemId = 0;
+        Padding.Count = 0;
+        Items.Add(Padding);
+    }
+
+    Items[1] = C;
+    dfb_sink_int(Items[1].ItemId);
+}
+
+/* TV2R202 — TArray reallocation + neighbor-field kill. expect A / forbid B,C */
+extern "C" TV2_NOINLINE void case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc()
+{
+    TArray<FTraceInner> Inners;
+    Inners.Reserve(1);
+
+    FTraceInner First;
+    FTraceInner Second;
+    First.Secret = dfb_source_A();
+    First.Noise = dfb_source_B();
+    Second.Secret = dfb_source_C();
+    Second.Noise = 0;
+
+    Inners.Add(First);
+
+    // Force backing-store growth while preserving element identity.
+    for (int32 I = 0; I < 64; ++I)
+    {
+        FTraceInner Padding;
+        Padding.Secret = 0;
+        Padding.Noise = 0;
+        Inners.Add(Padding);
+    }
+
+    Inners[0].Noise = 0;
+    Inners.Add(Second);
+    dfb_sink_int(Inners[0].Secret);
+}

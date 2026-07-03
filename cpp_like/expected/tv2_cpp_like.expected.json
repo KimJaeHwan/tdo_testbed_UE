@@ -16,8 +16,8 @@
       "severity": "core-regression",
       "function": "case_TV2C001_large_struct_copy",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -37,38 +37,38 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "A.Inner.Secret",
           "offset": 256,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "copy",
-          "edge": "range_copy",
-          "detail": "B = A (전체 struct 복사)"
-        },
-        {
-          "op": "load",
-          "field": "B.Inner.Secret",
-          "offset": 256,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "B = A (전체 struct 복사)",
+          "edge": "range_copy",
+          "op": "copy"
+        },
+        {
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Other / B.Other",
-          "offset": 264,
           "carries": "dfb_source_B",
+          "field": "A.Other / B.Other",
+          "node": "store",
+          "offset": 264,
           "reason": "wide copy가 무관 field로 번지면 안 됨"
         }
       ]
@@ -80,8 +80,8 @@
       "severity": "core-regression",
       "function": "case_TV2C002_deep_nested",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -101,34 +101,34 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "A.Transform.Translation.X",
-          "offset": 268,
-          "size": 4,
           "carries": "dfb_source_A",
-          "detail": "int→float 캐스트"
-        },
-        {
-          "op": "load",
+          "detail": "int→float 캐스트",
           "field": "A.Transform.Translation.X",
           "offset": 268,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "A.Transform.Translation.X",
+          "offset": 268,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Transform.Rotation.Y",
-          "offset": 284,
           "carries": "dfb_source_B",
+          "field": "A.Transform.Rotation.Y",
+          "node": "store",
+          "offset": 284,
           "reason": "다른 nested field"
         }
       ]
@@ -140,8 +140,8 @@
       "severity": "core-regression",
       "function": "case_TV2C004_control_vs_data_struct_phi",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret",
@@ -164,60 +164,60 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
           "label": "dfb_source_C.ret",
+          "op": "source",
           "role": "control"
         },
         {
-          "op": "branch_cond",
           "carries": "dfb_source_C",
-          "note": "if 조건 — control source, data로는 forbidden"
+          "note": "if 조건 — control source, data로는 forbidden",
+          "op": "branch_cond"
         },
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": 256,
-          "size": 4,
+          "branch": "if(true)",
           "carries": "dfb_source_A",
-          "branch": "if(true)"
-        },
-        {
-          "op": "source",
-          "label": "dfb_source_B.ret"
-        },
-        {
+          "field": "B.Inner.Secret",
+          "offset": 256,
           "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": 256,
-          "size": 4,
-          "carries": "dfb_source_B",
-          "branch": "else"
-        },
-        {
-          "op": "phi",
-          "field": "B.Inner.Secret",
-          "offset": 256,
-          "note": "두 분기 data 병합 → {A,B}"
-        },
-        {
-          "op": "load",
-          "field": "B.Inner.Secret",
-          "offset": 256,
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "label": "dfb_source_B.ret",
+          "op": "source"
+        },
+        {
+          "branch": "else",
+          "carries": "dfb_source_B",
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "op": "store",
+          "size": 4
+        },
+        {
+          "field": "B.Inner.Secret",
+          "note": "두 분기 data 병합 → {A,B}",
+          "offset": 256,
+          "op": "phi"
+        },
+        {
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "data_use",
           "carries": "dfb_source_C",
+          "node": "data_use",
           "reason": "C는 분기조건(control)일 뿐, data source로 쓰이면 안 됨"
         }
       ]
@@ -229,8 +229,8 @@
       "severity": "core-regression",
       "function": "case_TV2C005_partial_overwrite_kill",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_C.ret"
@@ -251,34 +251,34 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_C.ret"
+          "label": "dfb_source_C.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "B.Inner.Secret",
-          "offset": 256,
-          "size": 4,
           "carries": "dfb_source_C",
-          "detail": "B=A 이후 덮어쓰기(strong-update)"
-        },
-        {
-          "op": "load",
+          "detail": "B=A 이후 덮어쓰기(strong-update)",
           "field": "B.Inner.Secret",
           "offset": 256,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "B.Inner.Secret",
-          "offset": 256,
           "carries": "dfb_source_A",
+          "field": "B.Inner.Secret",
+          "node": "store",
+          "offset": 256,
           "reason": "복사로 들어온 옛 값(A)은 덮어쓰기로 kill됨"
         }
       ]
@@ -290,8 +290,8 @@
       "severity": "core-regression",
       "function": "case_TV2C006_wide_copy_narrow_forbidden",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_B.ret"
@@ -311,38 +311,38 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_B.ret"
+          "label": "dfb_source_B.ret",
+          "op": "source"
         },
         {
-          "op": "copy",
+          "detail": "B = A (A.Inner만 A로 오염)",
           "edge": "range_copy",
-          "detail": "B = A (A.Inner만 A로 오염)"
+          "op": "copy"
         },
         {
+          "carries": "dfb_source_B",
+          "field": "B.Other",
+          "offset": 264,
           "op": "store",
-          "field": "B.Other",
-          "offset": 264,
-          "size": 4,
-          "carries": "dfb_source_B"
-        },
-        {
-          "op": "load",
-          "field": "B.Other",
-          "offset": 264,
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "B.Other",
+          "offset": 264,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Inner.Secret / B.Inner.Secret",
-          "offset": 256,
           "carries": "dfb_source_A",
+          "field": "A.Inner.Secret / B.Inner.Secret",
+          "node": "store",
+          "offset": 256,
           "reason": "Inner 오염이 Other read로 번지면 false positive"
         }
       ]
@@ -354,8 +354,8 @@
       "severity": "frontier",
       "function": "case_TV2C011_intra_proc_pointer_chain",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -377,37 +377,37 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "leaf.Secret",
           "offset": 0,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "deref",
-          "detail": "p3→p2→p1→leaf (3단 indirection)"
-        },
-        {
-          "op": "load",
-          "field": "(***p3).Secret",
-          "offset": 0,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "p3→p2→p1→leaf (3단 indirection)",
+          "op": "deref"
+        },
+        {
+          "field": "(***p3).Secret",
+          "offset": 0,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "leaf.Noise",
-          "offset": 4,
           "carries": "dfb_source_B",
+          "field": "leaf.Noise",
+          "node": "store",
+          "offset": 4,
           "reason": "같은 struct 다른 field"
         }
       ]
@@ -419,8 +419,8 @@
       "severity": "core-regression",
       "function": "case_TV2C012_ref_alias_into_field",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -440,34 +440,34 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "A.Inner.Secret",
-          "offset": 256,
-          "size": 4,
           "carries": "dfb_source_A",
-          "detail": "reference r = A.Inner.Secret 경유"
-        },
-        {
-          "op": "load",
+          "detail": "reference r = A.Inner.Secret 경유",
           "field": "A.Inner.Secret",
           "offset": 256,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Inner.Noise",
-          "offset": 260,
           "carries": "dfb_source_B",
+          "field": "A.Inner.Noise",
+          "node": "store",
+          "offset": 260,
           "reason": "다른 field"
         }
       ]
@@ -479,8 +479,8 @@
       "severity": "core-regression",
       "function": "case_TV2C013_sub_struct_memcpy",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -500,38 +500,38 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "A.Inner.Secret",
           "offset": 256,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "copy",
-          "edge": "external_memcpy",
-          "detail": "memcpy(&B.Inner,&A.Inner,8) — Inner sub-struct만 부분복사"
-        },
-        {
-          "op": "load",
-          "field": "B.Inner.Secret",
-          "offset": 256,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "memcpy(&B.Inner,&A.Inner,8) — Inner sub-struct만 부분복사",
+          "edge": "external_memcpy",
+          "op": "copy"
+        },
+        {
+          "field": "B.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Other",
-          "offset": 264,
           "carries": "dfb_source_B",
+          "field": "A.Other",
+          "node": "store",
+          "offset": 264,
           "reason": "Other는 memcpy 범위 밖 — 복사 안 됨"
         }
       ]
@@ -543,8 +543,8 @@
       "severity": "core-regression",
       "function": "case_TV2C017_diamond_phi_field_split",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -565,45 +565,45 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
           "label": "dfb_source_C.ret",
+          "op": "source",
           "role": "control"
         },
         {
-          "op": "branch_cond",
           "carries": "dfb_source_C",
-          "note": "if 조건(control)"
+          "note": "if 조건(control)",
+          "op": "branch_cond"
         },
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
-          "field": "s.Secret",
-          "offset": 0,
-          "size": 4,
+          "branch": "if(true)",
           "carries": "dfb_source_A",
-          "branch": "if(true)"
-        },
-        {
-          "op": "load",
           "field": "s.Secret",
           "offset": 0,
-          "size": 4,
-          "note": "sink이 Secret을 읽음 → A만 도달"
+          "op": "store",
+          "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "s.Secret",
+          "note": "sink이 Secret을 읽음 → A만 도달",
+          "offset": 0,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "s.Noise",
-          "offset": 4,
           "carries": "dfb_source_B",
+          "field": "s.Noise",
+          "node": "store",
+          "offset": 4,
           "reason": "else 분기는 Noise에 B 저장 — Secret sink에 오면 안 됨"
         }
       ]
@@ -615,8 +615,8 @@
       "severity": "core-regression",
       "function": "case_TV2C018_call_out_mem_mutate",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -635,38 +635,38 @@
       "allowed_warnings": [],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "call_out_mem",
-          "detail": "tv2_set_secret(&A, A) helper가 포인터로 field 기록"
+          "detail": "tv2_set_secret(&A, A) helper가 포인터로 field 기록",
+          "op": "call_out_mem"
         },
         {
-          "op": "store",
-          "field": "A.Inner.Secret",
-          "offset": 256,
-          "size": 4,
           "carries": "dfb_source_A",
-          "detail": "helper 내부 store"
-        },
-        {
-          "op": "load",
+          "detail": "helper 내부 store",
           "field": "A.Inner.Secret",
           "offset": 256,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "field": "A.Inner.Secret",
+          "offset": 256,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Other",
-          "offset": 264,
           "carries": "dfb_source_B",
+          "field": "A.Other",
+          "node": "store",
+          "offset": 264,
           "reason": "helper가 안 건드린 field"
         }
       ]
@@ -678,8 +678,8 @@
       "severity": "target",
       "function": "case_TV2C020_very_large_struct",
       "anchor": {
-        "callee": "dfb_sink_int",
-        "arg_index": 0
+        "arg_index": 0,
+        "callee": "dfb_sink_int"
       },
       "expected_data_sources": [
         "dfb_source_A.ret"
@@ -702,41 +702,104 @@
       ],
       "expected_flow": [
         {
-          "op": "source",
-          "label": "dfb_source_A.ret"
+          "label": "dfb_source_A.ret",
+          "op": "source"
         },
         {
-          "op": "store",
+          "carries": "dfb_source_A",
           "field": "A.Fields[10]",
           "offset": 16424,
-          "size": 4,
-          "carries": "dfb_source_A"
-        },
-        {
-          "op": "copy",
-          "edge": "range_copy",
-          "detail": "B = A (16KB 거대 struct 복사)"
-        },
-        {
-          "op": "load",
-          "field": "B.Fields[10]",
-          "offset": 16424,
+          "op": "store",
           "size": 4
         },
         {
-          "op": "sink",
-          "label": "dfb_sink_int.arg0"
+          "detail": "B = A (16KB 거대 struct 복사)",
+          "edge": "range_copy",
+          "op": "copy"
+        },
+        {
+          "field": "B.Fields[10]",
+          "offset": 16424,
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
         }
       ],
       "forbidden_flow": [
         {
-          "node": "store",
-          "field": "A.Fields[20]",
-          "offset": 16464,
           "carries": "dfb_source_B",
+          "field": "A.Fields[20]",
+          "node": "store",
+          "offset": 16464,
           "reason": "다른 element offset"
         }
       ]
+    },
+    {
+      "id": "TV2C501",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "target",
+      "function": "case_TV2C501_nested_memcpy_field_ptr_neighbor",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "field-sensitive-subobject-provenance",
+        "nested-struct",
+        "memcpy-copy",
+        "pointer-to-field-read",
+        "neighbor-field-forbidden"
+      ],
+      "allowed_warnings": []
+    },
+    {
+      "id": "TV2C502",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "target",
+      "function": "case_TV2C502_nested_assignment_partial_overwrite_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "field-sensitive-subobject-provenance",
+        "nested-struct",
+        "compiler-lowered-copy",
+        "pointer-to-field-read",
+        "neighbor-field-forbidden",
+        "partial-overwrite-kill"
+      ],
+      "allowed_warnings": []
     }
   ]
 }
