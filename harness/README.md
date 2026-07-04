@@ -396,6 +396,43 @@ dry-run이다. 사람이 승인한 뒤 실제 반영까지 맡기려면 `--apply
 `--allow-unapproved-case-apply`를 명시한다. 승인 적용 모드에서는 기본적으로 manifest
 기반 expected generator까지 실행한다. 끄려면 `--no-regenerate-expected`를 준다.
 
+외부 Codex/API를 쓰지 않고 harness 자체가 deterministic proposed case를 1개 만들고
+멈추는 smoke는 다음처럼 돌린다. source/manifest는 바뀌지 않고, proposal 생성,
+doctor, dry-run apply 계획까지만 검증한다. `--offline-case-count`를 늘리면 여러 개를
+만들 수 있지만, 기본 운용은 사람이 검토하기 쉬운 1개씩이다.
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 10 \
+  --mode local-samples \
+  --run-id offline_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --offline-case-author \
+  --apply-mode dry-run
+```
+
+Codex case_author를 바로 실행할 준비가 된 명령은 아래 형태다. `--codex-bin`은 생략해도
+`CODEX_BIN`, Codex.app bundle 경로, PATH 순서로 자동 탐색한다. 이 경로는 외부 Codex에
+failure report와 gap note를 보내므로 먼저 `dry-run`으로 proposal만 받고, 적용은 별도
+검토 뒤 `approved` 모드에서 진행한다.
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 10 \
+  --mode local-samples \
+  --run-id codex_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 4 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode dry-run
+```
+
 케이스를 반영한 뒤 빌드/low-pcode 재추출, targeted 회귀, Engine11 수리까지 닫힌
 루프로 이어가려면 다음 옵션을 함께 붙인다. cpp-like case는 기본적으로 `tv2-tier0`
 variant만 targeted 검증하고, 케이스가 이미 green이면 내부 engine loop는 자동 skip된다.

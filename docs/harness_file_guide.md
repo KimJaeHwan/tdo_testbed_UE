@@ -333,6 +333,43 @@ python3 -m harness.frontier_case_loop \
 expected JSON도 재생성한다. `--proposal-root`를 주면 이미 생성된 proposal root에서
 case author 단계를 건너뛰고 doctor/apply 이후 단계만 재실행할 수 있다.
 
+외부 Codex/API 없이 harness 자체 deterministic provider로 proposal 생성과 doctor만
+확인하려면 `--offline-case-author`를 쓴다. 기본은 proposed case 1개를 만들고
+`case-apply --dry-run` 계획까지만 생성한 뒤 멈춘다. 그래서 긴 자동 수리 루프에 넣기
+전에 case_author 배선과 doctor 규칙을 안전하게 확인할 수 있다.
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 10 \
+  --mode local-samples \
+  --run-id offline_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --offline-case-author \
+  --apply-mode dry-run
+```
+
+실제 Codex case_author를 호출할 준비 명령은 아래 형태다. `--codex-bin`을 생략하면
+`CODEX_BIN`, Codex.app bundle 경로, PATH의 `codex` 순서로 자동 탐색한다. 이 경로는
+Codex provider에 failure report와 gap note를 전달하므로, 우선 `dry-run`으로 proposal만
+받고 사람이 검토한 뒤 적용 단계로 넘어간다.
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 10 \
+  --mode local-samples \
+  --run-id codex_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 4 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode dry-run
+```
+
 닫힌 자동 루프 옵션:
 
 ```bash

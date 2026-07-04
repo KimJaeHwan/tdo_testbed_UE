@@ -191,6 +191,17 @@ def _resolve_codex_bin(codex_bin: str) -> str:
 def _case_author_executor(args: argparse.Namespace, config: HarnessConfig) -> str:
     if args.author_executor:
         return args.author_executor
+    if args.offline_case_author:
+        cmd = [
+            sys.executable,
+            "-m",
+            "harness.providers.local_case_author_executor",
+            "--max-cases",
+            str(args.offline_case_count),
+        ]
+        if args.offline_case_id:
+            cmd.extend(["--case-id", args.offline_case_id])
+        return " ".join(shlex.quote(part) for part in cmd)
     codex_bin = _resolve_codex_bin(args.codex_bin)
     if not codex_bin:
         return ""
@@ -754,6 +765,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--author-executor", default="")
     parser.add_argument("--author-model", default="", help="Optional case_author model override when --codex-bin builds the executor.")
     parser.add_argument("--author-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
+    parser.add_argument("--offline-case-author", action="store_true", help="Use deterministic local case_author instead of Codex/OpenAI.")
+    parser.add_argument("--offline-case-count", type=int, default=1, help="Number of local proposed cases to emit. Default is 1.")
+    parser.add_argument("--offline-case-id", default="", help="Optional fixed local case id for smoke tests.")
 
     parser.add_argument("--apply-mode", default="dry-run", choices=["none", "dry-run", "approved"])
     parser.add_argument("--approval-key", default="")
