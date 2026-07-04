@@ -40,6 +40,9 @@ extract_binary() {
   [ -n "${GHIDRA_DIR:-}" ] || { echo "skip: GHIDRA_DIR missing"; return 0; }
   [ -n "${TDO_DUMPER_DIR:-}" ] && [ -d "$TDO_DUMPER_DIR" ] || { echo "skip: TDO_DUMPER_DIR missing"; return 0; }
   mkdir -p "$out" "$ROOT/build_ghidra_proj"
+  local ghidra_xdg_config_home="${GHIDRA_XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$ROOT/build_ghidra_config}}"
+  local ghidra_xdg_cache_home="${GHIDRA_XDG_CACHE_HOME:-${XDG_CACHE_HOME:-$ROOT/build_ghidra_cache}}"
+  mkdir -p "$ghidra_xdg_config_home" "$ghidra_xdg_cache_home"
 
   if [ "$TV2_OS" = "windows" ]; then
     local ah_win bin_win out_win proj_win dumper_win bat
@@ -61,12 +64,15 @@ EOF
     local ah="$GHIDRA_DIR/support/analyzeHeadless"
     [ -x "$ah" ] || { echo "skip: analyzeHeadless not executable: $ah"; return 0; }
     if [ -n "${GHIDRA_JAVA_HOME:-}" ]; then
-      JAVA_HOME="$GHIDRA_JAVA_HOME" "$ah" "$ROOT/build_ghidra_proj" "$proj" -import "$binary" -overwrite \
+      PATH="$GHIDRA_JAVA_HOME/bin:$PATH" JAVA_HOME="$GHIDRA_JAVA_HOME" \
+        XDG_CONFIG_HOME="$ghidra_xdg_config_home" XDG_CACHE_HOME="$ghidra_xdg_cache_home" \
+        "$ah" "$ROOT/build_ghidra_proj" "$proj" -import "$binary" -overwrite \
         -scriptPath "$TDO_DUMPER_DIR" \
         -postScript lowpcode_json_dumper.py --output-root "$out" --root-prefix "$prefix" --max-depth 8 \
         -deleteProject 2>&1 | grep -iE "success=|fail=|ERROR|Exception" | tail -20
     else
-      "$ah" "$ROOT/build_ghidra_proj" "$proj" -import "$binary" -overwrite \
+      XDG_CONFIG_HOME="$ghidra_xdg_config_home" XDG_CACHE_HOME="$ghidra_xdg_cache_home" \
+        "$ah" "$ROOT/build_ghidra_proj" "$proj" -import "$binary" -overwrite \
         -scriptPath "$TDO_DUMPER_DIR" \
         -postScript lowpcode_json_dumper.py --output-root "$out" --root-prefix "$prefix" --max-depth 8 \
         -deleteProject 2>&1 | grep -iE "success=|fail=|ERROR|Exception" | tail -20

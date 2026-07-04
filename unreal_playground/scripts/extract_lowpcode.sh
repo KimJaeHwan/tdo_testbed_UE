@@ -38,6 +38,10 @@ PROJ_DIR="$HERE/TraceUnrealPlayground/Build/GhidraProjects"
 PROJ="tv2_ue58_mac_${PROFILE}"
 mkdir -p "$PROJ_DIR" "$OUT"
 
+GHIDRA_XDG_CONFIG_HOME="${GHIDRA_XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HERE/TraceUnrealPlayground/Build/GhidraConfig}}"
+GHIDRA_XDG_CACHE_HOME="${GHIDRA_XDG_CACHE_HOME:-${XDG_CACHE_HOME:-$HERE/TraceUnrealPlayground/Build/GhidraCache}}"
+mkdir -p "$GHIDRA_XDG_CONFIG_HOME" "$GHIDRA_XDG_CACHE_HOME"
+
 # Avoid stale local samples being mistaken for fresh UE build results.
 find "$OUT" -maxdepth 1 -type f \( -name 'case_TV2*_low_pcode.json' -o -name '*_low_pcode.json' -o -name 'low_pcode_extraction_manifest.json' \) -delete
 
@@ -51,12 +55,15 @@ AH="$GHIDRA_DIR/support/analyzeHeadless"
 
 echo "=== extracting UE [$PROFILE/$UE_CONFIG] -> $OUT ==="
 if [ -n "${GHIDRA_JAVA_HOME:-}" ]; then
-  JAVA_HOME="$GHIDRA_JAVA_HOME" "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
+  PATH="$GHIDRA_JAVA_HOME/bin:$PATH" JAVA_HOME="$GHIDRA_JAVA_HOME" \
+    XDG_CONFIG_HOME="$GHIDRA_XDG_CONFIG_HOME" XDG_CACHE_HOME="$GHIDRA_XDG_CACHE_HOME" \
+    "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
     -scriptPath "$TDO_DUMPER_DIR" \
     -postScript lowpcode_json_dumper.py --output-dir "$OUT" --root-prefix _case_TV2 --max-depth 8 \
     -deleteProject
 else
-  "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
+  XDG_CONFIG_HOME="$GHIDRA_XDG_CONFIG_HOME" XDG_CACHE_HOME="$GHIDRA_XDG_CACHE_HOME" \
+    "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
     -scriptPath "$TDO_DUMPER_DIR" \
     -postScript lowpcode_json_dumper.py --output-dir "$OUT" --root-prefix _case_TV2 --max-depth 8 \
     -deleteProject

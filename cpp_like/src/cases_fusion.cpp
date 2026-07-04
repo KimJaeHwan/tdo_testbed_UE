@@ -268,4 +268,26 @@ TV2_CASE void case_TV2C603_indirect_callback_after_vector_clear(void) {
     dfb_sink_int(cell.expected);
 }
 
+
+/* TV2C604 — Indirect callback writes A into target after aggregate clear.
+ *           expect A / forbid B and pre-callback zero clear.
+ */
+
+struct TV2C604_State { int keep; int target; int neighbor; };
+using TV2C604_Callback = void (*)(TV2C604_State*, int, int);
+
+static void tv2c604_write_target(TV2C604_State* s, int value, int noise) {
+    s->target = value;
+    s->neighbor = noise ^ 0x5a5a5a5a;
+}
+
+TV2_CASE void case_TV2C604_indirect_callback_field_write_vector_clear(void) {
+    TV2C604_State st{};
+    TV2C604_Callback table[2] = {tv2c604_write_target, tv2c604_write_target};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    table[(b & 1) ^ (b & 1)](&st, a, b);
+    dfb_sink_int(st.target);
+}
+
 } /* extern "C" */

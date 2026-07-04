@@ -908,8 +908,8 @@
           "carries": "dfb_source_A",
           "field": "TV2C603_Cell.expected",
           "offset": "offsetof(TV2C603_Cell, expected)",
-          "reason": "By construction, only the expected field receives the value returned by dfb_source_A.",
           "op": "store",
+          "reason": "By construction, only the expected field receives the value returned by dfb_source_A.",
           "size": 4
         },
         {
@@ -928,17 +928,121 @@
           "carries": "dfb_source_B",
           "field": "TV2C603_Cell.neighbor",
           "offset": "offsetof(TV2C603_Cell, neighbor)",
-          "reason": "dfb_source_B is written only to the neighbor field after the callback; the sink reads cell.expected, not cell.neighbor.",
           "op": "store",
+          "reason": "dfb_source_B is written only to the neighbor field after the callback; the sink reads cell.expected, not cell.neighbor.",
           "size": 4
         },
         {
           "carries": "dfb_source_B",
           "field": "TV2C603_Cell aggregate",
           "offset": "sizeof(TV2C603_Cell)",
-          "reason": "Aggregate clear must not be treated as carrying neighbor source into expected.",
           "op": "kill",
+          "reason": "Aggregate clear must not be treated as carrying neighbor source into expected.",
           "size": "sizeof(TV2C603_Cell)"
+        }
+      ]
+    },
+    {
+      "id": "TV2C604",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "indirect-call",
+        "callback-table",
+        "field-write",
+        "aggregate-clear",
+        "forbidden-neighbor-source"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "sink value source created before callback dispatch",
+          "field": "local a",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "n/a",
+          "reason": "By construction, dfb_source_A() is stored in local a and passed as the callback value argument.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "callback value argument"
+        },
+        {
+          "carries": "A value through indirect callback field write",
+          "field": "TV2C604_State.target",
+          "from": "callback value argument",
+          "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+          "kind": "call_summary",
+          "node": "indirect callback table call",
+          "offset": "offsetof(TV2C604_State, target)",
+          "reason": "The selected callback writes its value parameter directly to s->target.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "st.target"
+        },
+        {
+          "carries": "A value loaded from target field",
+          "field": "TV2C604_State.target",
+          "from": "st.target",
+          "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+          "kind": "field_load",
+          "node": "st.target",
+          "offset": "offsetof(TV2C604_State, target)",
+          "reason": "The sink argument is exactly st.target after the callback write.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "callback index and neighbor write only",
+          "field": "TV2C604_State.neighbor",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C604_State, neighbor)",
+          "reason": "By construction, B is used only in an index expression that cancels to zero and in a neighbor-field write; st.target is the sole sink value.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "zero initialization before source write",
+          "field": "TV2C604_State.target",
+          "from": "CONST:0x0",
+          "function": "case_TV2C604_indirect_callback_field_write_vector_clear",
+          "kind": "aggregate_clear",
+          "node": "st{} initialization",
+          "offset": "offsetof(TV2C604_State, target)",
+          "reason": "The aggregate clear happens before the callback overwrites target with A, so the final sink should not be cut at CONST:0x0.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "CONST:0x0",
+          "to": "dfb_sink_int.arg0"
         }
       ]
     }

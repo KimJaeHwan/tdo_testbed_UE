@@ -24,6 +24,10 @@ PROJ_DIR="$HERE/build/ghidra_proj"
 PROJ="tv2_${PROFILE}_${ARCH}"
 mkdir -p "$PROJ_DIR" "$OUT"
 
+GHIDRA_XDG_CONFIG_HOME="${GHIDRA_XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HERE/build/ghidra_config}}"
+GHIDRA_XDG_CACHE_HOME="${GHIDRA_XDG_CACHE_HOME:-${XDG_CACHE_HOME:-$HERE/build/ghidra_cache}}"
+mkdir -p "$GHIDRA_XDG_CONFIG_HOME" "$GHIDRA_XDG_CACHE_HOME"
+
 if [ "$TV2_OS" = "windows" ]; then
   command -v cygpath >/dev/null || { echo "cygpath is required on Windows Git Bash"; exit 1; }
   AH_WIN="$(cygpath -w "$GHIDRA_DIR/support/analyzeHeadless.bat")"
@@ -48,12 +52,15 @@ else
   [ -x "$AH" ] || { echo "analyzeHeadless not executable: $AH"; exit 1; }
   echo "=== extracting [$PROFILE/$ARCH] -> $OUT ==="
   if [ -n "${GHIDRA_JAVA_HOME:-}" ]; then
-    JAVA_HOME="$GHIDRA_JAVA_HOME" "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
+    PATH="$GHIDRA_JAVA_HOME/bin:$PATH" JAVA_HOME="$GHIDRA_JAVA_HOME" \
+      XDG_CONFIG_HOME="$GHIDRA_XDG_CONFIG_HOME" XDG_CACHE_HOME="$GHIDRA_XDG_CACHE_HOME" \
+      "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
       -scriptPath "$TDO_DUMPER_DIR" \
       -postScript lowpcode_json_dumper.py --output-root "$OUT" --root-prefix case_TV2C --max-depth 8 \
       -deleteProject
   else
-    "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
+    XDG_CONFIG_HOME="$GHIDRA_XDG_CONFIG_HOME" XDG_CACHE_HOME="$GHIDRA_XDG_CACHE_HOME" \
+      "$AH" "$PROJ_DIR" "$PROJ" -import "$BIN" -overwrite \
       -scriptPath "$TDO_DUMPER_DIR" \
       -postScript lowpcode_json_dumper.py --output-root "$OUT" --root-prefix case_TV2C --max-depth 8 \
       -deleteProject
