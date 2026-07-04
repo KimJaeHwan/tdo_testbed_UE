@@ -321,12 +321,15 @@ python3 -m harness.frontier_case_loop \
   --author-calls 6 \
   --author-chunk-calls 3 \
   --author-chunk-tokens 100000 \
+  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode dry-run
 ```
 
 실제 source/manifest 반영은 `--apply-mode approved --approval-key <key>`가 있을 때만
 수행한다. expected JSON은 여전히 기존 manifest 기반 generator로 별도 생성한다.
+`--codex-bin`은 case_author provider와, `--run-engine-dev-loop`를 붙였을 때 내부
+Engine11 editor 양쪽에 전달된다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
 나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은

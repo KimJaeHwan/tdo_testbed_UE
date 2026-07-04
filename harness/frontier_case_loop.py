@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import shutil
 import subprocess
 import sys
@@ -167,9 +168,36 @@ def _run_regression(args: argparse.Namespace, output_root: Path, phase: str) -> 
     }
 
 
-def _run_case_author(args: argparse.Namespace, output_root: Path, tasks_path: Path) -> dict:
+def _strip_codex_prefix(model: str) -> str:
+    return model.split(":", 1)[1] if model.startswith("codex:") else model
+
+
+def _case_author_executor(args: argparse.Namespace, config: HarnessConfig) -> str:
+    if args.author_executor:
+        return args.author_executor
+    if not args.codex_bin:
+        return ""
+    agent_tiers = config.value("models", "agent_tiers", {}) or {}
+    tier = str(agent_tiers.get("case_author") or "strong")
+    model = _strip_codex_prefix(str(args.author_model or config.value("models", tier, "") or ""))
+    cmd = [
+        sys.executable,
+        "-m",
+        "harness.providers.codex_cli_agent_executor",
+        "--codex-bin",
+        str(args.codex_bin),
+        "--reasoning-effort",
+        args.author_reasoning_effort,
+    ]
+    if model:
+        cmd.extend(["--model", model])
+    return " ".join(shlex.quote(part) for part in cmd)
+
+
+def _run_case_author(args: argparse.Namespace, config: HarnessConfig, output_root: Path, tasks_path: Path) -> dict:
     agent_dir = output_root / "case_author_agent"
     proposal_dir = output_root / "case_author_proposals"
+    executor = _case_author_executor(args, config)
     cmd = [
         sys.executable,
         "-m",
@@ -194,8 +222,8 @@ def _run_case_author(args: argparse.Namespace, output_root: Path, tasks_path: Pa
         "--scaffold-work-items",
         "--stop-on-no-progress",
     ]
-    if args.author_executor:
-        cmd.extend(["--executor", args.author_executor])
+    if executor:
+        cmd.extend(["--executor", executor])
     proc = _run_logged(cmd, output_root / "case_author_agent.log")
     return {
         "command": cmd,
@@ -374,7 +402,7 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
     tasks = _write_case_author_tasks(args, config, Path(str(baseline["report_path"])), output_root / "case_author_tasks.json")
     state["phases"].append({"name": "case_author_tasks", **tasks})
 
-    author = _run_case_author(args, output_root, Path(str(tasks["tasks_path"])))
+    author = _run_case_author(args, config, output_root, Path(str(tasks["tasks_path"])))
     state["phases"].append({"name": "case_author", **author})
     proposal_dir = Path(str(author["proposal_dir"]))
     if author["returncode"] not in {0, 3} or not Path(str(author["proposal_manifest"])).is_file():
@@ -432,6 +460,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--author-chunk-calls", type=int, default=4)
     parser.add_argument("--author-chunk-tokens", type=int, default=100000)
     parser.add_argument("--author-executor", default="")
+    parser.add_argument("--author-model", default="", help="Optional case_author model override when --codex-bin builds the executor.")
+    parser.add_argument("--author-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
 
     parser.add_argument("--apply-mode", default="dry-run", choices=["none", "dry-run", "approved"])
     parser.add_argument("--approval-key", default="")
@@ -445,7 +475,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine-analysis-chunk-tokens", type=int, default=100000)
     parser.add_argument("--editor-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
     parser.add_argument("--editor-timeout", type=float, default=7200.0)
-    parser.add_argument("--codex-bin", default="")
+    parser.add_argument("--codex-bin", default="", help="Codex executable path used by case_author provider and nested engine_dev_loop.")
     parser.add_argument("--operator-note-file", type=Path, default=None)
     return parser
 

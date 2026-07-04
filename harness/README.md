@@ -384,6 +384,7 @@ python -m harness.frontier_case_loop \
   --author-calls 6 \
   --author-chunk-calls 3 \
   --author-chunk-tokens 100000 \
+  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode dry-run
 ```
@@ -399,6 +400,7 @@ dry-run이다. 사람이 승인한 뒤 실제 반영까지 맡기려면 `--apply
 케이스를 반영한 뒤 Engine11까지 이어서 수리하려면 같은 명령에
 `--run-engine-dev-loop`를 붙인다. 이때 내부 `engine_dev_loop`는
 `--include-proposed-regression`, repair mode, design lint를 사용한다.
+`--codex-bin`은 case_author provider와 내부 Engine11 editor 양쪽에 전달된다.
 
 검증된 smoke:
 
