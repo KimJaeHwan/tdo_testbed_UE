@@ -1086,6 +1086,101 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "offline-local-case-author",
+        "indirect-call",
+        "callback-table",
+        "field-sensitive-memory",
+        "loop-noise",
+        "neighbor-field-forbidden",
+        "overwrite-distraction"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "local a",
+          "from": "dfb_source_A()",
+          "function": "case_TV2C605_offline_indirect_field_loop_guard",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "n/a",
+          "reason": "By construction, A is passed to the selected callback value parameter.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "callback value argument"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C605_Box.cells[1].target",
+          "from": "callback value argument",
+          "function": "case_TV2C605_offline_indirect_field_loop_guard",
+          "kind": "field_store",
+          "node": "tv2c605_write_target",
+          "offset": "offsetof(Box.cells[1].target)",
+          "reason": "The callback writes only the value parameter into the target field read by the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "box.cells[1].target"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C605_Box.cells[*].neighbor",
+          "from": "dfb_source_B()",
+          "function": "case_TV2C605_offline_indirect_field_loop_guard",
+          "kind": "neighbor_store",
+          "node": "loop neighbor writes",
+          "offset": "offsetof(Box.cells[*].neighbor)",
+          "reason": "B is written to neighbor fields and never to cells[1].target.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "neighbor fields only"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C605_Box.cells[1].killed",
+          "from": "dfb_source_C()",
+          "function": "case_TV2C605_offline_indirect_field_loop_guard",
+          "kind": "killed_field",
+          "node": "box.cells[1].killed",
+          "offset": "offsetof(Box.cells[1].killed)",
+          "reason": "C selects a callback through an expression that cancels to zero and is written away from the sink field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "index/noise/killed field"
+        }
+      ],
+      "function": "case_TV2C605_offline_indirect_field_loop_guard",
+      "id": "TV2C605",
+      "name": "offline indirect callback field loop guard",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

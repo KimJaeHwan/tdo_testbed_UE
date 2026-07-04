@@ -363,12 +363,32 @@ def _source_list(payload: Any, canonical: str, short: str) -> list:
 
 def _append_source(target_file: Path, snippet: str, target: str) -> None:
     text = target_file.read_text(encoding="utf-8")
-    snippet = "\n\n" + snippet.strip() + "\n"
+    snippet = "\n\n" + _strip_proposal_source_header(snippet).strip() + "\n"
     if target == "suite10-cpp" and "} /* extern \"C\" */" in text:
         text = text.replace("\n} /* extern \"C\" */", snippet + "\n} /* extern \"C\" */")
     else:
         text = text.rstrip() + snippet + "\n"
     target_file.write_text(text, encoding="utf-8")
+
+
+def _strip_proposal_source_header(snippet: str) -> str:
+    lines = snippet.splitlines()
+    header = [
+        "Proposal-only source skeleton",
+        "Do not add this to manifests or expected JSON without human approval.",
+        "Oracle basis and independent checks live beside this file as *.expected.proposal.json.",
+    ]
+    index = 0
+    for expected in header:
+        if index >= len(lines):
+            return snippet
+        line = lines[index].strip()
+        if not line.startswith("//") or expected not in line:
+            return snippet
+        index += 1
+    if index < len(lines) and not lines[index].strip():
+        index += 1
+    return "\n".join(lines[index:])
 
 
 def _append_manifest_case(manifest_path: Path, manifest_case: dict, replace: bool) -> None:

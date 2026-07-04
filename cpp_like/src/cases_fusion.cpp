@@ -290,4 +290,50 @@ TV2_CASE void case_TV2C604_indirect_callback_field_write_vector_clear(void) {
     dfb_sink_int(st.target);
 }
 
+/* TV2C605 - Offline local case-author seed.
+ *           expect A / forbid B,C
+ */
+struct TV2C605_Cell {
+    int target;
+    int neighbor;
+    int killed;
+};
+
+struct TV2C605_Box {
+    TV2C605_Cell cells[2];
+    int guard;
+};
+
+typedef void (*TV2C605_Writer)(TV2C605_Box*, int, int);
+
+TV2_HELPER void tv2c605_write_target(TV2C605_Box *box, int value, int noise) {
+    box->cells[1].target = value;
+    box->cells[0].neighbor = noise;
+}
+
+TV2_HELPER void tv2c605_overwrite_neighbor(TV2C605_Box *box, int value) {
+    box->cells[1].neighbor = value;
+}
+
+TV2_CASE void case_TV2C605_offline_indirect_field_loop_guard(void) {
+    TV2C605_Box box = {};
+    TV2C605_Writer writers[2] = {
+        tv2c605_write_target,
+        tv2c605_write_target,
+    };
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+
+    for (int i = 0; i < 2; ++i) {
+        box.cells[i].neighbor = b + i;
+    }
+
+    writers[(c & 1) ^ (c & 1)](&box, a, c);
+    tv2c605_overwrite_neighbor(&box, b);
+    box.cells[1].killed = c;
+
+    dfb_sink_int(box.cells[1].target);
+}
+
 } /* extern "C" */
