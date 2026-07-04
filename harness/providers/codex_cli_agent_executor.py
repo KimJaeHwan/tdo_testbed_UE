@@ -242,6 +242,25 @@ def _append_reasoning_effort(cmd: list[str], effort: str) -> None:
     cmd.extend(["-c", f'model_reasoning_effort="{effort}"'])
 
 
+def _codex_process_env() -> dict[str, str]:
+    env = os.environ.copy()
+    home_codex = Path.home() / ".codex"
+    if not env.get("CODEX_HOME") and (not home_codex.exists() or not os.access(home_codex, os.W_OK)):
+        codex_home = ROOT / "output" / "harness" / ".codex_cli_home"
+        codex_home.mkdir(parents=True, exist_ok=True)
+        env["CODEX_HOME"] = str(codex_home)
+    if env.get("CODEX_HOME"):
+        codex_home = Path(env["CODEX_HOME"])
+        for key, name in (
+            ("XDG_STATE_HOME", "xdg_state"),
+            ("XDG_CACHE_HOME", "xdg_cache"),
+            ("XDG_CONFIG_HOME", "xdg_config"),
+        ):
+            env.setdefault(key, str(codex_home / name))
+            Path(env[key]).mkdir(parents=True, exist_ok=True)
+    return env
+
+
 def _parse_json_text(text: str) -> dict:
     try:
         return json.loads(text)
@@ -302,6 +321,7 @@ def execute(args: argparse.Namespace) -> int:
             capture_output=True,
             check=False,
             timeout=args.timeout,
+            env=_codex_process_env(),
         )
         if proc.returncode != 0:
             detail = (proc.stderr or proc.stdout or "").strip()[-2000:]

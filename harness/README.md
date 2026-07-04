@@ -428,7 +428,10 @@ python -m harness.frontier_case_loop \
 `--proposal-root output/harness/<run>/case_author_proposals`를 준다. `--codex-bin`은
 선택 사항이다. 생략하면 `CODEX_BIN`, `/Applications/Codex.app/Contents/Resources/codex`,
 PATH의 `codex` 순서로 자동 탐색하고, 찾은 경로를 case_author provider와 내부
-Engine11 editor 양쪽에 전달한다.
+Engine11 editor 양쪽에 전달한다. Codex CLI가 홈 디렉터리 state DB에 쓸 수 없는
+샌드박스에서는 provider가 project-local `output/harness/.codex_cli_home`을
+`CODEX_HOME`으로 사용한다. proposal이 0개면 루프는 `case_author_no_proposals`로
+종료되어 성공처럼 보이지 않는다.
 
 검증된 smoke:
 

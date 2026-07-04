@@ -306,6 +306,7 @@ case_author 기반 신규 융합/frontier 케이스 생성을 한 번에 묶는 
 - `agent_loop`로 신규 케이스 proposal 생성
 - `proposals.py --scaffold-work-items` 산출물을 `work_items doctor`로 검증
   (`dfb_sink_*` void marker를 return 값처럼 쓰는 proposal source도 여기서 차단)
+- proposal이 0개면 `case_author_no_proposals`로 종료해 성공처럼 보이지 않게 함
 - 기본값으로 `case-apply --dry-run` 계획만 생성
 - 옵션으로 승인된 case source/manifest 적용, expected 재생성, 빌드/low-pcode 추출,
   targeted 회귀, Engine11 개발 루프까지 연결
@@ -357,7 +358,8 @@ cpp-like proposed case는 기본적으로 `tv2-tier0` variant에서 targeted pos
 green이면 `--engine-skip-if-post-apply-green` 기본값 때문에 내부 Engine11 editor는
 실행하지 않는다. `--codex-bin`을 생략하면 `CODEX_BIN`, Codex.app bundle 경로,
 PATH의 `codex` 순서로 자동 탐색하고 case_author provider와 내부 Engine11 editor
-양쪽에 전달한다.
+양쪽에 전달한다. Codex CLI가 홈 디렉터리 state DB에 쓸 수 없는 샌드박스에서는
+provider가 project-local `output/harness/.codex_cli_home`을 `CODEX_HOME`으로 사용한다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
 나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은

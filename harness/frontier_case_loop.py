@@ -661,6 +661,11 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
         state["status"] = "proposal_doctor_failed"
         write_json(state_path, state)
         return 3
+    if int(doctor.get("checked") or 0) == 0:
+        state["status"] = "case_author_no_proposals"
+        state["finished_at"] = _now()
+        write_json(state_path, state)
+        return 3
 
     apply_result = _apply_or_plan_cases(args, output_root, proposal_dir)
     state["phases"].append({"name": "case_apply", **apply_result})
@@ -693,7 +698,12 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
     if args.run_engine_dev_loop:
         applied_cases = _successful_applied_cases(apply_result)
         suite_override, case_filter_override, variant_filter_override = _engine_focus(applied_cases, args)
-        if args.engine_skip_if_post_apply_green and post_apply.get("skipped") is False and _post_apply_green(post_apply):
+        if not applied_cases:
+            engine = {
+                "skipped": True,
+                "reason": "no_applied_cases",
+            }
+        elif args.engine_skip_if_post_apply_green and post_apply.get("skipped") is False and _post_apply_green(post_apply):
             engine = {
                 "skipped": True,
                 "reason": "post_apply_regression_green",
