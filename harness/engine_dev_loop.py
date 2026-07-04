@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -43,6 +44,7 @@ def _run_logged(
     input_text: str | None = None,
     dry_run: bool = False,
     timeout: float | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     header = {
@@ -63,6 +65,7 @@ def _run_logged(
         stderr=subprocess.STDOUT,
         check=False,
         timeout=timeout,
+        env=env,
     )
     log_path.write_text(
         json.dumps(header, ensure_ascii=False, indent=2)
@@ -72,6 +75,25 @@ def _run_logged(
         encoding="utf-8",
     )
     return proc
+
+
+def _codex_process_env() -> dict[str, str]:
+    env = os.environ.copy()
+    home_codex = Path.home() / ".codex"
+    if not env.get("CODEX_HOME") and (not home_codex.exists() or not os.access(home_codex, os.W_OK)):
+        codex_home = ROOT / "output" / "harness" / ".codex_cli_home"
+        codex_home.mkdir(parents=True, exist_ok=True)
+        env["CODEX_HOME"] = str(codex_home)
+    if env.get("CODEX_HOME"):
+        codex_home = Path(env["CODEX_HOME"])
+        for key, name in (
+            ("XDG_STATE_HOME", "xdg_state"),
+            ("XDG_CACHE_HOME", "xdg_cache"),
+            ("XDG_CONFIG_HOME", "xdg_config"),
+        ):
+            env.setdefault(key, str(codex_home / name))
+            Path(env[key]).mkdir(parents=True, exist_ok=True)
+    return env
 
 
 def _git(args: list[str], repo: Path) -> subprocess.CompletedProcess[str]:
@@ -475,6 +497,7 @@ def _run_editor(
         input_text=prompt,
         dry_run=args.dry_run or args.editor_dry_run,
         timeout=args.editor_timeout,
+        env=_codex_process_env(),
     )
     return {
         "command": cmd,

@@ -336,4 +336,56 @@ TV2_CASE void case_TV2C605_offline_indirect_field_loop_guard(void) {
     dfb_sink_int(box.cells[1].target);
 }
 
+
+struct TV2C606Lane { int pad; int value; int shadow; };
+struct TV2C606Box { TV2C606Lane lanes[4]; int tail; };
+using TV2C606Writer = void (*)(TV2C606Box*, int, int);
+TV2_HELPER void tv2c606_write_live(TV2C606Box* box, int idx, int v) { box->lanes[idx].value = v; }
+TV2_HELPER void tv2c606_write_dead(TV2C606Box* box, int idx, int v) { box->lanes[idx].shadow = v; }
+TV2_CASE void case_TV2C606_callback_heap_lane_overwrite(void) {
+    TV2C606Box* box = new TV2C606Box{};
+    int live = dfb_source_A();
+    int dead = dfb_source_B();
+    int noise = dfb_source_C();
+    TV2C606Writer writer = tv2c606_write_live;
+    TV2C606Writer decoy = tv2c606_write_dead;
+    for (int i = 0; i < 4; ++i) {
+        box->lanes[i].value = noise + i;
+        box->lanes[i].shadow = dead + i;
+    }
+    decoy(box, 2, dead);
+    writer(box, 2, live);
+    box->lanes[2].shadow = 0;
+    TV2C606Lane* lane = reinterpret_cast<TV2C606Lane*>(reinterpret_cast<char*>(box->lanes) + 2 * sizeof(TV2C606Lane));
+    dfb_sink_int(lane->value);
+    delete box;
+}
+
+
+struct TV2C607Item { int key; int payload; int stale; };
+struct TV2C607Vec { TV2C607Item* data; int count; };
+using TV2C607Mutator = void (*)(TV2C607Vec*, int, int);
+TV2_HELPER void tv2c607_set_payload(TV2C607Vec* vec, int idx, int v) { vec->data[idx].payload = v; }
+TV2_HELPER void tv2c607_set_stale(TV2C607Vec* vec, int idx, int v) { vec->data[idx].stale = v; }
+TV2_CASE void case_TV2C607_container_alias_callback_kill(void) {
+    TV2C607Item storage[5] = {};
+    TV2C607Vec view{storage + 1, 3};
+    int live = dfb_source_A();
+    int stale = dfb_source_B();
+    int neighbor = dfb_source_C();
+    for (int i = 0; i < view.count; ++i) {
+        view.data[i].payload = neighbor + i;
+        view.data[i].stale = stale + i;
+    }
+    TV2C607Mutator fp = tv2c607_set_stale;
+    fp(&view, 1, stale);
+    fp = tv2c607_set_payload;
+    fp(&view, 1, live);
+    TV2C607Item* alias = reinterpret_cast<TV2C607Item*>(reinterpret_cast<char*>(view.data) + sizeof(TV2C607Item));
+    alias->stale = 0;
+    storage[0].payload = neighbor;
+    storage[4].payload = stale;
+    dfb_sink_int(alias->payload);
+}
+
 } /* extern "C" */

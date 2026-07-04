@@ -17,6 +17,7 @@ from .reporting import write_json
 
 
 WORK_ITEM_SCHEMA_VERSION = 1
+CANONICAL_SOURCE_LABELS = {"dfb_source_A.ret", "dfb_source_B.ret", "dfb_source_C.ret"}
 
 
 def _now() -> str:
@@ -143,6 +144,7 @@ def _validate_proposed_case(payload: dict) -> list[str]:
         errors.append("missing expected_data_sources")
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
+    errors.extend(_validate_expected_source_labels(expected, manifest_case))
     return errors
 
 
@@ -150,6 +152,8 @@ def _validate_case_source_text(source_text: str, source_name: str) -> list[str]:
     errors: list[str] = []
     if re.search(r"\breturn\s*\(*\s*dfb_sink_[A-Za-z0-9_]*\s*\(", source_text):
         errors.append(f"{source_name}: sink marker returns void; call dfb_sink_* as a statement, not as a return value")
+    if re.search(r"\bdfb_source_int\s*\(", source_text):
+        errors.append(f"{source_name}: unsupported source marker dfb_source_int; use dfb_source_A/B/C")
     return errors
 
 
@@ -168,10 +172,29 @@ def _validate_case_expected(payload: dict) -> list[str]:
         errors.append("missing expected_data_sources")
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
+    errors.extend(_validate_expected_source_labels(expected, manifest_case))
     if not payload.get("oracle_basis"):
         errors.append("missing oracle_basis")
     if not payload.get("independent_check"):
         errors.append("missing independent_check")
+    return errors
+
+
+def _validate_expected_source_labels(expected: dict, manifest_case: dict) -> list[str]:
+    errors: list[str] = []
+    for key in (
+        "expected_data_sources",
+        "expected_control_sources",
+        "expected_global_sources",
+        "forbidden_data_sources",
+        "forbidden_control_sources",
+    ):
+        labels = expected.get(key)
+        if labels is None:
+            labels = manifest_case.get(key)
+        for label in labels or []:
+            if str(label) not in CANONICAL_SOURCE_LABELS:
+                errors.append(f"{key}: unsupported source label {label!r}; use dfb_source_A/B/C.ret")
     return errors
 
 

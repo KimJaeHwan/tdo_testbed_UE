@@ -1181,6 +1181,223 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect_callback",
+        "heap_pointer_arithmetic",
+        "field_sensitive_memory",
+        "loop_noise",
+        "overwrite_kill",
+        "alias_pressure"
+      ],
+      "expected_flow": [
+        {
+          "carries": "live integer selected for the callback write into lanes[2].value; heap offset is sentinel per expected_generation.md rule cited in task.",
+          "field": "live",
+          "from": "live",
+          "function": "case_TV2C606_callback_heap_lane_overwrite",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "tv2c606_write_live writes its v parameter to box->lanes[idx].value with idx=2, and the sink reads the same value field through byte-based heap pointer arithmetic.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "box->lanes[2].value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lanes[2].value",
+          "from": "writer(box, 2, live)",
+          "function": "case_TV2C606_callback_heap_lane_overwrite",
+          "kind": "call",
+          "node": "tv2c606_write_live",
+          "offset": "heap",
+          "reason": "The indirect function pointer resolves by construction to the live writer, not the decoy writer.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "lane->value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane->value",
+          "from": "lane->value",
+          "function": "case_TV2C606_callback_heap_lane_overwrite",
+          "kind": "sink",
+          "node": "dfb_sink_int",
+          "offset": "heap",
+          "reason": "The sink argument is the value field at lane index 2 after the live overwrite.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dead shadow source",
+          "field": "lanes[2].shadow",
+          "from": "decoy(box, 2, dead) and box->lanes[2].shadow",
+          "function": "case_TV2C606_callback_heap_lane_overwrite",
+          "kind": "forbidden",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "The decoy callback writes shadow, not value; shadow is then explicitly overwritten with zero and is a distinct field from the sinked value.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "lane->value"
+        },
+        {
+          "carries": "loop noise initializer",
+          "field": "lanes[*].value initializers",
+          "from": "loop initialization of box->lanes[2].value",
+          "function": "case_TV2C606_callback_heap_lane_overwrite",
+          "kind": "forbidden",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "The loop initializes value fields from noise, but lanes[2].value is overwritten by the live callback before the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "function": "case_TV2C606_callback_heap_lane_overwrite",
+      "id": "TV2C606",
+      "name": "callback_heap_lane_overwrite",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue_like_container_pattern",
+        "indirect_callback",
+        "stack_pointer_arithmetic",
+        "field_sensitive_memory",
+        "loop_noise",
+        "overwrite_kill",
+        "alias_pressure"
+      ],
+      "expected_flow": [
+        {
+          "carries": "live integer selected for payload callback write",
+          "field": "live",
+          "from": "live",
+          "function": "case_TV2C607_container_alias_callback_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C607Item, payload) within view.data[1]",
+          "reason": "After fp is reassigned to tv2c607_set_payload, fp(&view, 1, live) writes live into the payload field of the second logical container element.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "view.data[1].payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "view.data + 1 via byte pointer arithmetic",
+          "function": "case_TV2C607_container_alias_callback_kill",
+          "kind": "alias",
+          "node": "alias",
+          "offset": "offsetof(TV2C607Item, payload) within view.data[1]",
+          "reason": "alias is constructed from view.data plus one TV2C607Item, so alias->payload is the same storage as view.data[1].payload.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "alias->payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "alias->payload",
+          "from": "alias->payload",
+          "function": "case_TV2C607_container_alias_callback_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int",
+          "offset": "offsetof(TV2C607Item, payload) within view.data[1]",
+          "reason": "The sink reads the payload field after the live callback write and after stale-field kill.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "stale source",
+          "field": "stale fields and storage[4].payload",
+          "from": "tv2c607_set_stale and storage[4].payload",
+          "function": "case_TV2C607_container_alias_callback_kill",
+          "kind": "forbidden",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C607Item, stale) or neighbor element payload",
+          "reason": "The stale callback writes stale, not payload, and alias->stale is killed with zero. The later storage[4].payload write is outside the aliased logical element.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "alias->payload"
+        },
+        {
+          "carries": "neighbor source",
+          "field": "payload initializers and storage[0].payload",
+          "from": "loop initialization and storage[0].payload",
+          "function": "case_TV2C607_container_alias_callback_kill",
+          "kind": "forbidden",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C607Item, payload) on non-sink or overwritten elements",
+          "reason": "The loop initializes view.data[1].payload from neighbor, but that exact field is overwritten by live before the sink; storage[0].payload is outside the view.data[1] alias.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "alias->payload"
+        }
+      ],
+      "function": "case_TV2C607_container_alias_callback_kill",
+      "id": "TV2C607",
+      "name": "container_alias_callback_kill",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2
