@@ -62,5 +62,6 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - proposed case는 Engine11을 특정 helper/function/case/source label에 맞춰 고치라고 유도하면 안 된다.
 - 금지 예: `TV2...`, `DFB...`, `case_...`, `write_expected`, `dfb_source_A/B/C`, 고정 field offset을 Engine11 core 로직에 넣으라는 제안.
 - 허용 경계: source/sink marker와 manifest anchor는 wrapper/BoundaryProvider 계층의 테스트 하네스 입력으로만 사용한다.
+- `dfb_sink_*` marker는 void sink다. `return dfb_sink_int(...)`처럼 return 값으로 쓰지 말고, `dfb_sink_int(value);` statement로 호출한다.
 - 좋은 케이스는 특정 이름을 외우지 않아도 low-pcode graph, observed storage, metadata, summary evidence만으로 풀려야 한다.
 - fully green을 목표로 오라클을 약하게 만들지 말 것. FP를 유발할 수 있는 forbidden source를 반드시 설계하고 근거를 적는다.

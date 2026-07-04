@@ -305,6 +305,7 @@ case_author 기반 신규 융합/frontier 케이스 생성을 한 번에 묶는 
 - report/capability map/gap note로 `case_author` task 생성
 - `agent_loop`로 신규 케이스 proposal 생성
 - `proposals.py --scaffold-work-items` 산출물을 `work_items doctor`로 검증
+  (`dfb_sink_*` void marker를 return 값처럼 쓰는 proposal source도 여기서 차단)
 - 기본값으로 `case-apply --dry-run` 계획만 생성
 - 옵션으로 승인된 case source/manifest 적용, expected 재생성, 빌드/low-pcode 추출,
   targeted 회귀, Engine11 개발 루프까지 연결

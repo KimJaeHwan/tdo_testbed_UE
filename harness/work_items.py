@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -101,6 +102,8 @@ def _item_paths(item: dict) -> list[Path]:
 
 
 def _doctor_path_errors(path: Path, kind: Any) -> list[str]:
+    if path.suffix in {".cpp", ".cc", ".cxx"}:
+        return _validate_case_source_text(path.read_text(encoding="utf-8"), path.name)
     if path.suffix not in {".json", ".JSON"}:
         return []
     try:
@@ -119,8 +122,11 @@ def _validate_proposed_case(payload: dict) -> list[str]:
     errors: list[str] = []
     if proposal.get("target") not in {"suite10-cpp", "suite10-ue"}:
         errors.append(f"invalid proposed target: {proposal.get('target')}")
-    if not str(proposal.get("cpp_or_ue") or "").strip():
+    source_text = str(proposal.get("cpp_or_ue") or "")
+    if not source_text.strip():
         errors.append("missing cpp_or_ue source snippet")
+    else:
+        errors.extend(_validate_case_source_text(source_text, "cpp_or_ue"))
     if not str(proposal.get("oracle_basis") or "").strip():
         errors.append("missing oracle_basis")
     if not str(proposal.get("independent_check") or proposal.get("independent_validation") or "").strip():
@@ -137,6 +143,13 @@ def _validate_proposed_case(payload: dict) -> list[str]:
         errors.append("missing expected_data_sources")
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
+    return errors
+
+
+def _validate_case_source_text(source_text: str, source_name: str) -> list[str]:
+    errors: list[str] = []
+    if re.search(r"\breturn\s*\(*\s*dfb_sink_[A-Za-z0-9_]*\s*\(", source_text):
+        errors.append(f"{source_name}: sink marker returns void; call dfb_sink_* as a statement, not as a return value")
     return errors
 
 
