@@ -243,4 +243,29 @@ TV2_CASE void case_TV2C602_global_pointer_loop_phi(void) {
     dfb_sink_int(g_tv2x602_selected->value);
 }
 
+
+/* TV2C603 - Indirect callback after aggregate clear. expect A / forbid B */
+struct TV2C603_Cell { int expected; int neighbor; };
+struct TV2C603_CallbackTable { void (*store)(TV2C603_Cell*, int); };
+
+TV2_HELPER void tv2c603_store_expected(TV2C603_Cell* cell, int value) {
+    cell->expected = value;
+}
+
+TV2_HELPER void tv2c603_store_neighbor(TV2C603_Cell* cell, int value) {
+    cell->neighbor = value;
+}
+
+TV2_CASE void case_TV2C603_indirect_callback_after_vector_clear(void) {
+    TV2C603_Cell cell;
+    std::memset(&cell, 0, sizeof cell);
+    TV2C603_CallbackTable table = { tv2c603_store_expected };
+    volatile TV2C603_CallbackTable* chosen = &table;
+    int tainted = dfb_source_A();
+    int unrelated = dfb_source_B();
+    chosen->store(&cell, tainted);
+    tv2c603_store_neighbor(&cell, unrelated);
+    dfb_sink_int(cell.expected);
+}
+
 } /* extern "C" */

@@ -899,6 +899,87 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect-call",
+        "callback-table",
+        "field-sensitive-memory",
+        "aggregate-clear",
+        "optimized-vector-clear",
+        "false-positive-trap"
+      ],
+      "expected_global_sources": [],
+      "expected_flow": [
+        {
+          "label": "dfb_source_A.ret",
+          "op": "source"
+        },
+        {
+          "carries": "dfb_source_A",
+          "detail": "chosen->store(&cell, tainted)",
+          "edge": "call_indirect",
+          "op": "call"
+        },
+        {
+          "carries": "dfb_source_A",
+          "field": "TV2C603_Cell.expected",
+          "offset": "offsetof(TV2C603_Cell, expected)",
+          "reason": "By construction, only the expected field receives the value returned by dfb_source_A.",
+          "op": "store",
+          "size": 4
+        },
+        {
+          "field": "TV2C603_Cell.expected",
+          "offset": "offsetof(TV2C603_Cell, expected)",
+          "op": "load",
+          "size": 4
+        },
+        {
+          "label": "dfb_sink_int.arg0",
+          "op": "sink"
+        }
+      ],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B",
+          "field": "TV2C603_Cell.neighbor",
+          "offset": "offsetof(TV2C603_Cell, neighbor)",
+          "reason": "dfb_source_B is written only to the neighbor field after the callback; the sink reads cell.expected, not cell.neighbor.",
+          "op": "store",
+          "size": 4
+        },
+        {
+          "carries": "dfb_source_B",
+          "field": "TV2C603_Cell aggregate",
+          "offset": "sizeof(TV2C603_Cell)",
+          "reason": "Aggregate clear must not be treated as carrying neighbor source into expected.",
+          "op": "kill",
+          "size": "sizeof(TV2C603_Cell)"
+        }
+      ],
+      "function": "case_TV2C603_indirect_callback_after_vector_clear",
+      "id": "TV2C603",
+      "name": "indirect_callback_field_write_after_aggregate_clear",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

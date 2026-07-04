@@ -314,7 +314,12 @@ def _manifest_case_from_expected(expected: dict, target: str) -> dict:
     source_file = "src/cases_fusion.cpp" if target == "suite10-cpp" else "Source/TraceUnrealPlayground/TraceCases2.cpp"
     explicit = payload.get("manifest_case") if isinstance(payload, dict) else None
     if isinstance(explicit, dict):
-        return dict(explicit)
+        manifest_case = dict(explicit)
+        if expected.get("expected_flow") and "expected_flow" not in manifest_case:
+            manifest_case["expected_flow"] = expected.get("expected_flow")
+        if expected.get("forbidden_flow") and "forbidden_flow" not in manifest_case:
+            manifest_case["forbidden_flow"] = expected.get("forbidden_flow")
+        return manifest_case
     return {
         "id": case_id,
         "tier": int(payload.get("tier", 0) if isinstance(payload, dict) else 0),
