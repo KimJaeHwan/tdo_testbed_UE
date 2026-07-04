@@ -384,7 +384,6 @@ python -m harness.frontier_case_loop \
   --author-calls 6 \
   --author-chunk-calls 3 \
   --author-chunk-tokens 100000 \
-  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode dry-run
 ```
@@ -412,7 +411,6 @@ python -m harness.frontier_case_loop \
   --author-calls 8 \
   --author-chunk-calls 4 \
   --author-chunk-tokens 100000 \
-  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode approved \
   --allow-unapproved-case-apply \
@@ -428,7 +426,9 @@ python -m harness.frontier_case_loop \
 
 이미 생성된 proposal을 다시 검증하거나 case_author 호출을 건너뛰려면
 `--proposal-root output/harness/<run>/case_author_proposals`를 준다. `--codex-bin`은
-case_author provider와 내부 Engine11 editor 양쪽에 전달된다.
+선택 사항이다. 생략하면 `CODEX_BIN`, `/Applications/Codex.app/Contents/Resources/codex`,
+PATH의 `codex` 순서로 자동 탐색하고, 찾은 경로를 case_author provider와 내부
+Engine11 editor 양쪽에 전달한다.
 
 검증된 smoke:
 

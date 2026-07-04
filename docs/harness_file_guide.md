@@ -322,7 +322,6 @@ python3 -m harness.frontier_case_loop \
   --author-calls 6 \
   --author-chunk-calls 3 \
   --author-chunk-tokens 100000 \
-  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode dry-run
 ```
@@ -342,7 +341,6 @@ python3 -m harness.frontier_case_loop \
   --run-id frontier_case_loop_closed \
   --include-proposed-regression \
   --author-calls 8 \
-  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
   --gap-note-file /tmp/tdo_operator_note.md \
   --apply-mode approved \
   --allow-unapproved-case-apply \
@@ -356,8 +354,9 @@ python3 -m harness.frontier_case_loop \
 cpp-like proposed case는 기본적으로 `tv2-tier0` variant에서 targeted post-apply
 회귀를 돌린다. UE proposed case는 `ue-local` variant가 기본이다. targeted 회귀가 이미
 green이면 `--engine-skip-if-post-apply-green` 기본값 때문에 내부 Engine11 editor는
-실행하지 않는다. `--codex-bin`은 case_author provider와 내부 Engine11 editor 양쪽에
-전달된다.
+실행하지 않는다. `--codex-bin`을 생략하면 `CODEX_BIN`, Codex.app bundle 경로,
+PATH의 `codex` 순서로 자동 탐색하고 case_author provider와 내부 Engine11 editor
+양쪽에 전달한다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
 나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import shutil
 import subprocess
@@ -172,10 +173,26 @@ def _strip_codex_prefix(model: str) -> str:
     return model.split(":", 1)[1] if model.startswith("codex:") else model
 
 
+def _resolve_codex_bin(codex_bin: str) -> str:
+    candidates = [
+        codex_bin,
+        os.environ.get("CODEX_BIN", ""),
+        "/Applications/Codex.app/Contents/Resources/codex",
+        shutil.which("codex") or "",
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if candidate == "codex" or Path(candidate).is_file():
+            return candidate
+    return ""
+
+
 def _case_author_executor(args: argparse.Namespace, config: HarnessConfig) -> str:
     if args.author_executor:
         return args.author_executor
-    if not args.codex_bin:
+    codex_bin = _resolve_codex_bin(args.codex_bin)
+    if not codex_bin:
         return ""
     agent_tiers = config.value("models", "agent_tiers", {}) or {}
     tier = str(agent_tiers.get("case_author") or "strong")
@@ -185,7 +202,7 @@ def _case_author_executor(args: argparse.Namespace, config: HarnessConfig) -> st
         "-m",
         "harness.providers.codex_cli_agent_executor",
         "--codex-bin",
-        str(args.codex_bin),
+        str(codex_bin),
         "--reasoning-effort",
         args.author_reasoning_effort,
     ]
@@ -565,8 +582,9 @@ def _run_engine_dev_loop(
         "--stop-on-no-progress",
         "--include-proposed-regression",
     ]
-    if args.codex_bin:
-        cmd.extend(["--codex-bin", args.codex_bin])
+    codex_bin = _resolve_codex_bin(args.codex_bin)
+    if codex_bin:
+        cmd.extend(["--codex-bin", codex_bin])
     case_filter = case_filter_override if case_filter_override is not None else args.case_filter
     variant_filter = variant_filter_override if variant_filter_override is not None else args.variant_filter
     if case_filter:
@@ -597,6 +615,7 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
         "status": "running",
         "started_at": _now(),
         "output_root": str(output_root),
+        "codex_bin": _resolve_codex_bin(args.codex_bin) or None,
         "phases": [],
     }
     state_path = output_root / "frontier_case_loop_state.json"
@@ -750,7 +769,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine-analysis-chunk-tokens", type=int, default=100000)
     parser.add_argument("--editor-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
     parser.add_argument("--editor-timeout", type=float, default=7200.0)
-    parser.add_argument("--codex-bin", default="", help="Codex executable path used by case_author provider and nested engine_dev_loop.")
+    parser.add_argument(
+        "--codex-bin",
+        default="",
+        help="Codex executable path used by case_author provider and nested engine_dev_loop. Defaults to CODEX_BIN, the Codex.app bundle path, or PATH.",
+    )
     parser.add_argument("--operator-note-file", type=Path, default=None)
     return parser
 
