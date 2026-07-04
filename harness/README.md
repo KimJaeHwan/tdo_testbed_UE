@@ -394,13 +394,41 @@ python -m harness.frontier_case_loop \
 `case-apply --dry-run` 계획까지 생성한다. 기본값은 source/manifest를 바꾸지 않는
 dry-run이다. 사람이 승인한 뒤 실제 반영까지 맡기려면 `--apply-mode approved`와
 `--approval-key <key>`를 함께 준다. 승인 없이 로컬 실험만 할 때는
-`--allow-unapproved-case-apply`를 명시해야 하며, 이 경우에도 expected JSON은 자동
-생성하지 않는다.
+`--allow-unapproved-case-apply`를 명시한다. 승인 적용 모드에서는 기본적으로 manifest
+기반 expected generator까지 실행한다. 끄려면 `--no-regenerate-expected`를 준다.
 
-케이스를 반영한 뒤 Engine11까지 이어서 수리하려면 같은 명령에
-`--run-engine-dev-loop`를 붙인다. 이때 내부 `engine_dev_loop`는
-`--include-proposed-regression`, repair mode, design lint를 사용한다.
-`--codex-bin`은 case_author provider와 내부 Engine11 editor 양쪽에 전달된다.
+케이스를 반영한 뒤 빌드/low-pcode 재추출, targeted 회귀, Engine11 수리까지 닫힌
+루프로 이어가려면 다음 옵션을 함께 붙인다. cpp-like case는 기본적으로 `tv2-tier0`
+variant만 targeted 검증하고, 케이스가 이미 green이면 내부 engine loop는 자동 skip된다.
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id frontier_case_loop_closed \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles P0,P1 \
+  --prepare-arch all \
+  --post-apply-regression \
+  --run-engine-dev-loop \
+  --engine-duration-hours 4.5 \
+  --engine-max-cycles 8 \
+  --engine-analysis-calls 15
+```
+
+이미 생성된 proposal을 다시 검증하거나 case_author 호출을 건너뛰려면
+`--proposal-root output/harness/<run>/case_author_proposals`를 준다. `--codex-bin`은
+case_author provider와 내부 Engine11 editor 양쪽에 전달된다.
 
 검증된 smoke:
 

@@ -275,6 +275,15 @@ def _target_from_expected(expected_path: Path) -> str:
     return "suite10-cpp"
 
 
+def _case_id_from_expected(expected_path: Path) -> str:
+    payload = _read_json(expected_path, {})
+    if not isinstance(payload, dict):
+        return expected_path.stem.split(".", 1)[0]
+    expected = payload.get("expected") if isinstance(payload.get("expected"), dict) else {}
+    manifest_case = expected.get("manifest_case") if isinstance(expected.get("manifest_case"), dict) else {}
+    return str(payload.get("case_id") or expected.get("id") or manifest_case.get("id") or expected_path.stem.split(".", 1)[0])
+
+
 def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_dir: Path) -> dict:
     if args.apply_mode == "none":
         result = {"mode": args.apply_mode, "case_count": 0, "rows": [], "skipped": True}
@@ -284,6 +293,7 @@ def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_d
     rows: list[dict] = []
     for expected_path in expected_paths:
         target = _target_from_expected(expected_path)
+        case_id = _case_id_from_expected(expected_path)
         cmd = [
             sys.executable,
             "-m",
@@ -310,6 +320,7 @@ def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_d
             {
                 "expected": str(expected_path),
                 "target": target,
+                "case_id": case_id,
                 "command": cmd,
                 "returncode": proc.returncode,
                 "log_path": str(log_path),
@@ -321,7 +332,204 @@ def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_d
     return result
 
 
-def _run_engine_dev_loop(args: argparse.Namespace, output_root: Path) -> dict:
+def _successful_applied_cases(apply_result: dict) -> list[dict]:
+    if apply_result.get("mode") != "approved":
+        return []
+    cases = []
+    seen = set()
+    for row in apply_result.get("rows") or []:
+        if row.get("returncode") != 0:
+            continue
+        case_id = str(row.get("case_id") or "")
+        target = str(row.get("target") or "")
+        if not case_id or (case_id, target) in seen:
+            continue
+        seen.add((case_id, target))
+        cases.append({"case_id": case_id, "target": target, "expected": row.get("expected")})
+    return cases
+
+
+def _parse_csv(text: str, default: list[str]) -> list[str]:
+    values = [part.strip() for part in str(text or "").split(",") if part.strip()]
+    return values or list(default)
+
+
+def _safe_label(text: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in text)[:160]
+
+
+def _regenerate_expected(args: argparse.Namespace, output_root: Path, apply_result: dict) -> dict:
+    applied_cases = _successful_applied_cases(apply_result)
+    if not args.regenerate_expected:
+        result = {"skipped": True, "reason": "regenerate_expected disabled", "rows": []}
+        write_json(output_root / "expected_regeneration.json", result)
+        return result
+    if not applied_cases:
+        result = {"skipped": True, "reason": "no approved applied cases", "rows": []}
+        write_json(output_root / "expected_regeneration.json", result)
+        return result
+    scripts = {
+        "suite10-cpp": ROOT / "cpp_like" / "tools" / "generate_expected_from_manifest.py",
+        "suite10-ue": ROOT / "unreal_playground" / "tools" / "generate_expected_from_manifest.py",
+    }
+    rows = []
+    for target in sorted({case["target"] for case in applied_cases}):
+        script = scripts.get(target)
+        if script is None:
+            rows.append({"target": target, "returncode": 2, "error": f"unknown target: {target}"})
+            continue
+        cmd = [sys.executable, str(script)]
+        log_path = output_root / "expected_regeneration" / f"{target}.log"
+        proc = _run_logged(cmd, log_path)
+        rows.append({"target": target, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
+    result = {"skipped": False, "rows": rows}
+    write_json(output_root / "expected_regeneration.json", result)
+    return result
+
+
+def _run_prepare_after_apply(args: argparse.Namespace, output_root: Path, apply_result: dict) -> dict:
+    applied_cases = _successful_applied_cases(apply_result)
+    if not args.prepare_after_apply:
+        result = {"skipped": True, "reason": "prepare_after_apply disabled", "rows": []}
+        write_json(output_root / "prepare_after_apply.json", result)
+        return result
+    if not applied_cases:
+        result = {"skipped": True, "reason": "no approved applied cases", "rows": []}
+        write_json(output_root / "prepare_after_apply.json", result)
+        return result
+    profiles = _parse_csv(args.prepare_profiles, ["P0", "P1"])
+    rows = []
+    for profile in profiles:
+        cmd = [
+            sys.executable,
+            "-m",
+            "harness.orchestrator",
+            "--config",
+            str(args.config),
+            "--suite",
+            "10",
+            "--mode",
+            args.mode,
+            "--prepare-only",
+            "--run-id",
+            f"{args.run_id}_prepare_{profile}",
+            "--output-dir",
+            str(output_root / "prepare_after_apply" / profile),
+            "--profile",
+            profile,
+            "--arch",
+            args.prepare_arch,
+        ]
+        if args.force_prepare:
+            cmd.append("--force-prepare")
+        if args.skip_tier0_prepare:
+            cmd.append("--skip-tier0-prepare")
+        if args.include_ue_build:
+            cmd.append("--include-ue-build")
+        if args.include_ue_extract:
+            cmd.append("--include-ue-extract")
+        log_path = output_root / "prepare_after_apply" / f"{profile}.log"
+        proc = _run_logged(cmd, log_path)
+        rows.append({"profile": profile, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
+    result = {"skipped": False, "rows": rows}
+    write_json(output_root / "prepare_after_apply.json", result)
+    return result
+
+
+def _default_variant_filter_for_target(target: str) -> str:
+    if target == "suite10-cpp":
+        return "tv2-tier0"
+    if target == "suite10-ue":
+        return "ue-local"
+    return ""
+
+
+def _run_post_apply_regressions(args: argparse.Namespace, output_root: Path, apply_result: dict) -> dict:
+    applied_cases = _successful_applied_cases(apply_result)
+    if not args.post_apply_regression:
+        result = {"skipped": True, "reason": "post_apply_regression disabled", "rows": []}
+        write_json(output_root / "post_apply_regression.json", result)
+        return result
+    if not applied_cases:
+        result = {"skipped": True, "reason": "no approved applied cases", "rows": []}
+        write_json(output_root / "post_apply_regression.json", result)
+        return result
+    rows = []
+    for case in applied_cases:
+        case_id = case["case_id"]
+        target = case["target"]
+        variant_filter = args.post_apply_variant_filter or _default_variant_filter_for_target(target)
+        out_dir = output_root / "post_apply_regression" / _safe_label(case_id)
+        cmd = [
+            sys.executable,
+            "-m",
+            "harness.orchestrator",
+            "--config",
+            str(args.config),
+            "--suite",
+            "10",
+            "--mode",
+            args.mode,
+            "--run-id",
+            f"{args.run_id}_post_apply_{_safe_label(case_id)}",
+            "--output-dir",
+            str(out_dir),
+            "--case-filter",
+            case_id,
+            "--case-scope",
+            args.case_scope,
+            "--include-proposed-regression",
+            "--no-cache",
+        ]
+        if variant_filter:
+            cmd.extend(["--variant-filter", variant_filter])
+        proc = _run_logged(cmd, output_root / "post_apply_regression" / f"{_safe_label(case_id)}.log")
+        report = _read_json(out_dir / "failure_report_v2.json", [])
+        rows.append(
+            {
+                "case_id": case_id,
+                "target": target,
+                "variant_filter": variant_filter,
+                "command": cmd,
+                "returncode": proc.returncode,
+                "output_dir": str(out_dir),
+                "report_path": str(out_dir / "failure_report_v2.json"),
+                "metrics": _metrics(report if isinstance(report, list) else []),
+            }
+        )
+    result = {"skipped": False, "rows": rows}
+    write_json(output_root / "post_apply_regression.json", result)
+    return result
+
+
+def _post_apply_green(post_apply: dict) -> bool:
+    rows = post_apply.get("rows") or []
+    if not rows:
+        return False
+    for row in rows:
+        metrics = row.get("metrics") or {}
+        if row.get("returncode") not in {0, 1}:
+            return False
+        if any(metrics.get(key, 0) for key in ("fail", "error", "degraded", "false_positive")):
+            return False
+    return True
+
+
+def _engine_focus(applied_cases: list[dict], args: argparse.Namespace) -> tuple[str | None, str | None, str | None]:
+    if not args.engine_focus_applied_cases or len(applied_cases) != 1:
+        return None, None, None
+    case = applied_cases[0]
+    return "10", case["case_id"], args.post_apply_variant_filter or _default_variant_filter_for_target(case["target"])
+
+
+def _run_engine_dev_loop(
+    args: argparse.Namespace,
+    output_root: Path,
+    *,
+    suite_override: str | None = None,
+    case_filter_override: str | None = None,
+    variant_filter_override: str | None = None,
+) -> dict:
     cmd = [
         sys.executable,
         "-m",
@@ -329,7 +537,7 @@ def _run_engine_dev_loop(args: argparse.Namespace, output_root: Path) -> dict:
         "--config",
         str(args.config),
         "--suite",
-        args.suite,
+        suite_override or args.suite,
         "--mode",
         args.mode,
         "--run-id",
@@ -359,10 +567,12 @@ def _run_engine_dev_loop(args: argparse.Namespace, output_root: Path) -> dict:
     ]
     if args.codex_bin:
         cmd.extend(["--codex-bin", args.codex_bin])
-    if args.case_filter:
-        cmd.extend(["--case-filter", args.case_filter])
-    if args.variant_filter:
-        cmd.extend(["--variant-filter", args.variant_filter])
+    case_filter = case_filter_override if case_filter_override is not None else args.case_filter
+    variant_filter = variant_filter_override if variant_filter_override is not None else args.variant_filter
+    if case_filter:
+        cmd.extend(["--case-filter", case_filter])
+    if variant_filter:
+        cmd.extend(["--variant-filter", variant_filter])
     if args.operator_note_file:
         cmd.extend(["--editor-extra-instructions-file", str(args.operator_note_file)])
     proc = _run_logged(cmd, output_root / "engine_dev_loop.log")
@@ -399,16 +609,32 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
         write_json(state_path, state)
         return 3
 
-    tasks = _write_case_author_tasks(args, config, Path(str(baseline["report_path"])), output_root / "case_author_tasks.json")
-    state["phases"].append({"name": "case_author_tasks", **tasks})
+    if args.proposal_root:
+        proposal_dir = args.proposal_root
+        state["phases"].append(
+            {
+                "name": "case_author",
+                "skipped": True,
+                "reason": "proposal_root supplied",
+                "proposal_dir": str(proposal_dir),
+                "proposal_manifest": str(proposal_dir / "proposal_manifest.json"),
+            }
+        )
+        if not (proposal_dir / "proposal_manifest.json").is_file():
+            state["status"] = "proposal_root_missing_manifest"
+            write_json(state_path, state)
+            return 3
+    else:
+        tasks = _write_case_author_tasks(args, config, Path(str(baseline["report_path"])), output_root / "case_author_tasks.json")
+        state["phases"].append({"name": "case_author_tasks", **tasks})
 
-    author = _run_case_author(args, config, output_root, Path(str(tasks["tasks_path"])))
-    state["phases"].append({"name": "case_author", **author})
-    proposal_dir = Path(str(author["proposal_dir"]))
-    if author["returncode"] not in {0, 3} or not Path(str(author["proposal_manifest"])).is_file():
-        state["status"] = "case_author_failed"
-        write_json(state_path, state)
-        return 3
+        author = _run_case_author(args, config, output_root, Path(str(tasks["tasks_path"])))
+        state["phases"].append({"name": "case_author", **author})
+        proposal_dir = Path(str(author["proposal_dir"]))
+        if author["returncode"] not in {0, 3} or not Path(str(author["proposal_manifest"])).is_file():
+            state["status"] = "case_author_failed"
+            write_json(state_path, state)
+            return 3
 
     doctor = _run_doctor(args, output_root, proposal_dir)
     state["phases"].append({"name": "proposal_doctor", **doctor})
@@ -424,10 +650,46 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
         write_json(state_path, state)
         return 3
 
+    expected = _regenerate_expected(args, output_root, apply_result)
+    state["phases"].append({"name": "expected_regeneration", **expected})
+    if any(row.get("returncode") != 0 for row in expected.get("rows") or []):
+        state["status"] = "expected_regeneration_failed"
+        write_json(state_path, state)
+        return 3
+
+    prepare = _run_prepare_after_apply(args, output_root, apply_result)
+    state["phases"].append({"name": "prepare_after_apply", **prepare})
+    if any(row.get("returncode") != 0 for row in prepare.get("rows") or []):
+        state["status"] = "prepare_after_apply_failed"
+        write_json(state_path, state)
+        return 3
+
+    post_apply = _run_post_apply_regressions(args, output_root, apply_result)
+    state["phases"].append({"name": "post_apply_regression", **post_apply})
+    if any(row.get("returncode") not in {0, 1} for row in post_apply.get("rows") or []):
+        state["status"] = "post_apply_regression_failed"
+        write_json(state_path, state)
+        return 3
+
     if args.run_engine_dev_loop:
-        engine = _run_engine_dev_loop(args, output_root)
+        applied_cases = _successful_applied_cases(apply_result)
+        suite_override, case_filter_override, variant_filter_override = _engine_focus(applied_cases, args)
+        if args.engine_skip_if_post_apply_green and post_apply.get("skipped") is False and _post_apply_green(post_apply):
+            engine = {
+                "skipped": True,
+                "reason": "post_apply_regression_green",
+                "focused_case": case_filter_override,
+            }
+        else:
+            engine = _run_engine_dev_loop(
+                args,
+                output_root,
+                suite_override=suite_override,
+                case_filter_override=case_filter_override,
+                variant_filter_override=variant_filter_override,
+            )
         state["phases"].append({"name": "engine_dev_loop", **engine})
-        if engine["returncode"] not in {0, 3}:
+        if not engine.get("skipped") and engine["returncode"] not in {0, 3}:
             state["status"] = "engine_dev_loop_failed"
             write_json(state_path, state)
             return 3
@@ -454,6 +716,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--prompt-max-cases", type=int, default=24)
     parser.add_argument("--gap-note", default="")
     parser.add_argument("--gap-note-file", type=Path, default=None)
+    parser.add_argument("--proposal-root", type=Path, default=None, help="Use an existing proposal root and skip case_author.")
 
     parser.add_argument("--author-calls", type=int, default=4)
     parser.add_argument("--author-duration-hours", type=float, default=1.0)
@@ -466,8 +729,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--apply-mode", default="dry-run", choices=["none", "dry-run", "approved"])
     parser.add_argument("--approval-key", default="")
     parser.add_argument("--allow-unapproved-case-apply", action="store_true")
+    parser.add_argument("--regenerate-expected", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--prepare-after-apply", action="store_true")
+    parser.add_argument("--prepare-profiles", default="P0,P1")
+    parser.add_argument("--prepare-arch", default="all")
+    parser.add_argument("--force-prepare", action="store_true")
+    parser.add_argument("--skip-tier0-prepare", action="store_true")
+    parser.add_argument("--include-ue-build", action="store_true")
+    parser.add_argument("--include-ue-extract", action="store_true")
+    parser.add_argument("--post-apply-regression", action="store_true")
+    parser.add_argument("--post-apply-variant-filter", default="")
 
     parser.add_argument("--run-engine-dev-loop", action="store_true")
+    parser.add_argument("--engine-focus-applied-cases", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--engine-skip-if-post-apply-green", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--engine-duration-hours", type=float, default=3.0)
     parser.add_argument("--engine-max-cycles", type=int, default=6)
     parser.add_argument("--engine-analysis-calls", type=int, default=12)

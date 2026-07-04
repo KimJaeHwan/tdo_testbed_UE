@@ -306,7 +306,8 @@ case_author 기반 신규 융합/frontier 케이스 생성을 한 번에 묶는 
 - `agent_loop`로 신규 케이스 proposal 생성
 - `proposals.py --scaffold-work-items` 산출물을 `work_items doctor`로 검증
 - 기본값으로 `case-apply --dry-run` 계획만 생성
-- 옵션으로 승인된 case source/manifest 적용 후 Engine11 개발 루프까지 연결
+- 옵션으로 승인된 case source/manifest 적용, expected 재생성, 빌드/low-pcode 추출,
+  targeted 회귀, Engine11 개발 루프까지 연결
 
 기본 명령:
 
@@ -327,9 +328,36 @@ python3 -m harness.frontier_case_loop \
 ```
 
 실제 source/manifest 반영은 `--apply-mode approved --approval-key <key>`가 있을 때만
-수행한다. expected JSON은 여전히 기존 manifest 기반 generator로 별도 생성한다.
-`--codex-bin`은 case_author provider와, `--run-engine-dev-loop`를 붙였을 때 내부
-Engine11 editor 양쪽에 전달된다.
+수행한다. 승인 적용 모드에서는 기본적으로 기존 manifest 기반 generator를 호출해
+expected JSON도 재생성한다. `--proposal-root`를 주면 이미 생성된 proposal root에서
+case author 단계를 건너뛰고 doctor/apply 이후 단계만 재실행할 수 있다.
+
+닫힌 자동 루프 옵션:
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id frontier_case_loop_closed \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --codex-bin /Applications/Codex.app/Contents/Resources/codex \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles P0,P1 \
+  --prepare-arch all \
+  --post-apply-regression \
+  --run-engine-dev-loop
+```
+
+cpp-like proposed case는 기본적으로 `tv2-tier0` variant에서 targeted post-apply
+회귀를 돌린다. UE proposed case는 `ue-local` variant가 기본이다. targeted 회귀가 이미
+green이면 `--engine-skip-if-post-apply-green` 기본값 때문에 내부 Engine11 editor는
+실행하지 않는다. `--codex-bin`은 case_author provider와 내부 Engine11 editor 양쪽에
+전달된다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
 나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은
