@@ -92,7 +92,25 @@ def validate_agent_output(task: dict, output: dict) -> dict:
                 if not update.get("evidence_ref"):
                     errors.append(f"capability_updates[{index}] missing evidence_ref")
     elif agent == "case_author":
-        for index, proposed in enumerate(output.get("proposed_cases") or []):
+        proposed_cases = output.get("proposed_cases")
+        if not isinstance(proposed_cases, list) or not proposed_cases:
+            errors.append("case_author output missing non-empty proposed_cases list")
+            proposed_cases = []
+        for index, proposed in enumerate(proposed_cases):
+            if not proposed.get("id"):
+                errors.append(f"proposed_cases[{index}] missing id")
+            if proposed.get("target") not in {"suite10-cpp", "suite10-ue"}:
+                errors.append(f"proposed_cases[{index}] invalid target: {proposed.get('target')}")
+            if not proposed.get("cpp_or_ue"):
+                errors.append(f"proposed_cases[{index}] missing cpp_or_ue")
+            expected = proposed.get("expected") or {}
+            if not isinstance(expected, dict):
+                errors.append(f"proposed_cases[{index}] expected must be an object")
+                expected = {}
+            if expected.get("severity") != "proposed-regression":
+                manifest_case = expected.get("manifest_case") if isinstance(expected.get("manifest_case"), dict) else {}
+                if manifest_case.get("severity") != "proposed-regression":
+                    errors.append(f"proposed_cases[{index}] severity must be proposed-regression")
             if not proposed.get("oracle_basis"):
                 errors.append(f"proposed_cases[{index}] missing oracle_basis")
             independent = proposed.get("independent_check") or proposed.get("independent_validation")

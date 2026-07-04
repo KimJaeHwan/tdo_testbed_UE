@@ -29,10 +29,13 @@ harness/
   case_scope.py       큰 low-pcode 디렉터리의 case별 dependency closure materializer.
   agent_tasks.py      human gate 기반 판단 노드 task artifact 생성.
   agent_runtime.py    외부 JSON-in/JSON-out agent executor hook + role/evidence 검증.
+  design_lint.py      Engine11 diff가 설계 철학을 깨는 하드코딩인지 검사.
   human_approval.py   human approval queue 조회/결정 append-only CLI.
   baseline.py         I3 regression baseline pin 관리 CLI.
   proposals.py        accepted agent output을 proposed artifact로 materialize.
   work_items.py       proposal work item doctor + guarded engine/case promotion.
+  frontier_case_loop.py
+                      case_author 제안 -> doctor -> 적용계획 -> 선택적 Engine11 수리 루프.
   memory/
     schema.json       외부 원장 스키마.
     store.py          JSON/JSONL 원장 구현.
@@ -326,6 +329,22 @@ python -m harness.engine_dev_loop \
 적용된다. 개발 cycle은 보통 `high`로 시작하고, 비용/한도 소모를 줄여야 할 때만
 `medium`으로 낮춘다.
 
+Engine11 design lint:
+
+```bash
+python -m harness.design_lint \
+  --config harness/config.yaml.example \
+  --engine-repo /Volumes/DO/00_gitProject/01_tdo/lowpcode_data_origin
+```
+
+`engine_dev_loop`는 기본적으로 편집 직후 `design_lint`를 실행한다. lint는 Engine11
+code diff의 추가 라인에서 `TV2...`, `DFB...`, `case_...`, `write_expected`,
+`dfb_source_A/B/C` 같은 benchmark/helper/source-label 하드코딩을 잡는다.
+목표는 no arg/no ret, convention-free, wrapper/BoundaryProvider 분리 원칙을
+자동 게이트로 지키는 것이다. 문서나 dev log의 사례명은 검사 대상이 아니며,
+Engine11 code path의 새 추가 라인만 본다. 정말로 lint를 끄려면
+`engine_dev_loop --no-design-lint`를 명시해야 한다.
+
 Proposal work item promotion:
 
 ```bash
@@ -351,6 +370,35 @@ python -m harness.work_items case-apply \
 작동한다. 이 명령들도 Engine11 main merge나 expected 생성을 자동 진행하지 않는다.
 case apply는 source/manifest까지만 다루고, expected JSON은 승인 후 기존
 `generate_expected_from_manifest.py` 경로로 생성한다.
+
+Frontier case authoring loop:
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id frontier_case_loop_09_10 \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 6 \
+  --author-chunk-calls 3 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode dry-run
+```
+
+이 루프는 baseline 회귀를 먼저 돌리고, 그 report/capability map을 `case_author`에
+넘겨 신규 융합/frontier 케이스를 proposal로 만들고, `work_items doctor`와
+`case-apply --dry-run` 계획까지 생성한다. 기본값은 source/manifest를 바꾸지 않는
+dry-run이다. 사람이 승인한 뒤 실제 반영까지 맡기려면 `--apply-mode approved`와
+`--approval-key <key>`를 함께 준다. 승인 없이 로컬 실험만 할 때는
+`--allow-unapproved-case-apply`를 명시해야 하며, 이 경우에도 expected JSON은 자동
+생성하지 않는다.
+
+케이스를 반영한 뒤 Engine11까지 이어서 수리하려면 같은 명령에
+`--run-engine-dev-loop`를 붙인다. 이때 내부 `engine_dev_loop`는
+`--include-proposed-regression`, repair mode, design lint를 사용한다.
 
 검증된 smoke:
 

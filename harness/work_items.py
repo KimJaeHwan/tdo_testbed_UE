@@ -60,18 +60,22 @@ def doctor(args: argparse.Namespace, _config: HarnessConfig) -> int:
     manifest = _read_json(manifest_path)
     rows = []
     missing = []
+    errors = []
     for section in ("written", "work_items"):
         for item in manifest.get(section) or []:
-            path = Path(str(item.get("path") or item.get("plan_path") or item.get("source_path") or item.get("expected_path") or ""))
-            exists = path.is_file()
-            if not exists:
-                missing.append(str(path))
-            rows.append({"section": section, "kind": item.get("kind"), "path": str(path), "exists": exists})
+            for path in _item_paths(item):
+                exists = path.is_file()
+                if not exists:
+                    missing.append(str(path))
+                row_errors = _doctor_path_errors(path, item.get("kind")) if exists else []
+                errors.extend(row_errors)
+                rows.append({"section": section, "kind": item.get("kind"), "path": str(path), "exists": exists, "errors": row_errors})
     summary = {
         "schema_version": WORK_ITEM_SCHEMA_VERSION,
         "proposal_root": str(args.proposal_root),
         "checked": len(rows),
         "missing": missing,
+        "errors": errors,
         "rows": rows,
     }
     if args.json:
@@ -80,9 +84,82 @@ def doctor(args: argparse.Namespace, _config: HarnessConfig) -> int:
         print(f"proposal_root: {args.proposal_root}")
         print(f"checked: {len(rows)}")
         for row in rows:
-            status = "ok" if row["exists"] else "missing"
+            status = "ok" if row["exists"] and not row["errors"] else "missing" if not row["exists"] else "invalid"
             print(f"{status:7} {row['section']:10} {row['kind'] or '-':24} {row['path']}")
-    return 0 if not missing else 1
+            for error in row["errors"]:
+                print(f"          - {error}")
+    return 0 if not missing and not errors else 1
+
+
+def _item_paths(item: dict) -> list[Path]:
+    paths = []
+    for key in ("path", "plan_path", "source_path", "expected_path"):
+        value = item.get(key)
+        if value:
+            paths.append(Path(str(value)))
+    return paths or [Path("")]
+
+
+def _doctor_path_errors(path: Path, kind: Any) -> list[str]:
+    if path.suffix not in {".json", ".JSON"}:
+        return []
+    try:
+        payload = _read_json(path)
+    except json.JSONDecodeError as exc:
+        return [f"invalid json: {exc}"]
+    if kind == "proposed_case" or payload.get("kind") == "proposed_case":
+        return _validate_proposed_case(payload)
+    if kind == "case_work_item" or payload.get("kind") == "case_expected_proposal":
+        return _validate_case_expected(payload)
+    return []
+
+
+def _validate_proposed_case(payload: dict) -> list[str]:
+    proposal = payload.get("proposal") or {}
+    errors: list[str] = []
+    if proposal.get("target") not in {"suite10-cpp", "suite10-ue"}:
+        errors.append(f"invalid proposed target: {proposal.get('target')}")
+    if not str(proposal.get("cpp_or_ue") or "").strip():
+        errors.append("missing cpp_or_ue source snippet")
+    if not str(proposal.get("oracle_basis") or "").strip():
+        errors.append("missing oracle_basis")
+    if not str(proposal.get("independent_check") or proposal.get("independent_validation") or "").strip():
+        errors.append("missing independent validation")
+    expected = proposal.get("expected") or {}
+    if not isinstance(expected, dict):
+        errors.append("expected must be an object")
+        expected = {}
+    manifest_case = expected.get("manifest_case") if isinstance(expected.get("manifest_case"), dict) else {}
+    severity = expected.get("severity") or manifest_case.get("severity")
+    if severity != "proposed-regression":
+        errors.append(f"severity must be proposed-regression, got {severity!r}")
+    if not (expected.get("expected_data_sources") or manifest_case.get("expected_data_sources")):
+        errors.append("missing expected_data_sources")
+    if not (expected.get("anchor") or manifest_case.get("anchor")):
+        errors.append("missing wrapper anchor")
+    return errors
+
+
+def _validate_case_expected(payload: dict) -> list[str]:
+    errors: list[str] = []
+    if payload.get("kind") != "case_expected_proposal":
+        return errors
+    expected = payload.get("expected") or {}
+    if not isinstance(expected, dict):
+        return ["expected must be an object"]
+    manifest_case = expected.get("manifest_case") if isinstance(expected.get("manifest_case"), dict) else {}
+    severity = expected.get("severity") or manifest_case.get("severity")
+    if severity != "proposed-regression":
+        errors.append(f"severity must be proposed-regression, got {severity!r}")
+    if not (expected.get("expected_data_sources") or manifest_case.get("expected_data_sources")):
+        errors.append("missing expected_data_sources")
+    if not (expected.get("anchor") or manifest_case.get("anchor")):
+        errors.append("missing wrapper anchor")
+    if not payload.get("oracle_basis"):
+        errors.append("missing oracle_basis")
+    if not payload.get("independent_check"):
+        errors.append("missing independent_check")
+    return errors
 
 
 def engine_worktree(args: argparse.Namespace, config: HarnessConfig) -> int:

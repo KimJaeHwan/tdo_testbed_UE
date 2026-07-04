@@ -31,6 +31,8 @@ harness/
   agent_runtime.py
   agent_loop.py
   engine_dev_loop.py
+  design_lint.py
+  frontier_case_loop.py
   providers/
     openai_agent_executor.py
     codex_cli_agent_executor.py
@@ -218,6 +220,7 @@ Codex CLI를 Engine11 repo에서 `workspace-write`로 실행할 수 있다.
 - 이전 PASS 회귀, ERROR 증가, false positive 증가를 감지하면 중단
 - cycle별 `engine.diff`, Codex prompt/log, pre/post regression artifact 기록
 - `--include-proposed-regression`을 줄 때만 case_author frontier 케이스를 회귀 입력에 포함
+- 편집 직후 `design_lint`로 case/helper/source-label 하드코딩을 차단
 
 설계 철학 보호:
 - expected/manifest/testbed 파일은 자동 편집 대상이 아니다.
@@ -263,6 +266,7 @@ python3 -m harness.engine_dev_loop \
 - 이전 실행을 이어가려면 `--resume-existing`을 사용한다.
 - 이미 알고 있는 dirty 상태에서 강제로 시작하려면 `--allow-dirty-engine`이 필요하다.
 - `--analysis-calls 0`이면 agent proposal 없이 failure report만 보고 Codex editor를 호출한다.
+- `--no-design-lint`는 가능하지만 일반 운용에서는 켜둔다.
 - `--editor-dry-run`은 회귀와 prompt 생성은 하되 Codex 편집 호출만 기록한다.
 - `--editor-reasoning-effort high|medium|low|xhigh`는 실제 엔진 수정 담당 Codex CLI에만
   적용한다. 개발은 보통 `high`, 한도 절약이 필요하면 `medium`이 적절하다.
@@ -272,6 +276,57 @@ python3 -m harness.engine_dev_loop \
   발견되었을 때 즉시 종료하지 않고, 다음 cycle의 `Active repair context`에 그 악화
   정보를 넣어 재개한다. repair cycle은 직전 pre뿐 아니라 악화 전 baseline report와도
   비교한다.
+
+### `harness/design_lint.py`
+
+Engine11 수정 diff가 설계 철학을 깨는지 검사한다.
+
+역할:
+- Engine11 code diff의 추가 라인만 검사
+- `TV2...`, `DFB...`, `case_...`, `write_expected`, `dfb_source_A/B/C` 같은 테스트베드 이름/헬퍼/source-label 하드코딩 탐지
+- untracked Engine11 code file도 검사
+- 결과를 `design_lint.json`으로 남겨 `engine_dev_loop` state에 연결
+
+이 lint는 문서나 proposal 산출물의 사례명까지 금지하지 않는다. 금지 대상은
+Engine11 core 코드가 테스트베드 이름을 외워서 통과하는 경우다.
+
+```bash
+python3 -m harness.design_lint \
+  --config harness/config.yaml.example \
+  --engine-repo /Volumes/DO/00_gitProject/01_tdo/lowpcode_data_origin
+```
+
+### `harness/frontier_case_loop.py`
+
+case_author 기반 신규 융합/frontier 케이스 생성을 한 번에 묶는 상위 루프다.
+
+역할:
+- baseline 09/10 회귀 실행
+- report/capability map/gap note로 `case_author` task 생성
+- `agent_loop`로 신규 케이스 proposal 생성
+- `proposals.py --scaffold-work-items` 산출물을 `work_items doctor`로 검증
+- 기본값으로 `case-apply --dry-run` 계획만 생성
+- 옵션으로 승인된 case source/manifest 적용 후 Engine11 개발 루프까지 연결
+
+기본 명령:
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --run-id frontier_case_loop_09_10 \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 6 \
+  --author-chunk-calls 3 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode dry-run
+```
+
+실제 source/manifest 반영은 `--apply-mode approved --approval-key <key>`가 있을 때만
+수행한다. expected JSON은 여전히 기존 manifest 기반 generator로 별도 생성한다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
 나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은

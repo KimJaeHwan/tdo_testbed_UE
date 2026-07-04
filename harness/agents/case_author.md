@@ -59,3 +59,8 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - 출력은 **제안일 뿐** — 오라클 추가는 사람 승인(A §P7) 후 manifest 반영 → `generate_expected_from_manifest.py` → `verify_flows.py`.
 - 새 케이스가 기존 09/10과 중복인지 확인(중복 금지).
 - `anchor`는 테스트 하네스 wrapper가 sink 위치를 찾기 위한 정보다. Engine11 코어 설계에는 arg/ret/calling convention 의미를 새로 주입하지 않는다.
+- proposed case는 Engine11을 특정 helper/function/case/source label에 맞춰 고치라고 유도하면 안 된다.
+- 금지 예: `TV2...`, `DFB...`, `case_...`, `write_expected`, `dfb_source_A/B/C`, 고정 field offset을 Engine11 core 로직에 넣으라는 제안.
+- 허용 경계: source/sink marker와 manifest anchor는 wrapper/BoundaryProvider 계층의 테스트 하네스 입력으로만 사용한다.
+- 좋은 케이스는 특정 이름을 외우지 않아도 low-pcode graph, observed storage, metadata, summary evidence만으로 풀려야 한다.
+- fully green을 목표로 오라클을 약하게 만들지 말 것. FP를 유발할 수 있는 forbidden source를 반드시 설계하고 근거를 적는다.

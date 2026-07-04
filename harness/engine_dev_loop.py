@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import HarnessConfig, ROOT
+from .design_lint import run_design_lint
 from .gates import objective_vector, regression_failures
 from .reporting import write_json
 
@@ -389,6 +390,7 @@ def _editor_prompt(
             "- Do not edit tdo_testbed, tdo_testbed_UE expected files, manifests, generated low-pcode samples, or oracle data.",
             "- Preserve the design philosophy: Low P-code is source of truth, no arg/no ret in core semantics, convention-free observed storage transitions, architecture-aware storage.",
             "- Ghidra/decompiler metadata may be used only as optional facts or hints; do not let ABI/signature/parameter names override observed dataflow.",
+            "- Do not hardcode DFB/TV2 case ids, proposed helper names, expected source labels, or fixed test-only offsets in Engine11 code.",
             "- Avoid broad over-approximation that creates false positives.",
             "- Keep changes focused. Update dev_docs/progress_log.md or the relevant phase doc if the change is meaningful.",
             "",
@@ -493,6 +495,32 @@ def _run_compileall(args: argparse.Namespace, config: HarnessConfig, cycle_dir: 
     print("[engine-dev-loop] compileall")
     proc = _run_logged(cmd, cycle_dir / "compileall.log", cwd=engine_root, dry_run=args.dry_run)
     return {"skipped": False, "command": cmd, "returncode": proc.returncode, "log_path": str(cycle_dir / "compileall.log")}
+
+
+def _run_design_lint(args: argparse.Namespace, config: HarnessConfig, cycle_dir: Path) -> dict:
+    if not args.design_lint:
+        return {"skipped": True}
+    engine_root = config.path("repos", "engine_11")
+    output_path = cycle_dir / "design_lint.json"
+    print("[engine-dev-loop] design lint")
+    if args.dry_run:
+        result = {
+            "schema_version": 1,
+            "ok": True,
+            "skipped": True,
+            "reason": "dry-run",
+            "engine_repo": str(engine_root),
+        }
+    else:
+        result = run_design_lint(engine_repo=engine_root)
+    write_json(output_path, result)
+    return {
+        "skipped": bool(result.get("skipped")),
+        "returncode": 0 if result.get("ok") else 1,
+        "ok": bool(result.get("ok")),
+        "output_path": str(output_path),
+        "issues": result.get("issues") or [],
+    }
 
 
 def _write_engine_diff(config: HarnessConfig, cycle_dir: Path) -> dict:
@@ -619,6 +647,14 @@ def run_dev_loop(args: argparse.Namespace) -> int:
             _write_state(state_path, args, status, cycles)
             break
 
+        design_lint = _run_design_lint(args, config, cycle_dir)
+        cycle["design_lint"] = design_lint
+        if design_lint.get("returncode") not in (None, 0):
+            status = "design_lint_failed"
+            cycles.append(cycle)
+            _write_state(state_path, args, status, cycles)
+            break
+
         compile_result = _run_compileall(args, config, cycle_dir)
         cycle["compileall"] = compile_result
         if compile_result.get("returncode") not in (None, 0):
@@ -737,6 +773,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--allow-dirty-engine", action="store_true")
     parser.add_argument("--no-edit", action="store_true")
+    parser.add_argument(
+        "--design-lint",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Reject Engine11 edits that hardcode benchmark/case/helper details before compile/regression.",
+    )
     parser.add_argument("--skip-compileall", action="store_true")
     parser.add_argument("--stop-on-regression", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument(
