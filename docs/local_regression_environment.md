@@ -47,8 +47,17 @@ Headless:
 "$GHIDRA_DIR/support/analyzeHeadless"
 ```
 
-Codex sandbox note: Ghidra reads/writes under `~/Library/ghidra`, so headless
-extraction from Codex usually needs escalated filesystem permission.
+The UE tier0 extraction script keeps Ghidra config/cache under the project by
+default, which avoids accidental writes to `~/Library/ghidra`:
+
+```bash
+GHIDRA_XDG_CONFIG_HOME=cpp_like/build/ghidra_config
+GHIDRA_XDG_CACHE_HOME=cpp_like/build/ghidra_cache
+```
+
+If `analyzeHeadless` is launched manually, pass equivalent
+`XDG_CONFIG_HOME`/`XDG_CACHE_HOME` values or expect Ghidra to use the normal
+user profile directories.
 
 ## Android NDK
 
