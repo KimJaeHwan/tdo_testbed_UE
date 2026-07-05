@@ -97,6 +97,47 @@ python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifac
 조합을 압박하는 frontier profile이다. 안정 회귀만 보고 싶으면
 `--variant-filter`로 통과 profile을 좁혀 실행한다.
 
+Suite12 OLLVM 반복 rebuild/extract/analyze 루프:
+
+```bash
+python -m harness.obf_rebuild_loop \
+  --config harness/config.yaml.example \
+  --run-id obf_ollvm_all_loop \
+  --profiles OLLVM_ALL \
+  --max-cycles 3 \
+  --clean-output
+```
+
+처음 실행해서 `tdo-testbed-obf-ollvm:llvm4` 이미지가 아직 없으면
+`--setup-docker-image`를 한 번 붙인다. 이 단계는 obfuscator-llvm/LLVM을 Docker
+이미지 안에서 빌드하므로 오래 걸릴 수 있다.
+
+```bash
+python -m harness.obf_rebuild_loop \
+  --config harness/config.yaml.example \
+  --run-id obf_ollvm_setup_and_smoke \
+  --profiles OLLVM_ALL \
+  --max-cycles 1 \
+  --setup-docker-image \
+  --clean-output
+```
+
+정말 계속 돌리고 싶을 때는 `--max-cycles 0`을 사용한다. 이 경우 실패하거나
+터미널에서 중지할 때까지 반복한다. 각 cycle은 `--force-prepare`와 `--no-cache`
+의미로 실행되므로 OLLVM Docker 빌드, Ghidra low-pcode 재추출, Engine11 회귀가
+매번 새로 돈다. 진행 상태는
+`output/harness/<run-id>/obf_rebuild_loop_state.json`에 남는다.
+
+```bash
+python -m harness.obf_rebuild_loop \
+  --config harness/config.yaml.example \
+  --run-id obf_ollvm_unlimited \
+  --profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --max-cycles 0 \
+  --duration-hours 4.5 \
+  --clean-output
+```
+
 Tier0 C/C++ 로컬 build/extract:
 
 ```bash

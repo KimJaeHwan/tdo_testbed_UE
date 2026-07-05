@@ -408,6 +408,30 @@ Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command�
 
 중간에 멈춘 뒤 재개하면서 지시를 추가하는 예:
 
+### `harness/obf_rebuild_loop.py`
+
+Suite12 Obf 전용 deterministic 반복 루프다. case author나 Engine11 editor를 호출하지
+않고, 지정 profile마다 아래 작업을 한 cycle로 묶어 반복한다.
+
+- OLLVM Docker 또는 host clang build
+- Ghidra headless low-pcode 재추출
+- Suite12 Engine11 회귀 분석
+- cycle/profile별 log, summary, gate, failure report 경로를 state 파일에 기록
+
+기본은 1 cycle만 돈다. `--max-cycles 0`을 주면 duration/failure/manual stop까지 계속
+돈다. 모든 cycle은 orchestrator에 `--prepare-artifacts --force-prepare --no-cache`를
+전달하므로, 기존 샘플 캐시를 믿지 않고 rebuild/re-extract/analyze를 반복한다.
+
+```bash
+python3 -m harness.obf_rebuild_loop \
+  --config harness/config.yaml.example \
+  --run-id obf_ollvm_unlimited \
+  --profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --max-cycles 0 \
+  --duration-hours 4.5 \
+  --clean-output
+```
+
 ```bash
 cat > output/harness/engine_dev_09_10/operator_note.md <<'EOF'
 Next cycle: inspect TV2R001 observed-memory cut first.
