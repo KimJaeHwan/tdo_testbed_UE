@@ -1609,6 +1609,203 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "callback-thunk",
+        "heap-observed-memory-write",
+        "field-overwrite",
+        "neighbor-forbidden-source"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "a",
+          "from": "dfb_source_A()",
+          "function": "case_TV2C610_callback_heap_payload_overwrite_strict",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "By construction, local a is assigned only from dfb_source_A().",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "cb(cell, a)",
+          "function": "case_TV2C610_callback_heap_payload_overwrite_strict",
+          "kind": "call",
+          "node": "tv2c610_write_payload_thunk",
+          "offset": "offsetof(TV2C610_Cell, payload)",
+          "reason": "The callback target writes its value parameter into the payload field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "cell->payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "cell->payload",
+          "function": "tv2c610_write_payload_thunk",
+          "kind": "memory",
+          "node": "cell->payload",
+          "offset": "offsetof(TV2C610_Cell, payload)",
+          "reason": "The sink reads the overwritten payload field after the callback returns.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(cell->payload)"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "guard0/guard1",
+          "from": "dfb_source_B()",
+          "function": "case_TV2C610_callback_heap_payload_overwrite_strict",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C610_Cell, guard0), offsetof(TV2C610_Cell, guard1)",
+          "reason": "dfb_source_B initializes neighboring guard fields only; the sink reads payload, which is overwritten from dfb_source_A before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(cell->payload)"
+        }
+      ],
+      "function": "case_TV2C610_callback_heap_payload_overwrite_strict",
+      "id": "TV2C610",
+      "name": "callback heap payload overwrite strict",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "callback-thunk",
+        "container-alias",
+        "stack-observed-memory-write",
+        "field-kill",
+        "neighbor-forbidden-source"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "a",
+          "from": "dfb_source_A()",
+          "function": "case_TV2C611_container_alias_callback_kill_strict",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "By construction, local a is assigned only from dfb_source_A().",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "mid",
+          "from": "view.alias->mid",
+          "function": "case_TV2C611_container_alias_callback_kill_strict",
+          "kind": "alias",
+          "node": "view.primary/view.alias",
+          "offset": "offsetof(TV2C611_Box, mid)",
+          "reason": "Both container pointers are initialized to the same stack box object.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "view.primary->mid"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "mid",
+          "from": "kill(&view, a)",
+          "function": "case_TV2C611_container_alias_callback_kill_strict",
+          "kind": "call",
+          "node": "tv2c611_alias_kill_thunk",
+          "offset": "offsetof(TV2C611_Box, mid)",
+          "reason": "The callback overwrites the aliased mid field with dfb_source_A before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "view.alias->mid"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "mid",
+          "from": "view.primary->mid",
+          "function": "case_TV2C611_container_alias_callback_kill_strict",
+          "kind": "memory",
+          "node": "view.primary->mid",
+          "offset": "offsetof(TV2C611_Box, mid)",
+          "reason": "The sink reads the same stack field overwritten through the alias callback.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(view.primary->mid)"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "left/mid/right initializers",
+          "from": "TV2C611_Box box{dfb_source_B(), dfb_source_B(), dfb_source_B()}",
+          "function": "case_TV2C611_container_alias_callback_kill_strict",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C611_Box, left), offsetof(TV2C611_Box, mid), offsetof(TV2C611_Box, right)",
+          "reason": "The initial mid value from dfb_source_B is killed by the callback overwrite from dfb_source_A before the sink; left and right are neighboring fields only.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(view.primary->mid)"
+        }
+      ],
+      "function": "case_TV2C611_container_alias_callback_kill_strict",
+      "id": "TV2C611",
+      "name": "container alias callback kill strict",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

@@ -421,4 +421,39 @@ extern "C" void case_TV2C609_loaded_pointer_callback_neighbor_guard() {
   delete cell;
 }
 
+
+struct TV2C610_Cell { int guard0; int payload; int guard1; };
+using TV2C610_Callback = void (*)(TV2C610_Cell*, int);
+
+extern "C" TV2_NOINLINE void tv2c610_write_payload_thunk(TV2C610_Cell* cell, int value) {
+    cell->payload = value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C610_callback_heap_payload_overwrite_strict() {
+    TV2C610_Cell* cell = new TV2C610_Cell{dfb_source_B(), 0, dfb_source_B()};
+    TV2C610_Callback cb = tv2c610_write_payload_thunk;
+    int a = dfb_source_A();
+    cb(cell, a);
+    dfb_sink_int(cell->payload);
+    delete cell;
+}
+
+
+struct TV2C611_Box { int left; int mid; int right; };
+struct TV2C611_View { TV2C611_Box* primary; TV2C611_Box* alias; };
+using TV2C611_Kill = void (*)(TV2C611_View*, int);
+
+extern "C" TV2_NOINLINE void tv2c611_alias_kill_thunk(TV2C611_View* view, int value) {
+    view->alias->mid = value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C611_container_alias_callback_kill_strict() {
+    TV2C611_Box box{dfb_source_B(), dfb_source_B(), dfb_source_B()};
+    TV2C611_View view{&box, &box};
+    TV2C611_Kill kill = tv2c611_alias_kill_thunk;
+    int a = dfb_source_A();
+    kill(&view, a);
+    dfb_sink_int(view.primary->mid);
+}
+
 } /* extern "C" */
