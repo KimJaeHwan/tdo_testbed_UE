@@ -1,6 +1,6 @@
 # Harness
 
-09/10/11 자동 반복 루프의 결정적 실행 하니스. 단일 진실 사양은
+09/10/12 자동 반복 루프의 결정적 실행 하니스. 단일 진실 사양은
 [`docs/harness_design.md`](../docs/harness_design.md)이다.
 
 현재 구현 범위는 deterministic vertical slice + optional LLM provider hook이다. Config -> suite
@@ -9,7 +9,9 @@ adapter -> Engine11 실행 -> expected 검증 -> FailureReport v2 -> suite summa
 build/extract prepare step으로 NDK/Ghidra 산출물을 만들고 곧바로 Engine11 분석까지
 연결할 수 있다. UE 5.8 Mac local build 산출물도 prepare step에서 Ghidra
 low-pcode 추출까지 자동 연결할 수 있다. 큰 UE 디렉터리는 case-scoped low-pcode
-closure로 분석해 P0(DebugGame)도 전체 22개 case 회귀가 가능하다. LLM 호출은
+closure로 분석해 P0(DebugGame)도 전체 22개 case 회귀가 가능하다. Suite12 Obf는
+소스 레벨 난독화와 Docker OLLVM profile의 low-pcode를 같은 Engine11 회귀 루프에
+연결한다. LLM 호출은
 provider command가 설정된 경우에만 실행되며, 결과는 proposal/work item으로만 남긴다.
 
 파일별 책임과 `harness/config.yaml` 작성법은
@@ -21,8 +23,8 @@ provider command가 설정된 경우에만 실행되며, 결과는 proposal/work
 ## 구성
 ```text
 harness/
-  orchestrator.py     결정적 CLI runner. 09/10 suite adapter를 통해 Engine11 실행.
-  adapters.py         Suite09/Suite10UE variant discovery + local prepare step.
+  orchestrator.py     결정적 CLI runner. 09/10/12 suite adapter를 통해 Engine11 실행.
+  adapters.py         Suite09/Suite10UE/Suite12Obf variant discovery + local prepare step.
   config.py           config.yaml(.example) 로드 + 로컬 기본값.
   reporting.py        artifact hash, FailureReport v2 summary writer.
   gates.py            목적함수·불변식·오라클잠금.
@@ -50,7 +52,7 @@ harness/
 전제 조건:
 
 ```text
-1. lowpcode_data_origin, tdo_testbed, tdo_testbed_UE가 같은 01_tdo 루트 아래에 있다.
+1. lowpcode_data_origin, tdo_testbed, tdo_testbed_UE, tdo_testbed_Obf가 같은 01_tdo 루트 아래에 있다.
 2. lowpcode_data_origin/.venv에 Engine11 의존성(networkx 등)이 설치되어 있다.
 3. release-artifacts 모드는 dist/release_0.3.0 low-pcode/expected가 준비되어 있다.
 4. local-samples prepare 모드는 Android NDK, Ghidra, Ghidra Java가 설정되어 있다.
@@ -62,6 +64,7 @@ harness/
 ```bash
 python -m harness.orchestrator --suite 09,10 --list-variants
 python -m harness.orchestrator --suite 10 --mode local-samples --list-variants
+python -m harness.orchestrator --suite 12 --mode local-samples --list-variants
 ```
 
 기존 추출물로 회귀 실행:
@@ -69,8 +72,30 @@ python -m harness.orchestrator --suite 10 --mode local-samples --list-variants
 ```bash
 python -m harness.orchestrator --suite 09 --case-filter case_DFB001
 python -m harness.orchestrator --suite 10 --mode release-artifacts
+python -m harness.orchestrator --suite 12 --mode local-samples
 python -m harness.orchestrator --suite 09 --case-filter case_DFB001 --no-cache
 ```
+
+Suite12 Obf 로컬 build/extract/analyze:
+
+```bash
+python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifacts --profile P0 --variant-filter obf-P0
+python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifacts --profile P1 --variant-filter obf-P1
+python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifacts --profile P2 --variant-filter obf-P2
+```
+
+Suite12 OLLVM Docker build/extract/analyze:
+
+```bash
+cd ../tdo_testbed_Obf
+scripts/setup_ollvm_docker.sh
+cd ../tdo_testbed_UE
+python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifacts --profile OLLVM_ALL --variant-filter obf-OLLVM_ALL
+```
+
+`OLLVM_FLA_SPLIT`, `OLLVM_FLA_SUB_SPLIT`, `OLLVM_ALL`은 현재 `fla + split`
+조합을 압박하는 frontier profile이다. 안정 회귀만 보고 싶으면
+`--variant-filter`로 통과 profile을 좁혀 실행한다.
 
 Tier0 C/C++ 로컬 build/extract:
 
@@ -104,14 +129,14 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
 주요 옵션:
 
 ```text
---suite 09|10|09,10       실행할 테스트베드 선택
+--suite 09|10|12|09,10    실행할 테스트베드 선택
 --mode release-artifacts  release에 포함된 Win64 UE low-pcode 사용
 --mode local-samples      로컬 samples/low_pcode 경로 사용
 --prepare-artifacts       분석 전 build/extract 준비 단계 실행
 --prepare-only            build/extract 준비만 하고 분석은 생략
 --prepare-dry-run         준비 명령을 기록만 하고 실행하지 않음
 --force-prepare           changed-only prepare cache를 무시하고 준비 명령 실행
---profile P0|P1           Tier0 빌드 프로파일
+--profile P0|P1|P2|OLLVM_* 빌드/추출 프로파일
 --arch x64|x86|armv7|aarch64|all
 --skip-tier0-prepare      UE만 준비할 때 Tier0 build/extract 생략
 --include-ue-build        UE 5.8 Mac build step 포함

@@ -315,12 +315,130 @@ class Suite09Adapter:
         return variants
 
 
+class Suite12ObfAdapter:
+    PROFILE_OPTS = {
+        "P0": "O0",
+        "P1": "O2",
+        "P2": "Oz",
+        "OLLVM_FLA": "O1+fla",
+        "OLLVM_SUB": "O1+sub",
+        "OLLVM_BCF": "O1+bcf",
+        "OLLVM_SPLIT": "O1+split",
+        "OLLVM_FLA_SUB_BCF": "O1+fla+sub+bcf",
+        "OLLVM_SUB_SPLIT": "O1+sub+split",
+        "OLLVM_BCF_SPLIT": "O1+bcf+split",
+        "OLLVM_FLA_SPLIT": "O1+fla+split",
+        "OLLVM_FLA_SUB_SPLIT": "O1+fla+sub+split",
+        "OLLVM_ALL": "O1+fla+sub+bcf+split",
+    }
+    OLLVM_FLAGS = {
+        "OLLVM_FLA_SUB_BCF": "-mllvm -fla -mllvm -sub -mllvm -bcf -mllvm -bcf_prob=40 -mllvm -bcf_loop=1",
+        "OLLVM_SUB_SPLIT": "-mllvm -sub -mllvm -split -mllvm -split_num=3",
+        "OLLVM_BCF_SPLIT": "-mllvm -bcf -mllvm -bcf_prob=40 -mllvm -bcf_loop=1 -mllvm -split -mllvm -split_num=3",
+        "OLLVM_FLA_SPLIT": "-mllvm -fla -mllvm -split -mllvm -split_num=3",
+        "OLLVM_FLA_SUB_SPLIT": "-mllvm -fla -mllvm -sub -mllvm -split -mllvm -split_num=3",
+    }
+
+    def __init__(self, config: HarnessConfig):
+        self.config = config
+        self.root = config.path("repos", "testbed_12_obf")
+
+    def variants(self, mode: str) -> list[Variant]:
+        if mode not in {"local-samples", "release-artifacts"}:
+            return []
+        sample_root = self.root / "samples" / "low_pcode"
+        expected = self.root / "expected" / "dfbench_obf_basic.expected.json"
+        variants: list[Variant] = []
+        if not sample_root.exists():
+            return variants
+        for root in sorted(path for path in sample_root.iterdir() if path.is_dir()):
+            if not list(root.rglob("case_OBF*_low_pcode.json")):
+                continue
+            profile = root.name
+            is_ollvm = profile.startswith("OLLVM_")
+            variants.append(
+                Variant(
+                    suite="12_tdo_testbed_Obf",
+                    label=f"obf-{profile}",
+                    sample_dir=root,
+                    expected_path=expected,
+                    case_glob="case_OBF*_low_pcode.json",
+                    arch="host",
+                    compiler="ollvm-docker" if is_ollvm else "clang",
+                    opt=self.PROFILE_OPTS.get(profile, profile),
+                    build_config=profile,
+                    binary_path=self.root / "build" / profile / "bin" / "dfbench_obf_basic",
+                    source_kind="ollvm-lowpcode" if is_ollvm else "host-lowpcode",
+                )
+            )
+        return variants
+
+    def prepare_steps(self, mode: str, profile: str) -> list[PrepareStep]:
+        if mode != "local-samples":
+            return []
+        env = self._tool_env(profile)
+        build_script = "build_ollvm_docker.sh" if profile.startswith("OLLVM_") else "build.sh"
+        build_inputs = (
+            self.root / "CMakeLists.txt",
+            self.root / "include",
+            self.root / "src",
+            self.root / "manifests",
+            self.root / "tools",
+            self.root / "scripts" / build_script,
+        )
+        if profile.startswith("OLLVM_"):
+            build_inputs = (*build_inputs, self.root / "toolchains" / "ollvm" / "Dockerfile")
+        return [
+            PrepareStep(
+                label=f"obf-build-{profile}",
+                command=("bash", str(self.root / "scripts" / build_script), profile),
+                cwd=self.root,
+                env=env,
+                outputs=(self.root / "build" / profile / "bin" / "dfbench_obf_basic",),
+                inputs=build_inputs,
+            ),
+            PrepareStep(
+                label=f"obf-extract-{profile}",
+                command=("bash", str(self.root / "scripts" / "extract_lowpcode.sh"), profile),
+                cwd=self.root,
+                env=env,
+                outputs=(self.root / "samples" / "low_pcode" / profile,),
+                inputs=(
+                    self.root / "scripts" / "extract_lowpcode.sh",
+                    self.root / "build" / profile / "bin" / "dfbench_obf_basic",
+                    self.config.path("repos", "engine_11") / "scripts" / "lowpcode_json_dumper.py",
+                ),
+            ),
+        ]
+
+    def _tool_env(self, profile: str) -> dict[str, str]:
+        values = {
+            "GHIDRA_DIR": self._path_value("tools", "ghidra_home"),
+            "GHIDRA_JAVA_HOME": self._path_value("tools", "ghidra_java_home"),
+            "TDO_ENGINE_ROOT": self._path_value("repos", "engine_11"),
+            "TDO_DUMPER_DIR": str(self.config.path("repos", "engine_11") / "scripts"),
+            "PYTHON_BIN": self._path_value("tools", "python"),
+        }
+        flags = self.OLLVM_FLAGS.get(profile)
+        if flags:
+            values["OBF_OLLVM_FLAGS"] = flags
+        return {key: value for key, value in values.items() if value}
+
+    def _path_value(self, section: str, key: str) -> str:
+        raw = self.config.value(section, key, "")
+        if raw is None or str(raw).strip() == "":
+            return ""
+        return str(Path(str(raw)).expanduser())
+
+
 def selected_variants(config: HarnessConfig, suites: set[str], mode: str) -> list[Variant]:
     variants: list[Variant] = []
     if "09" in suites:
         variants.extend(Suite09Adapter(config).variants(mode))
     if "10" in suites:
         variants.extend(Suite10UEAdapter(config).variants(mode))
+    if "12" in suites:
+        variants.extend(Suite12ObfAdapter(config).variants(mode))
     return variants
 
 
@@ -346,4 +464,6 @@ def selected_prepare_steps(
                 include_ue_extract=include_ue_extract,
             )
         )
+    if "12" in suites:
+        steps.extend(Suite12ObfAdapter(config).prepare_steps(mode, profile))
     return steps

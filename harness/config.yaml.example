@@ -1,6 +1,7 @@
 repos:
   testbed_09: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed"
   testbed_10_ue: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE"
+  testbed_12_obf: "/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_Obf"
   engine_11: "/Volumes/DO/00_gitProject/01_tdo/lowpcode_data_origin"
 
 tools:

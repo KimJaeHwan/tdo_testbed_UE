@@ -89,6 +89,7 @@ class HarnessConfig:
             "repos": {
                 "testbed_09": str(root.parent / "tdo_testbed"),
                 "testbed_10_ue": str(root),
+                "testbed_12_obf": str(root.parent / "tdo_testbed_Obf"),
                 "engine_11": str(root.parent / "lowpcode_data_origin"),
             },
             "tools": {

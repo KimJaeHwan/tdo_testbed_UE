@@ -27,6 +27,21 @@ from .reporting import (
 
 
 TIER0_ARCHES = ["x86", "x64", "armv7", "aarch64"]
+BUILD_PROFILES = [
+    "P0",
+    "P1",
+    "P2",
+    "OLLVM_FLA",
+    "OLLVM_SUB",
+    "OLLVM_BCF",
+    "OLLVM_SPLIT",
+    "OLLVM_FLA_SUB_BCF",
+    "OLLVM_SUB_SPLIT",
+    "OLLVM_BCF_SPLIT",
+    "OLLVM_FLA_SPLIT",
+    "OLLVM_FLA_SUB_SPLIT",
+    "OLLVM_ALL",
+]
 DEFAULT_CASE_SCOPE_FILE_THRESHOLD = 32
 DEFAULT_CASE_SCOPE_BYTE_THRESHOLD = 128 * 1024 * 1024
 PREPARE_CACHE_SCHEMA_VERSION = 1
@@ -336,7 +351,16 @@ class Engine11Runner:
 
 
 def _parse_suites(text: str) -> set[str]:
-    aliases = {"9": "09", "09": "09", "tdo": "09", "10": "10", "ue": "10"}
+    aliases = {
+        "9": "09",
+        "09": "09",
+        "tdo": "09",
+        "10": "10",
+        "ue": "10",
+        "12": "12",
+        "obf": "12",
+        "tdo_obf": "12",
+    }
     selected = set()
     for part in text.split(","):
         key = part.strip()
@@ -517,9 +541,9 @@ def _load_regression_baseline(config: HarnessConfig, memory: Memory | None, base
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run deterministic 09/10/11 TDO harness checks.")
+    parser = argparse.ArgumentParser(description="Run deterministic 09/10/12 TDO harness checks.")
     parser.add_argument("--config", type=Path, default=ROOT / "harness" / "config.yaml")
-    parser.add_argument("--suite", default="10", help="Comma-separated suites: 09,10")
+    parser.add_argument("--suite", default="10", help="Comma-separated suites: 09,10,12")
     parser.add_argument("--mode", default=None, choices=["release-artifacts", "local-samples"])
     parser.add_argument("--list-variants", action="store_true")
     parser.add_argument("--case-filter", default="", help="Substring filter for case JSON filenames.")
@@ -542,7 +566,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prepare-only", action="store_true", help="Run preparation and stop before Engine11 analysis.")
     parser.add_argument("--prepare-dry-run", action="store_true", help="Print and record preparation commands without executing them.")
     parser.add_argument("--force-prepare", action="store_true", help="Disable changed-only prepare cache and always run prepare commands.")
-    parser.add_argument("--profile", default="P0", choices=["P0", "P1"], help="Local Tier0 build/extract profile.")
+    parser.add_argument("--profile", default="P0", choices=BUILD_PROFILES, help="Local build/extract profile.")
     parser.add_argument("--arch", default="x64", help="Local Tier0 arch list: x86,x64,armv7,aarch64 or all.")
     parser.add_argument("--skip-tier0-prepare", action="store_true", help="Skip local Tier0 build/extract prepare steps.")
     parser.add_argument("--include-ue-build", action="store_true", help="Also try the local UE build step.")
