@@ -116,6 +116,7 @@ extern "C" TV2_NOINLINE void case_TV2R201_tarray_realloc_indexed_read_wrong_inde
 extern "C" TV2_NOINLINE void case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
 extern "C" TV2_NOINLINE void case_TV2R301_tarray_swap_remove_reindexed_field();
 extern "C" TV2_NOINLINE void case_TV2R302_tmap_fname_wrong_key_field();
+extern "C" TV2_NOINLINE void case_TV2R303_tarray_alias_callback_field_write();
 
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
@@ -133,6 +134,7 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R202_tarray_struct_field_neighbor_kill_after_realloc();
 	case_TV2R301_tarray_swap_remove_reindexed_field();
 	case_TV2R302_tmap_fname_wrong_key_field();
+	case_TV2R303_tarray_alias_callback_field_write();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -249,4 +251,17 @@ extern "C" TV2_NOINLINE void case_TV2R302_tmap_fname_wrong_key_field()
         Found->Count = 0;
         dfb_sink_int(Found->ItemId);
     }
+}
+
+struct FTV2R303Item { int32 Key; int32 Payload; int32 Guard; };
+using FTV2R303Writer = void (*)(FTV2R303Item*, int32);
+static void tv2_write_alias_payload(FTV2R303Item* Item, int32 Value) { Item->Payload = Value; }
+extern "C" TV2_NOINLINE void case_TV2R303_tarray_alias_callback_field_write() {
+  TArray<FTV2R303Item> Items;
+  Items.Add({dfb_source_B(), 0, dfb_source_C()});
+  FTV2R303Item* Alias = &Items[0];
+  FTV2R303Writer Writer = tv2_write_alias_payload;
+  Writer(Alias, dfb_source_A());
+  int32 Observed = Items[0].Payload;
+  dfb_sink_int(Observed);
 }

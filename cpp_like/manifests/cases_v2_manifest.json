@@ -1398,6 +1398,217 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "loaded-pointer",
+        "heap-alias",
+        "callback-field-write",
+        "neighbor-forbidden"
+      ],
+      "expected_flow": [
+        {
+          "carries": "lane1 value source",
+          "field": "callback value argument",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C608_loaded_alias_callback_preserve_neighbor",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "The callback stores the A value through box->alias into lane1, and the sink reads the same lane through box.primary.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C608_Cell::lane1"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane1",
+          "from": "TV2C608_Cell::lane1 store via alias",
+          "function": "case_TV2C608_loaded_alias_callback_preserve_neighbor",
+          "kind": "heap_store_load",
+          "node": "TV2C608_Cell::lane1",
+          "offset": "offsetof(TV2C608_Cell, lane1)",
+          "reason": "primary and alias are both initialized from the same heap allocation, so the load reaches the callback store without relying on ABI parameter or return semantics.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C608_Cell::lane1 load via primary"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "lane0",
+          "from": "TV2C608_Cell::lane0",
+          "function": "case_TV2C608_loaded_alias_callback_preserve_neighbor",
+          "kind": "neighbor_field",
+          "node": "TV2C608_Cell::lane0",
+          "offset": "offsetof(TV2C608_Cell, lane0)",
+          "reason": "lane0 is initialized from B but is never read into observed; reporting it would be a neighbor-field false positive.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "lane2",
+          "from": "TV2C608_Cell::lane2",
+          "function": "case_TV2C608_loaded_alias_callback_preserve_neighbor",
+          "kind": "neighbor_field",
+          "node": "TV2C608_Cell::lane2",
+          "offset": "offsetof(TV2C608_Cell, lane2)",
+          "reason": "lane2 is initialized from C but remains a stale neighboring heap field and must not taint the lane1 sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C608_loaded_alias_callback_preserve_neighbor",
+      "id": "TV2C608",
+      "name": "loaded alias callback writes selected heap lane without neighbor taint",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "loaded-pointer",
+        "heap-alias",
+        "callback-field-write",
+        "neighbor-overwrite-guard"
+      ],
+      "expected_flow": [
+        {
+          "carries": "A value is assigned to tainted and passed through an indirect callback to heap lane1.",
+          "field": "tainted",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C609_loaded_pointer_callback_neighbor_guard",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "n/a",
+          "reason": "By construction, only dfb_source_A initializes the value stored into lane1.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "tainted"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane1",
+          "from": "tainted",
+          "function": "tv2c609_store_lane1",
+          "kind": "store",
+          "node": "TV2C609Cell::lane1",
+          "offset": "offsetof(TV2C609Cell, lane1)",
+          "reason": "Callback target writes the A value to heap field lane1 through a loaded pointer.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "(*slot)->lane1"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane1",
+          "from": "(*slot)->lane1",
+          "function": "case_TV2C609_loaded_pointer_callback_neighbor_guard",
+          "kind": "load",
+          "node": "TV2C609Cell::lane1",
+          "offset": "offsetof(TV2C609Cell, lane1)",
+          "reason": "Sink argument is loaded from lane1 after the separate lane2 overwrite.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "observed"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "arg0",
+          "from": "observed",
+          "function": "case_TV2C609_loaded_pointer_callback_neighbor_guard",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "n/a",
+          "reason": "The void sink receives observed as a statement call.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "lane2",
+          "from": "noise",
+          "function": "tv2c609_store_lane2",
+          "kind": "store",
+          "node": "TV2C609Cell::lane2",
+          "offset": "offsetof(TV2C609Cell, lane2)",
+          "reason": "B is intentionally written only to neighboring lane2, which is not read by the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "(*slot)->lane2"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "arg0",
+          "from": "(*slot)->lane2",
+          "function": "case_TV2C609_loaded_pointer_callback_neighbor_guard",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "n/a",
+          "reason": "A field-insensitive or stale-neighbor merge may falsely carry B to the sink; by construction the sink reads lane1 only.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C609_loaded_pointer_callback_neighbor_guard",
+      "id": "TV2C609",
+      "name": "loaded pointer callback writes lane1 while stale neighbor lane2 is forbidden",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

@@ -388,4 +388,37 @@ TV2_CASE void case_TV2C607_container_alias_callback_kill(void) {
     dfb_sink_int(alias->payload);
 }
 
+
+struct TV2C608_Cell { int lane0; int lane1; int lane2; };
+struct TV2C608_Box { TV2C608_Cell* primary; TV2C608_Cell* alias; };
+using TV2C608_Callback = void (*)(TV2C608_Box*, int);
+static void tv2c608_write_alias_lane1(TV2C608_Box* box, int v) { TV2C608_Cell* p = box->alias; p->lane1 = v; }
+extern "C" void case_TV2C608_loaded_alias_callback_preserve_neighbor() {
+  TV2C608_Cell* cell = new TV2C608_Cell{dfb_source_B(), 0, dfb_source_C()};
+  TV2C608_Box box{cell, cell};
+  TV2C608_Callback cb = tv2c608_write_alias_lane1;
+  cb(&box, dfb_source_A());
+  int observed = box.primary->lane1;
+  dfb_sink_int(observed);
+  delete cell;
+}
+
+
+struct TV2C609Cell { int lane0; int lane1; int lane2; };
+using TV2C609Write = void (*)(TV2C609Cell *, int);
+static void tv2c609_store_lane1(TV2C609Cell *cell, int v) { cell->lane1 = v; }
+static void tv2c609_store_lane2(TV2C609Cell *cell, int v) { cell->lane2 = v; }
+extern "C" void case_TV2C609_loaded_pointer_callback_neighbor_guard() {
+  TV2C609Cell *cell = new TV2C609Cell{0, 0, 0};
+  TV2C609Write cb = tv2c609_store_lane1;
+  int tainted = dfb_source_A();
+  int noise = dfb_source_B();
+  TV2C609Cell **slot = &cell;
+  (*cb)(*slot, tainted);
+  tv2c609_store_lane2(*slot, noise);
+  int observed = (*slot)->lane1;
+  dfb_sink_int(observed);
+  delete cell;
+}
+
 } /* extern "C" */

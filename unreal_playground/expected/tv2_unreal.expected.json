@@ -1589,6 +1589,97 @@
         "field-sensitive"
       ],
       "allowed_warnings": []
+    },
+    {
+      "id": "TV2R303",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R303_tarray_alias_callback_field_write",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "unreal",
+        "TArray",
+        "loaded-pointer",
+        "callback-field-write",
+        "neighbor-forbidden"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "payload source",
+          "field": "Payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R303_tarray_alias_callback_field_write",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "pdb",
+          "reason": "The callback writes A into the Payload field of the TArray element reached through Alias, and the sink reads Items[0].Payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "Alias->Payload store",
+          "function": "case_TV2R303_tarray_alias_callback_field_write",
+          "kind": "container_alias",
+          "node": "TArray<FTV2R303Item>[0].Payload",
+          "offset": "pdb",
+          "reason": "Alias is taken directly from &Items[0], so the field store and later indexed read target the same TArray element field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "Items[0].Payload load"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "Key",
+          "from": "Items[0].Key",
+          "function": "case_TV2R303_tarray_alias_callback_field_write",
+          "kind": "neighbor_field",
+          "node": "TArray<FTV2R303Item>[0].Key",
+          "offset": "pdb",
+          "reason": "Key is adjacent to Payload but is never read into Observed; including B would indicate field-insensitive TArray element taint.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Guard",
+          "from": "Items[0].Guard",
+          "function": "case_TV2R303_tarray_alias_callback_field_write",
+          "kind": "neighbor_field",
+          "node": "TArray<FTV2R303Item>[0].Guard",
+          "offset": "pdb",
+          "reason": "Guard is an adjacent stale field and must not taint the Payload sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
     }
   ]
 }
