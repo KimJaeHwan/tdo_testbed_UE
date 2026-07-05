@@ -121,13 +121,15 @@ def _doctor_path_errors(path: Path, kind: Any) -> list[str]:
 def _validate_proposed_case(payload: dict) -> list[str]:
     proposal = payload.get("proposal") or {}
     errors: list[str] = []
-    if proposal.get("target") not in {"suite10-cpp", "suite10-ue"}:
-        errors.append(f"invalid proposed target: {proposal.get('target')}")
+    target = proposal.get("target")
+    if target not in {"suite10-cpp", "suite10-ue"}:
+        errors.append(f"invalid proposed target: {target}")
     source_text = str(proposal.get("cpp_or_ue") or "")
     if not source_text.strip():
         errors.append("missing cpp_or_ue source snippet")
     else:
         errors.extend(_validate_case_source_text(source_text, "cpp_or_ue"))
+        errors.extend(_validate_target_source_text(source_text, str(target), "cpp_or_ue"))
     if not str(proposal.get("oracle_basis") or "").strip():
         errors.append("missing oracle_basis")
     if not str(proposal.get("independent_check") or proposal.get("independent_validation") or "").strip():
@@ -154,6 +156,16 @@ def _validate_case_source_text(source_text: str, source_name: str) -> list[str]:
         errors.append(f"{source_name}: sink marker returns void; call dfb_sink_* as a statement, not as a return value")
     if re.search(r"\bdfb_source_int\s*\(", source_text):
         errors.append(f"{source_name}: unsupported source marker dfb_source_int; use dfb_source_A/B/C")
+    return errors
+
+
+def _validate_target_source_text(source_text: str, target: str, source_name: str) -> list[str]:
+    errors: list[str] = []
+    if target == "suite10-ue":
+        if "UTraceCases2::" in source_text:
+            errors.append(f"{source_name}: suite10-ue cases must be standalone extern \"C\" symbols, not UTraceCases2 methods")
+        if not re.search(r'extern\s+"C"\s+TV2_NOINLINE\s+void\s+case_TV2[A-Za-z0-9_]*\s*\(', source_text):
+            errors.append(f"{source_name}: suite10-ue snippet must define extern \"C\" TV2_NOINLINE void case_TV2...(...)")
     return errors
 
 
@@ -318,7 +330,7 @@ def case_apply(args: argparse.Namespace, config: HarnessConfig) -> int:
     if not ok:
         print(json.dumps({**plan, "error": "approval required"}, ensure_ascii=False, indent=2, sort_keys=True))
         return 1
-    _append_source(target["source_file"], source_path.read_text(encoding="utf-8"), args.target)
+    _append_source(target["source_file"], source_path.read_text(encoding="utf-8"), args.target, manifest_case)
     _append_manifest_case(target["manifest"], manifest_case, replace=args.replace)
     print(json.dumps({**plan, "applied": True}, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
@@ -384,14 +396,38 @@ def _source_list(payload: Any, canonical: str, short: str) -> list:
     return value if isinstance(value, list) else [value]
 
 
-def _append_source(target_file: Path, snippet: str, target: str) -> None:
+def _append_source(target_file: Path, snippet: str, target: str, manifest_case: dict | None = None) -> None:
     text = target_file.read_text(encoding="utf-8")
     snippet = "\n\n" + _strip_proposal_source_header(snippet).strip() + "\n"
     if target == "suite10-cpp" and "} /* extern \"C\" */" in text:
         text = text.replace("\n} /* extern \"C\" */", snippet + "\n} /* extern \"C\" */")
+    elif target == "suite10-ue":
+        function = str((manifest_case or {}).get("function") or "").strip()
+        text = _ensure_ue_keepalive(text, function)
+        text = text.rstrip() + snippet + "\n"
     else:
         text = text.rstrip() + snippet + "\n"
     target_file.write_text(text, encoding="utf-8")
+
+
+def _ensure_ue_keepalive(text: str, function: str) -> str:
+    if not function:
+        return text
+    prototype = f'extern "C" TV2_NOINLINE void {function}();'
+    if prototype not in text:
+        marker = 'extern "C" TV2_NOINLINE void TraceRunAll2()'
+        if marker in text:
+            text = text.replace(marker, prototype + "\n" + marker, 1)
+    call = f"\t{function}();"
+    if call in text:
+        return text
+    pattern = r'(extern "C" TV2_NOINLINE void TraceRunAll2\(\)\n\{\n)(.*?)(\n\})'
+
+    def add_call(match: re.Match[str]) -> str:
+        return match.group(1) + match.group(2).rstrip() + "\n" + call + match.group(3)
+
+    updated, count = re.subn(pattern, add_call, text, count=1, flags=re.S)
+    return updated if count else text
 
 
 def _strip_proposal_source_header(snippet: str) -> str:

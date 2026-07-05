@@ -63,5 +63,7 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - 금지 예: `TV2...`, `DFB...`, `case_...`, `write_expected`, `dfb_source_A/B/C`, 고정 field offset을 Engine11 core 로직에 넣으라는 제안.
 - 허용 경계: source/sink marker와 manifest anchor는 wrapper/BoundaryProvider 계층의 테스트 하네스 입력으로만 사용한다.
 - `dfb_sink_*` marker는 void sink다. `return dfb_sink_int(...)`처럼 return 값으로 쓰지 말고, `dfb_sink_int(value);` statement로 호출한다.
+- `suite10-ue`의 `cpp_or_ue`는 `Source/TraceUnrealPlayground/TraceCases2.cpp`에 들어가는 독립 C 심볼이어야 한다. `extern "C" TV2_NOINLINE void case_TV2...()` 형태로 정의하고, `UTraceCases2::case_...` 같은 클래스 멤버 메서드를 만들지 않는다.
+- `suite10-ue` 케이스는 apply 단계에서 `TraceRunAll2()` keep-alive에 자동 등록된다. snippet 안에는 함수 본문과 필요한 local helper/type만 넣고, UObject 클래스 선언이나 새 UFUNCTION을 만들지 않는다.
 - 좋은 케이스는 특정 이름을 외우지 않아도 low-pcode graph, observed storage, metadata, summary evidence만으로 풀려야 한다.
 - fully green을 목표로 오라클을 약하게 만들지 말 것. FP를 유발할 수 있는 forbidden source를 반드시 설계하고 근거를 적는다.

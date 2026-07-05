@@ -317,6 +317,7 @@ python -m harness.engine_dev_loop \
   --analysis-calls 10 \
   --repair-on-regression \
   --editor-reasoning-effort high \
+  --repair-reasoning-effort xhigh \
   --editor-extra-instructions-file /tmp/tdo_operator_note.md
 ```
 
@@ -328,6 +329,10 @@ python -m harness.engine_dev_loop \
 `--editor-reasoning-effort`는 실제 `lowpcode_data_origin` 수정 담당 Codex CLI에만
 적용된다. 개발 cycle은 보통 `high`로 시작하고, 비용/한도 소모를 줄여야 할 때만
 `medium`으로 낮춘다.
+`--repair-reasoning-effort`는 repair context가 있는 cycle에만 적용된다. 기본값은
+`xhigh`라서 일반 개발은 `high`로 돌리다가, false positive나 regression이 생긴
+수리 cycle만 더 깊게 추론하게 할 수 있다. `--no-stop-on-regression`과 함께 써도
+repair가 `--stop-on-no-progress`보다 먼저 예약된다.
 
 Engine11 design lint:
 

@@ -270,12 +270,16 @@ python3 -m harness.engine_dev_loop \
 - `--editor-dry-run`은 회귀와 prompt 생성은 하되 Codex 편집 호출만 기록한다.
 - `--editor-reasoning-effort high|medium|low|xhigh`는 실제 엔진 수정 담당 Codex CLI에만
   적용한다. 개발은 보통 `high`, 한도 절약이 필요하면 `medium`이 적절하다.
+- `--repair-reasoning-effort`는 repair context가 있는 cycle에만 적용한다. 기본값은
+  `xhigh`라서 일반 개발 cycle은 `high`로 유지하면서, 기존 PASS 회귀나 새 false
+  positive를 만든 수리 cycle만 더 깊은 추론으로 돌릴 수 있다.
 - 사람이 중간 개입해야 하면 `--editor-extra-instructions` 또는
   `--editor-extra-instructions-file`로 다음 Codex 편집 프롬프트에 운영자 지시를 추가한다.
 - `--repair-on-regression`은 post-regression에서 기존 PASS 회귀나 새 false positive가
   발견되었을 때 즉시 종료하지 않고, 다음 cycle의 `Active repair context`에 그 악화
   정보를 넣어 재개한다. repair cycle은 직전 pre뿐 아니라 악화 전 baseline report와도
-  비교한다.
+  비교한다. `--no-stop-on-regression`과 같이 써도 repair 예약이
+  `--stop-on-no-progress`보다 먼저 적용된다.
 
 ### `harness/design_lint.py`
 

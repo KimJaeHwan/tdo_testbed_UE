@@ -586,6 +586,8 @@ def _run_engine_dev_loop(
         str(args.prompt_max_cases),
         "--editor-reasoning-effort",
         args.editor_reasoning_effort,
+        "--repair-reasoning-effort",
+        args.repair_reasoning_effort,
         "--editor-timeout",
         str(args.editor_timeout),
         "--repair-on-regression",
@@ -792,6 +794,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine-analysis-chunk-calls", type=int, default=6)
     parser.add_argument("--engine-analysis-chunk-tokens", type=int, default=100000)
     parser.add_argument("--editor-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
+    parser.add_argument("--repair-reasoning-effort", default="xhigh", choices=["", "low", "medium", "high", "xhigh"])
     parser.add_argument("--editor-timeout", type=float, default=7200.0)
     parser.add_argument(
         "--codex-bin",

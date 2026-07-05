@@ -14,6 +14,7 @@ build_ghidra_proj/
 dist/
 
 # ── Unreal 생성물 ──
+unreal_playground/TraceUnrealPlayground/Build/
 **/Intermediate/
 **/Saved/
 **/DerivedDataCache/

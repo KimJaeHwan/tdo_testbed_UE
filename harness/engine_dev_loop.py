@@ -477,8 +477,11 @@ def _run_editor(
     model = _model_from_config(config, args.editor_model)
     if model:
         cmd.extend(["--model", model])
+    effort = args.editor_reasoning_effort
+    if repair_context and args.repair_reasoning_effort:
+        effort = args.repair_reasoning_effort
     try:
-        _append_reasoning_effort(cmd, args.editor_reasoning_effort)
+        _append_reasoning_effort(cmd, effort)
     except ValueError as exc:
         return {"returncode": 2, "error": str(exc), "prompt_path": str(prompt_path), "command": cmd}
     if args.editor_profile:
@@ -489,7 +492,9 @@ def _run_editor(
         cmd.extend(["--local-provider", args.editor_local_provider])
     cmd.append("-")
 
-    print(f"[engine-dev-loop] editor: {model or 'codex-default'} sandbox={args.editor_sandbox}")
+    repair_suffix = " repair" if repair_context else ""
+    effort_suffix = f" effort={effort}" if effort else ""
+    print(f"[engine-dev-loop] editor{repair_suffix}: {model or 'codex-default'} sandbox={args.editor_sandbox}{effort_suffix}")
     proc = _run_logged(
         cmd,
         cycle_dir / "codex_engine_fix.log",
@@ -564,6 +569,10 @@ def _write_engine_diff(config: HarnessConfig, cycle_dir: Path) -> dict:
 
 
 def _write_state(path: Path, args: argparse.Namespace, status: str, cycles: list[dict], extra: dict | None = None) -> None:
+    has_extra_instructions = bool(
+        str(getattr(args, "editor_extra_instructions", "") or "").strip()
+        or str(getattr(args, "_editor_extra_instructions_file_text", "") or "").strip()
+    )
     write_json(
         path,
         {
@@ -575,7 +584,7 @@ def _write_state(path: Path, args: argparse.Namespace, status: str, cycles: list
             "mode": args.mode,
             "case_scope": args.case_scope,
             "editor_extra_instructions_file": str(args.editor_extra_instructions_file) if args.editor_extra_instructions_file else "",
-            "has_editor_extra_instructions": bool(args.editor_extra_instructions),
+            "has_editor_extra_instructions": has_extra_instructions,
             "repair_on_regression": bool(args.repair_on_regression),
             "cycles": cycles,
             **(extra or {}),
@@ -712,13 +721,14 @@ def run_dev_loop(args: argparse.Namespace) -> int:
         if comparison.get("fully_green"):
             status = "fully_green_after_edit"
             break
-        if args.stop_on_regression and not effective_no_worse:
+        if not effective_no_worse:
             repair_context = _repair_context_from_cycle(cycle) or repair_context
             if args.repair_on_regression and cycle_index < args.max_cycles and time.monotonic() < deadline:
                 status = "repair_cycle_pending"
                 continue
-            status = "regression_or_fp_worsened"
-            break
+            if args.stop_on_regression:
+                status = "regression_or_fp_worsened"
+                break
         if args.stop_on_no_progress and not comparison.get("objective_improved"):
             status = "no_progress_after_edit"
             break
@@ -775,6 +785,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument("--editor-model", default="")
     parser.add_argument("--editor-reasoning-effort", default="", choices=["", *sorted(REASONING_EFFORTS)])
+    parser.add_argument(
+        "--repair-reasoning-effort",
+        default="xhigh",
+        choices=["", *sorted(REASONING_EFFORTS)],
+        help="Reasoning effort for repair cycles after a regression or false positive. Defaults to xhigh.",
+    )
     parser.add_argument("--editor-profile", default="")
     parser.add_argument("--editor-sandbox", default="workspace-write", choices=["read-only", "workspace-write", "danger-full-access"])
     parser.add_argument("--editor-timeout", type=float, default=1800.0)
