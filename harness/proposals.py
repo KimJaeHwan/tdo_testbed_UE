@@ -178,6 +178,7 @@ def _write_case_work_item(root: Path, artifact: dict) -> dict:
             "schema_version": PROPOSAL_SCHEMA_VERSION,
             "kind": "case_expected_proposal",
             "case_id": case_id,
+            "target": proposal.get("target"),
             "expected": proposal.get("expected") or {},
             "expected_flow": proposal.get("expected_flow") or [],
             "forbidden_flow": proposal.get("forbidden_flow") or [],

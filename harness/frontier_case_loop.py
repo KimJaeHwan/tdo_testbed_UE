@@ -100,11 +100,29 @@ def _gap_note(args: argparse.Namespace) -> str:
     return "\n\n".join(piece for piece in pieces if piece)
 
 
+def _read_existing_case_ids(config: HarnessConfig) -> list[str]:
+    paths = [
+        ROOT / "cpp_like" / "manifests" / "cases_v2_manifest.json",
+        ROOT / "unreal_playground" / "manifests" / "cases_v2_manifest.json",
+        config.path("repos", "testbed_12_obf") / "manifests" / "cases_obf_manifest.json",
+    ]
+    case_ids: set[str] = set()
+    for path in paths:
+        payload = _read_json(path, {})
+        if not isinstance(payload, dict):
+            continue
+        for row in payload.get("cases") or []:
+            if isinstance(row, dict) and row.get("id"):
+                case_ids.add(str(row["id"]))
+    return sorted(case_ids)
+
+
 def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, report_path: Path, tasks_path: Path) -> dict:
     report = _read_json(report_path, [])
     if not isinstance(report, list):
         report = []
     capability_map = _read_json(config.path("output", "memory") / "capability_map.json", {})
+    existing_case_ids = _read_existing_case_ids(config)
     task = {
         "agent": "case_author",
         "schema_version": 1,
@@ -116,6 +134,13 @@ def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, re
             "report_metrics": _metrics(report),
             "gate": invariant_status(report, ROOT) if report else {},
             "gap_note": _gap_note(args),
+            "existing_case_ids": existing_case_ids,
+            "case_id_policy": {
+                "do_not_reuse_existing_case_ids": True,
+                "suite12_obf_prefix": "OBF",
+                "suite10_cpp_prefix": "TV2C",
+                "suite10_ue_prefix": "TV2R",
+            },
             "design_rules": {
                 "no_arg_no_ret": True,
                 "convention_free": True,
@@ -156,6 +181,8 @@ def _run_regression(args: argparse.Namespace, output_root: Path, phase: str) -> 
         cmd.extend(["--variant-filter", args.variant_filter])
     if args.include_proposed_regression:
         cmd.append("--include-proposed-regression")
+    if args.regression_jobs > 1:
+        cmd.extend(["--jobs", str(args.regression_jobs)])
     proc = _run_logged(cmd, output_root / f"{phase}.log")
     report_path = output_dir / "failure_report_v2.json"
     report = _read_json(report_path, [])
@@ -292,12 +319,17 @@ def _run_doctor(args: argparse.Namespace, output_root: Path, proposal_dir: Path)
 
 def _target_from_expected(expected_path: Path) -> str:
     payload = _read_json(expected_path, {})
+    target = str(payload.get("target") or "")
+    if target in {"suite10-cpp", "suite10-ue", "suite12-obf"}:
+        return target
     expected = payload.get("expected") if isinstance(payload, dict) else {}
     if not isinstance(expected, dict):
         expected = {}
     manifest_case = expected.get("manifest_case") if isinstance(expected.get("manifest_case"), dict) else {}
     binary = str(expected.get("binary") or manifest_case.get("binary") or "")
     source_file = str(expected.get("source_file") or manifest_case.get("source_file") or "")
+    if binary == "dfbench_obf_basic" or "cases_basic_obf.c" in source_file:
+        return "suite12-obf"
     if "unreal" in binary.lower() or "TraceCases2.cpp" in source_file:
         return "suite10-ue"
     return "suite10-cpp"
@@ -386,7 +418,7 @@ def _safe_label(text: str) -> str:
     return "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in text)[:160]
 
 
-def _regenerate_expected(args: argparse.Namespace, output_root: Path, apply_result: dict) -> dict:
+def _regenerate_expected(args: argparse.Namespace, config: HarnessConfig, output_root: Path, apply_result: dict) -> dict:
     applied_cases = _successful_applied_cases(apply_result)
     if not args.regenerate_expected:
         result = {"skipped": True, "reason": "regenerate_expected disabled", "rows": []}
@@ -397,19 +429,24 @@ def _regenerate_expected(args: argparse.Namespace, output_root: Path, apply_resu
         write_json(output_root / "expected_regeneration.json", result)
         return result
     scripts = {
-        "suite10-cpp": ROOT / "cpp_like" / "tools" / "generate_expected_from_manifest.py",
-        "suite10-ue": ROOT / "unreal_playground" / "tools" / "generate_expected_from_manifest.py",
+        "suite10-cpp": [ROOT / "cpp_like" / "tools" / "generate_expected_from_manifest.py"],
+        "suite10-ue": [ROOT / "unreal_playground" / "tools" / "generate_expected_from_manifest.py"],
+        "suite12-obf": [
+            config.path("repos", "testbed_12_obf") / "tools" / "generate_registry_from_manifest.py",
+            config.path("repos", "testbed_12_obf") / "tools" / "generate_expected_from_manifest.py",
+        ],
     }
     rows = []
     for target in sorted({case["target"] for case in applied_cases}):
-        script = scripts.get(target)
-        if script is None:
+        target_scripts = scripts.get(target)
+        if target_scripts is None:
             rows.append({"target": target, "returncode": 2, "error": f"unknown target: {target}"})
             continue
-        cmd = [sys.executable, str(script)]
-        log_path = output_root / "expected_regeneration" / f"{target}.log"
-        proc = _run_logged(cmd, log_path)
-        rows.append({"target": target, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
+        for index, script in enumerate(target_scripts, start=1):
+            cmd = [sys.executable, str(script)]
+            log_path = output_root / "expected_regeneration" / f"{target}_{index}_{script.stem}.log"
+            proc = _run_logged(cmd, log_path, cwd=script.parent.parent)
+            rows.append({"target": target, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
     result = {"skipped": False, "rows": rows}
     write_json(output_root / "expected_regeneration.json", result)
     return result
@@ -425,51 +462,97 @@ def _run_prepare_after_apply(args: argparse.Namespace, output_root: Path, apply_
         result = {"skipped": True, "reason": "no approved applied cases", "rows": []}
         write_json(output_root / "prepare_after_apply.json", result)
         return result
+    targets = sorted({case["target"] for case in applied_cases})
     profiles = _parse_csv(args.prepare_profiles, ["P0", "P1"])
     rows = []
-    for profile in profiles:
-        cmd = [
-            sys.executable,
-            "-m",
-            "harness.orchestrator",
-            "--config",
-            str(args.config),
-            "--suite",
-            "10",
-            "--mode",
-            args.mode,
-            "--prepare-only",
-            "--run-id",
-            f"{args.run_id}_prepare_{profile}",
-            "--output-dir",
-            str(output_root / "prepare_after_apply" / profile),
-            "--profile",
-            profile,
-            "--arch",
-            args.prepare_arch,
-        ]
-        if args.force_prepare:
-            cmd.append("--force-prepare")
-        if args.skip_tier0_prepare:
-            cmd.append("--skip-tier0-prepare")
-        if args.include_ue_build:
-            cmd.append("--include-ue-build")
-        if args.include_ue_extract:
-            cmd.append("--include-ue-extract")
-        log_path = output_root / "prepare_after_apply" / f"{profile}.log"
-        proc = _run_logged(cmd, log_path)
-        rows.append({"profile": profile, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
+    for target in targets:
+        suite = _suite_for_target(target)
+        if suite is None:
+            rows.append({"target": target, "returncode": 2, "error": f"unknown target: {target}"})
+            continue
+        for profile in profiles:
+            if target != "suite12-obf" and profile.startswith("OLLVM_"):
+                continue
+            variant_filter = _variant_filter_for_target_profile(target, profile)
+            out_dir = output_root / "prepare_after_apply" / _safe_label(target) / profile
+            cmd = [
+                sys.executable,
+                "-m",
+                "harness.orchestrator",
+                "--config",
+                str(args.config),
+                "--suite",
+                suite,
+                "--mode",
+                args.mode,
+                "--prepare-only",
+                "--run-id",
+                f"{args.run_id}_prepare_{_safe_label(target)}_{profile}",
+                "--output-dir",
+                str(out_dir),
+                "--profile",
+                profile,
+            ]
+            if target != "suite12-obf":
+                cmd.extend(["--arch", args.prepare_arch])
+            if args.force_prepare:
+                cmd.append("--force-prepare")
+            if args.skip_tier0_prepare:
+                cmd.append("--skip-tier0-prepare")
+            if args.include_ue_build:
+                cmd.append("--include-ue-build")
+            if args.include_ue_extract:
+                cmd.append("--include-ue-extract")
+            log_path = output_root / "prepare_after_apply" / f"{_safe_label(target)}_{profile}.log"
+            proc = _run_logged(cmd, log_path)
+            rows.append(
+                {
+                    "target": target,
+                    "profile": profile,
+                    "variant_filter": variant_filter,
+                    "command": cmd,
+                    "returncode": proc.returncode,
+                    "log_path": str(log_path),
+                }
+            )
     result = {"skipped": False, "rows": rows}
     write_json(output_root / "prepare_after_apply.json", result)
     return result
-
 
 def _default_variant_filter_for_target(target: str) -> str:
     if target == "suite10-cpp":
         return "tv2-tier0"
     if target == "suite10-ue":
         return "ue-local"
+    if target == "suite12-obf":
+        return "obf-P0"
     return ""
+
+
+def _suite_for_target(target: str) -> str | None:
+    if target in {"suite10-cpp", "suite10-ue"}:
+        return "10"
+    if target == "suite12-obf":
+        return "12"
+    return None
+
+
+def _variant_filter_for_target_profile(target: str, profile: str) -> str:
+    if target == "suite12-obf":
+        return f"obf-{profile}"
+    return _default_variant_filter_for_target(target)
+
+
+def _root_case_filter(case_id: str) -> str:
+    return case_id if case_id.startswith("case_") else f"case_{case_id}"
+
+
+def _post_apply_variant_filters_for_target(args: argparse.Namespace, target: str) -> list[str]:
+    if args.post_apply_variant_filter:
+        return [args.post_apply_variant_filter]
+    if target == "suite12-obf":
+        return [f"obf-{profile}" for profile in _parse_csv(args.prepare_profiles, ["P0", "P1"])]
+    return [_default_variant_filter_for_target(target)]
 
 
 def _run_post_apply_regressions(args: argparse.Namespace, output_root: Path, apply_result: dict) -> dict:
@@ -486,45 +569,51 @@ def _run_post_apply_regressions(args: argparse.Namespace, output_root: Path, app
     for case in applied_cases:
         case_id = case["case_id"]
         target = case["target"]
-        variant_filter = args.post_apply_variant_filter or _default_variant_filter_for_target(target)
-        out_dir = output_root / "post_apply_regression" / _safe_label(case_id)
-        cmd = [
-            sys.executable,
-            "-m",
-            "harness.orchestrator",
-            "--config",
-            str(args.config),
-            "--suite",
-            "10",
-            "--mode",
-            args.mode,
-            "--run-id",
-            f"{args.run_id}_post_apply_{_safe_label(case_id)}",
-            "--output-dir",
-            str(out_dir),
-            "--case-filter",
-            case_id,
-            "--case-scope",
-            args.case_scope,
-            "--include-proposed-regression",
-            "--no-cache",
-        ]
-        if variant_filter:
-            cmd.extend(["--variant-filter", variant_filter])
-        proc = _run_logged(cmd, output_root / "post_apply_regression" / f"{_safe_label(case_id)}.log")
-        report = _read_json(out_dir / "failure_report_v2.json", [])
-        rows.append(
-            {
-                "case_id": case_id,
-                "target": target,
-                "variant_filter": variant_filter,
-                "command": cmd,
-                "returncode": proc.returncode,
-                "output_dir": str(out_dir),
-                "report_path": str(out_dir / "failure_report_v2.json"),
-                "metrics": _metrics(report if isinstance(report, list) else []),
-            }
-        )
+        suite = _suite_for_target(target)
+        if suite is None:
+            rows.append({"case_id": case_id, "target": target, "returncode": 2, "error": f"unknown target: {target}"})
+            continue
+        for variant_filter in _post_apply_variant_filters_for_target(args, target):
+            out_dir = output_root / "post_apply_regression" / _safe_label(case_id) / _safe_label(variant_filter or "all")
+            cmd = [
+                sys.executable,
+                "-m",
+                "harness.orchestrator",
+                "--config",
+                str(args.config),
+                "--suite",
+                suite,
+                "--mode",
+                args.mode,
+                "--run-id",
+                f"{args.run_id}_post_apply_{_safe_label(case_id)}_{_safe_label(variant_filter or 'all')}",
+                "--output-dir",
+                str(out_dir),
+                "--case-filter",
+                _root_case_filter(case_id),
+                "--case-scope",
+                args.case_scope,
+                "--include-proposed-regression",
+                "--no-cache",
+            ]
+            if variant_filter:
+                cmd.extend(["--variant-filter", variant_filter])
+            if args.regression_jobs > 1:
+                cmd.extend(["--jobs", str(args.regression_jobs)])
+            proc = _run_logged(cmd, output_root / "post_apply_regression" / f"{_safe_label(case_id)}_{_safe_label(variant_filter or 'all')}.log")
+            report = _read_json(out_dir / "failure_report_v2.json", [])
+            rows.append(
+                {
+                    "case_id": case_id,
+                    "target": target,
+                    "variant_filter": variant_filter,
+                    "command": cmd,
+                    "returncode": proc.returncode,
+                    "output_dir": str(out_dir),
+                    "report_path": str(out_dir / "failure_report_v2.json"),
+                    "metrics": _metrics(report if isinstance(report, list) else []),
+                }
+            )
     result = {"skipped": False, "rows": rows}
     write_json(output_root / "post_apply_regression.json", result)
     return result
@@ -547,7 +636,12 @@ def _engine_focus(applied_cases: list[dict], args: argparse.Namespace) -> tuple[
     if not args.engine_focus_applied_cases or len(applied_cases) != 1:
         return None, None, None
     case = applied_cases[0]
-    return "10", case["case_id"], args.post_apply_variant_filter or _default_variant_filter_for_target(case["target"])
+    suite = _suite_for_target(case["target"])
+    variant_filter = args.post_apply_variant_filter or _default_variant_filter_for_target(case["target"])
+    if case["target"] == "suite12-obf" and not args.post_apply_variant_filter:
+        profile = _parse_csv(args.prepare_profiles, ["P0", "P1"])[0]
+        variant_filter = f"obf-{profile}"
+    return suite, _root_case_filter(case["case_id"]), variant_filter
 
 
 def _run_engine_dev_loop(
@@ -604,6 +698,10 @@ def _run_engine_dev_loop(
         cmd.extend(["--case-filter", case_filter])
     if variant_filter:
         cmd.extend(["--variant-filter", variant_filter])
+    if args.regression_jobs > 1:
+        cmd.extend(["--regression-jobs", str(args.regression_jobs)])
+    if args.engine_allow_dirty:
+        cmd.append("--allow-dirty-engine")
     if args.operator_note_file:
         cmd.extend(["--editor-extra-instructions-file", str(args.operator_note_file)])
     proc = _run_logged(cmd, output_root / "engine_dev_loop.log")
@@ -687,7 +785,7 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
         write_json(state_path, state)
         return 3
 
-    expected = _regenerate_expected(args, output_root, apply_result)
+    expected = _regenerate_expected(args, config, output_root, apply_result)
     state["phases"].append({"name": "expected_regeneration", **expected})
     if any(row.get("returncode") != 0 for row in expected.get("rows") or []):
         state["status"] = "expected_regeneration_failed"
@@ -754,6 +852,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--case-scope", default="auto", choices=["auto", "always", "never"])
     parser.add_argument("--case-filter", default="")
     parser.add_argument("--variant-filter", default="")
+    parser.add_argument(
+        "--regression-jobs",
+        type=int,
+        default=1,
+        help="Pass orchestrator --jobs and nested engine_dev_loop --regression-jobs to regression phases.",
+    )
     parser.add_argument("--include-proposed-regression", action="store_true")
     parser.add_argument("--prompt-max-cases", type=int, default=24)
     parser.add_argument("--gap-note", default="")
@@ -788,6 +892,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-engine-dev-loop", action="store_true")
     parser.add_argument("--engine-focus-applied-cases", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--engine-skip-if-post-apply-green", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--engine-allow-dirty",
+        action="store_true",
+        help="Allow nested engine_dev_loop to continue from already-reviewed dirty Engine11 changes during long auto loops.",
+    )
     parser.add_argument("--engine-duration-hours", type=float, default=3.0)
     parser.add_argument("--engine-max-cycles", type=int, default=6)
     parser.add_argument("--engine-analysis-calls", type=int, default=12)

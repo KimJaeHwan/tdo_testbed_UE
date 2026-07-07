@@ -97,6 +97,27 @@ python -m harness.orchestrator --suite 12 --mode local-samples --prepare-artifac
 조합을 압박하는 frontier profile이다. 안정 회귀만 보고 싶으면
 `--variant-filter`로 통과 profile을 좁혀 실행한다.
 
+기본 OLLVM profile은 AArch64 Docker image를 사용한다. OLLVM 난독화를 다른
+아키텍처에도 걸려면 suffix profile을 사용한다.
+
+```bash
+cd ../tdo_testbed_Obf
+OBF_OLLVM_ARCH=x64 scripts/setup_ollvm_docker.sh
+cd ../tdo_testbed_UE
+python -m harness.orchestrator \
+  --suite 12 \
+  --mode local-samples \
+  --prepare-artifacts \
+  --force-prepare \
+  --profile OLLVM_ALL_x64 \
+  --variant-filter obf-OLLVM_ALL_x64
+```
+
+지원 suffix는 `_aarch64`, `_x64`, `_x86`, `_armv7`이다. 이미지가 없으면
+`setup_ollvm_docker.sh`를 arch별로 먼저 실행해야 한다. 각 suffix는 별도
+`samples/low_pcode/<profile>_<arch>` 디렉터리를 사용하므로 기존 AArch64
+샘플과 섞이지 않는다.
+
 Suite12 OLLVM 반복 rebuild/extract/analyze 루프:
 
 ```bash
@@ -109,14 +130,15 @@ python -m harness.obf_rebuild_loop \
 ```
 
 처음 실행해서 `tdo-testbed-obf-ollvm:llvm4` 이미지가 아직 없으면
-`--setup-docker-image`를 한 번 붙인다. 이 단계는 obfuscator-llvm/LLVM을 Docker
+`--setup-docker-image`를 한 번 붙인다. suffix profile을 같이 주면 필요한
+arch-specific image도 같이 준비한다. 이 단계는 obfuscator-llvm/LLVM을 Docker
 이미지 안에서 빌드하므로 오래 걸릴 수 있다.
 
 ```bash
 python -m harness.obf_rebuild_loop \
   --config harness/config.yaml.example \
   --run-id obf_ollvm_setup_and_smoke \
-  --profiles OLLVM_ALL \
+  --profiles OLLVM_ALL,OLLVM_ALL_x64 \
   --max-cycles 1 \
   --setup-docker-image \
   --clean-output
@@ -132,10 +154,96 @@ python -m harness.obf_rebuild_loop \
 python -m harness.obf_rebuild_loop \
   --config harness/config.yaml.example \
   --run-id obf_ollvm_unlimited \
-  --profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL,OLLVM_ALL_x64 \
   --max-cycles 0 \
   --duration-hours 4.5 \
   --clean-output
+```
+
+이 루프는 **새 케이스를 만들지 않는다**. 기존 Suite12 케이스를 매 cycle마다 다시
+빌드/추출/검증하는 압박 루프다.
+
+Suite12에서 신규 OBF 케이스 생성까지 닫힌 루프로 연결하려면
+`harness.frontier_case_loop`를 `--suite 12`로 실행한다. 이 경로는
+`case_author` proposal을 만들고, `suite12-obf` target으로 `src/cases_basic_obf.c`와
+`manifests/cases_obf_manifest.json`에 적용할 수 있으며, 적용 후
+`generate_registry_from_manifest.py`와 `generate_expected_from_manifest.py`를 호출한다.
+
+먼저 source/manifest를 바꾸지 않는 배선 smoke:
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 12 \
+  --mode local-samples \
+  --run-id suite12_offline_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --offline-case-author \
+  --apply-mode dry-run
+```
+
+Codex case_author가 신규 OBF 케이스를 만들고, 승인 적용 후 OLLVM 빌드/추출/회귀와
+Engine11 수리까지 이어가는 형태:
+
+```bash
+python -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 12 \
+  --mode local-samples \
+  --run-id suite12_obf_case_engine_closed \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --author-reasoning-effort high \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --post-apply-regression \
+  --run-engine-dev-loop \
+  --engine-duration-hours 3.0 \
+  --engine-max-cycles 6 \
+  --engine-analysis-calls 12 \
+  --editor-reasoning-effort high \
+  --repair-reasoning-effort xhigh
+```
+
+위 닫힌 루프를 여러 cycle 반복하고, 각 cycle에서 생성/적용된 케이스를 ledger로
+남기려면 `frontier_auto_loop`로 감싼다. `--` 뒤 옵션은 그대로
+`frontier_case_loop`에 전달된다.
+
+```bash
+python -m harness.frontier_auto_loop \
+  --config harness/config.yaml.example \
+  --run-id suite12_obf_auto_loop \
+  --clean-output \
+  --max-cycles 0 \
+  --duration-hours 4.5 \
+  --setup-suite12-docker-image \
+  -- \
+  --suite 12 \
+  --mode local-samples \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --author-reasoning-effort high \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --post-apply-regression \
+  --run-engine-dev-loop \
+  --engine-duration-hours 3.0 \
+  --engine-max-cycles 6 \
+  --engine-analysis-calls 12 \
+  --editor-reasoning-effort high \
+  --repair-reasoning-effort xhigh
 ```
 
 Tier0 C/C++ 로컬 build/extract:
@@ -192,6 +300,7 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
                            이전 run id/output dir/failure_report_v2.json 기준 I3 비교
 --no-cache                engine/verify 캐시 재사용 끄기
 --no-ledger               memory ledger 갱신 끄기
+--jobs N                  variant 단위 병렬 프로세스 실행
 ```
 
 산출물:
@@ -313,6 +422,9 @@ python -m harness.engine_dev_loop \
 `compileall`과 사후 회귀를 실행하고, 이전 PASS가 깨지거나 ERROR/false positive가
 증가하면 diff와 로그를 남긴 뒤 멈춘다. expected/manifest/testbed 파일은 자동 편집
 대상이 아니며, 루프 시작 시 Engine11 repo가 dirty면 기본적으로 중단한다.
+회귀 병목이 크면 `--regression-jobs N`을 주어 pre/post orchestrator 회귀를
+variant 단위 멀티프로세스로 실행한다. 케이스 내부 순서는 그대로 두고 variant별
+프로세스만 분리하므로 Engine11 builder 상태를 공유하지 않는다.
 
 작게 점검하려면 편집 없이:
 

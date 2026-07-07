@@ -432,6 +432,89 @@ python3 -m harness.obf_rebuild_loop \
   --clean-output
 ```
 
+이 파일은 신규 케이스를 만들지 않는다. 신규 OBF 케이스 생성까지 자동화하려면
+`harness/frontier_case_loop.py`를 `--suite 12`로 실행한다. Suite12 target 이름은
+`suite12-obf`이며 apply 단계는 다음 파일만 관리한다.
+
+- `tdo_testbed_Obf/src/cases_basic_obf.c`
+- `tdo_testbed_Obf/manifests/cases_obf_manifest.json`
+- manifest 기반 재생성: `tools/generate_registry_from_manifest.py`,
+  `tools/generate_expected_from_manifest.py`
+
+Suite12 case_author 배선 smoke:
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 12 \
+  --mode local-samples \
+  --run-id suite12_offline_case_author_dryrun \
+  --clean-output \
+  --include-proposed-regression \
+  --offline-case-author \
+  --apply-mode dry-run
+```
+
+Suite12 닫힌 루프 예:
+
+```bash
+python3 -m harness.frontier_case_loop \
+  --config harness/config.yaml.example \
+  --suite 12 \
+  --mode local-samples \
+  --run-id suite12_obf_case_engine_closed \
+  --clean-output \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --post-apply-regression \
+  --run-engine-dev-loop \
+  --engine-duration-hours 3.0 \
+  --engine-max-cycles 6 \
+  --engine-analysis-calls 12 \
+  --repair-reasoning-effort xhigh
+```
+
+여러 frontier cycle을 사람이 중간 감리할 때까지 반복하려면
+`harness/frontier_auto_loop.py`를 사용한다. 이 래퍼는 각 cycle마다
+`frontier_case_loop`를 실행하고, 생성/적용된 케이스 목록을
+`frontier_auto_loop_state.json`에 기록한다. `--` 뒤 인자는 cycle마다
+`frontier_case_loop`에 그대로 전달된다.
+
+```bash
+python3 -m harness.frontier_auto_loop \
+  --config harness/config.yaml.example \
+  --run-id suite12_obf_auto_loop \
+  --clean-output \
+  --max-cycles 0 \
+  --duration-hours 4.5 \
+  --setup-suite12-docker-image \
+  -- \
+  --suite 12 \
+  --mode local-samples \
+  --include-proposed-regression \
+  --author-calls 8 \
+  --author-chunk-calls 4 \
+  --author-chunk-tokens 100000 \
+  --gap-note-file /tmp/tdo_operator_note.md \
+  --apply-mode approved \
+  --allow-unapproved-case-apply \
+  --prepare-after-apply \
+  --prepare-profiles OLLVM_FLA_SPLIT,OLLVM_FLA_SUB_SPLIT,OLLVM_ALL \
+  --post-apply-regression \
+  --run-engine-dev-loop \
+  --engine-duration-hours 3.0 \
+  --engine-max-cycles 6 \
+  --engine-analysis-calls 12 \
+  --repair-reasoning-effort xhigh
+```
+
 ```bash
 cat > output/harness/engine_dev_09_10/operator_note.md <<'EOF'
 Next cycle: inspect TV2R001 observed-memory cut first.

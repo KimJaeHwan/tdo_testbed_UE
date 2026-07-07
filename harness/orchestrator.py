@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import uuid
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 from .adapters import PrepareStep, Variant, selected_prepare_steps, selected_variants
@@ -27,10 +28,12 @@ from .reporting import (
 
 
 TIER0_ARCHES = ["x86", "x64", "armv7", "aarch64"]
-BUILD_PROFILES = [
+HOST_BUILD_PROFILES = [
     "P0",
     "P1",
     "P2",
+]
+OLLVM_BUILD_PROFILES = [
     "OLLVM_FLA",
     "OLLVM_SUB",
     "OLLVM_BCF",
@@ -42,6 +45,12 @@ BUILD_PROFILES = [
     "OLLVM_FLA_SUB_SPLIT",
     "OLLVM_ALL",
 ]
+OLLVM_ARCH_SUFFIXES = ["aarch64", "x64", "x86", "armv7"]
+BUILD_PROFILES = (
+    HOST_BUILD_PROFILES
+    + OLLVM_BUILD_PROFILES
+    + [f"{profile}_{arch}" for profile in OLLVM_BUILD_PROFILES for arch in OLLVM_ARCH_SUFFIXES]
+)
 DEFAULT_CASE_SCOPE_FILE_THRESHOLD = 32
 DEFAULT_CASE_SCOPE_BYTE_THRESHOLD = 128 * 1024 * 1024
 PREPARE_CACHE_SCHEMA_VERSION = 1
@@ -350,6 +359,86 @@ class Engine11Runner:
         }
 
 
+def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
+    os.environ["TDO_HARNESS_NO_VENV_REEXEC"] = "1"
+    config_path = Path(payload["config_path"])
+    config = HarnessConfig.load(config_path if config_path.exists() else None)
+    memory = None
+    if payload.get("use_cache") and payload.get("memory_base"):
+        memory = Memory(Path(payload["memory_base"]))
+    runner = Engine11Runner(
+        config,
+        Path(payload["output_root"]),
+        memory=memory,
+        use_cache=bool(payload["use_cache"]),
+        case_scope_policy=str(payload["case_scope_policy"]),
+        case_scope_file_threshold=int(payload["case_scope_file_threshold"]),
+        case_scope_byte_threshold=int(payload["case_scope_byte_threshold"]),
+        include_proposed_regressions=bool(payload["include_proposed_regressions"]),
+    )
+    return int(payload["index"]), runner.run_variant(
+        str(payload["run_id"]),
+        payload["variant"],
+        str(payload["run_config_hash"]),
+    )
+
+
+def _run_variants_parallel(
+    *,
+    config_path: Path,
+    output_root: Path,
+    memory: Memory | None,
+    use_cache: bool,
+    variants: list[Variant],
+    run_id: str,
+    run_config_hash: str,
+    case_scope_policy: str,
+    case_scope_file_threshold: int,
+    case_scope_byte_threshold: int,
+    include_proposed_regressions: bool,
+    jobs: int,
+) -> list[dict]:
+    worker_count = max(1, min(jobs, len(variants)))
+    reports_by_index: dict[int, list[dict]] = {}
+    payloads = [
+        {
+            "index": index,
+            "config_path": str(config_path),
+            "output_root": str(output_root),
+            "memory_base": str(memory.base) if memory is not None else "",
+            "use_cache": use_cache,
+            "variant": variant,
+            "run_id": run_id,
+            "run_config_hash": run_config_hash,
+            "case_scope_policy": case_scope_policy,
+            "case_scope_file_threshold": case_scope_file_threshold,
+            "case_scope_byte_threshold": case_scope_byte_threshold,
+            "include_proposed_regressions": include_proposed_regressions,
+        }
+        for index, variant in enumerate(variants)
+    ]
+
+    def collect(executor) -> None:
+        futures = {executor.submit(_run_variant_worker, payload): payload["index"] for payload in payloads}
+        for future in as_completed(futures):
+            index, rows = future.result()
+            reports_by_index[index] = rows
+
+    try:
+        with ProcessPoolExecutor(max_workers=worker_count) as executor:
+            collect(executor)
+    except PermissionError as exc:
+        print(f"[harness] process pool unavailable ({exc}); falling back to serial execution", file=sys.stderr)
+        for payload in payloads:
+            index, rows = _run_variant_worker(payload)
+            reports_by_index[index] = rows
+
+    reports: list[dict] = []
+    for index in range(len(variants)):
+        reports.extend(reports_by_index.get(index, []))
+    return reports
+
+
 def _parse_suites(text: str) -> set[str]:
     aliases = {
         "9": "09",
@@ -557,6 +646,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-ledger", action="store_true", help="Do not update harness memory ledgers.")
     parser.add_argument("--no-cache", action="store_true", help="Do not reuse cached verify results.")
     parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="Run selected variants in parallel worker processes. Case order remains deterministic within each variant.",
+    )
+    parser.add_argument(
         "--regression-baseline",
         default="",
         help="Compare I3 against a prior run id, output directory, or failure_report_v2.json path.",
@@ -592,6 +687,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = HarnessConfig.load(args.config if args.config.exists() else None)
+    _ensure_engine_python(config.path("repos", "engine_11"))
     mode = args.mode or str(config.value("defaults", "mode", "release-artifacts"))
     suites = _parse_suites(args.suite)
     run_id = args.run_id or uuid.uuid4().hex[:12]
@@ -666,20 +762,39 @@ def main(argv: list[str] | None = None) -> int:
     }
     run_config_hash = canonical_hash(run_config)
 
-    runner = Engine11Runner(
-        config,
-        output_root,
-        memory=memory,
-        use_cache=not args.no_cache,
-        case_scope_policy=str(run_config["case_scope"]),
-        case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
-        case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
-        include_proposed_regressions=bool(run_config["include_proposed_regression"]),
-    )
     reports: list[dict] = []
+    jobs = max(1, int(args.jobs))
     for variant in variants:
-        print(f"[harness] {variant.label}: {variant.sample_dir}")
-        reports.extend(runner.run_variant(run_id, variant, run_config_hash))
+        suffix = f" [parallel x{min(jobs, len(variants))}]" if jobs > 1 and len(variants) > 1 else ""
+        print(f"[harness] {variant.label}: {variant.sample_dir}{suffix}")
+    if jobs > 1 and len(variants) > 1:
+        reports = _run_variants_parallel(
+            config_path=args.config,
+            output_root=output_root,
+            memory=memory,
+            use_cache=not args.no_cache,
+            variants=variants,
+            run_id=run_id,
+            run_config_hash=run_config_hash,
+            case_scope_policy=str(run_config["case_scope"]),
+            case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
+            case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
+            include_proposed_regressions=bool(run_config["include_proposed_regression"]),
+            jobs=jobs,
+        )
+    else:
+        runner = Engine11Runner(
+            config,
+            output_root,
+            memory=memory,
+            use_cache=not args.no_cache,
+            case_scope_policy=str(run_config["case_scope"]),
+            case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
+            case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
+            include_proposed_regressions=bool(run_config["include_proposed_regression"]),
+        )
+        for variant in variants:
+            reports.extend(runner.run_variant(run_id, variant, run_config_hash))
 
     summary = summarize(reports)
     gate = invariant_status(reports, ROOT)

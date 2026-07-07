@@ -99,7 +99,7 @@ def validate_agent_output(task: dict, output: dict) -> dict:
         for index, proposed in enumerate(proposed_cases):
             if not proposed.get("id"):
                 errors.append(f"proposed_cases[{index}] missing id")
-            if proposed.get("target") not in {"suite10-cpp", "suite10-ue"}:
+            if proposed.get("target") not in {"suite10-cpp", "suite10-ue", "suite12-obf"}:
                 errors.append(f"proposed_cases[{index}] invalid target: {proposed.get('target')}")
             if not proposed.get("cpp_or_ue"):
                 errors.append(f"proposed_cases[{index}] missing cpp_or_ue")

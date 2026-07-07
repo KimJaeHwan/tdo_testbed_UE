@@ -163,6 +163,43 @@ Known DebugGame false-positive reproduction:
 TV2U008 and TV2U009 reach forbidden dfb_source_B.ret
 ```
 
+## Suite12 OLLVM
+
+Suite12 lives at:
+
+```bash
+/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_Obf
+```
+
+Current Docker OLLVM default is AArch64:
+
+```text
+OBF_OLLVM_ARCH=aarch64
+image: tdo-testbed-obf-ollvm:llvm4
+platform: linux/arm64
+LLVM_TARGETS: AArch64
+```
+
+Architecture-specific OLLVM profiles use suffixes and separate sample roots:
+
+```text
+OLLVM_ALL          -> samples/low_pcode/OLLVM_ALL          -> AArch64
+OLLVM_ALL_x64      -> samples/low_pcode/OLLVM_ALL_x64      -> x86_64
+OLLVM_ALL_x86      -> samples/low_pcode/OLLVM_ALL_x86      -> x86
+OLLVM_ALL_armv7    -> samples/low_pcode/OLLVM_ALL_armv7    -> armv7
+OLLVM_ALL_aarch64  -> samples/low_pcode/OLLVM_ALL_aarch64  -> AArch64 explicit suffix
+```
+
+The original `tdo-testbed-obf-ollvm:llvm4` image was built with only the
+AArch64 backend. Build suffix images before running non-AArch64 OLLVM profiles:
+
+```bash
+cd /Volumes/DO/00_gitProject/01_tdo/tdo_testbed_Obf
+OBF_OLLVM_ARCH=x64 scripts/setup_ollvm_docker.sh
+OBF_OLLVM_ARCH=x86 scripts/setup_ollvm_docker.sh
+OBF_OLLVM_ARCH=armv7 scripts/setup_ollvm_docker.sh
+```
+
 ## Common Commands
 
 Environment check:

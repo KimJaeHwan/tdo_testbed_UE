@@ -28,6 +28,8 @@ OLLVM_PROFILES = (
     "OLLVM_FLA_SUB_SPLIT",
     "OLLVM_ALL",
 )
+OLLVM_ARCHES = ("aarch64", "x64", "x86", "armv7")
+OLLVM_ARCH_PROFILES = tuple(f"{profile}_{arch}" for profile in OLLVM_PROFILES for arch in OLLVM_ARCHES)
 HOST_PROFILES = ("P0", "P1", "P2")
 
 
@@ -45,6 +47,8 @@ def _parse_profiles(raw: str) -> list[str]:
     aliases = {
         "all-ollvm": list(OLLVM_PROFILES),
         "ollvm": list(OLLVM_PROFILES),
+        "all-ollvm-arch": list(OLLVM_ARCH_PROFILES),
+        "ollvm-arch": list(OLLVM_ARCH_PROFILES),
         "all-host": list(HOST_PROFILES),
         "host": list(HOST_PROFILES),
         "all": list(HOST_PROFILES + OLLVM_PROFILES),
@@ -53,13 +57,29 @@ def _parse_profiles(raw: str) -> list[str]:
     if key in aliases:
         return aliases[key]
     profiles = [item.strip() for item in raw.split(",") if item.strip()]
-    allowed = set(HOST_PROFILES + OLLVM_PROFILES)
+    allowed = set(HOST_PROFILES + OLLVM_PROFILES + OLLVM_ARCH_PROFILES)
     unknown = [profile for profile in profiles if profile not in allowed]
     if unknown:
         raise ValueError(f"unknown Suite12 profile(s): {', '.join(unknown)}")
     if not profiles:
         raise ValueError("at least one profile is required")
     return profiles
+
+
+def _ollvm_arch_from_profile(profile: str) -> str:
+    for arch in sorted(OLLVM_ARCHES, key=len, reverse=True):
+        if profile.endswith(f"_{arch}"):
+            return arch
+    return "aarch64" if profile.startswith("OLLVM_") else ""
+
+
+def _default_ollvm_image(arch: str) -> str:
+    return {
+        "aarch64": "tdo-testbed-obf-ollvm:llvm4",
+        "x64": "tdo-testbed-obf-ollvm:llvm4-x64",
+        "x86": "tdo-testbed-obf-ollvm:llvm4-x86",
+        "armv7": "tdo-testbed-obf-ollvm:llvm4-armv7",
+    }.get(arch, f"tdo-testbed-obf-ollvm:llvm4-{arch}")
 
 
 def _run_logged(cmd: list[str], log_path: Path, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -117,6 +137,7 @@ def _build_orchestrator_cmd(
         cmd.append("--no-ledger")
     if args.prepare_dry_run:
         cmd.append("--prepare-dry-run")
+        cmd.append("--prepare-only")
     if args.case_filter:
         cmd.extend(["--case-filter", args.case_filter])
     if args.case_scope:
@@ -124,12 +145,23 @@ def _build_orchestrator_cmd(
     return cmd
 
 
-def _run_setup_docker_image(args: argparse.Namespace, config: HarnessConfig, output_root: Path) -> dict:
+def _run_setup_docker_image(args: argparse.Namespace, config: HarnessConfig, output_root: Path, profiles: list[str]) -> dict:
     obf_root = config.path("repos", "testbed_12_obf")
-    cmd = ["bash", str(obf_root / "scripts" / "setup_ollvm_docker.sh")]
-    log_path = output_root / "setup_ollvm_docker.log"
-    proc = _run_logged(cmd, log_path, cwd=obf_root)
-    return {"command": cmd, "returncode": proc.returncode, "log_path": str(log_path)}
+    arches = sorted({arch for arch in (_ollvm_arch_from_profile(profile) for profile in profiles) if arch})
+    rows = []
+    for arch in arches or ["aarch64"]:
+        image = _default_ollvm_image(arch)
+        cmd = ["env", f"OBF_OLLVM_ARCH={arch}", f"OBF_OLLVM_IMAGE={image}", "bash", str(obf_root / "scripts" / "setup_ollvm_docker.sh")]
+        log_path = output_root / f"setup_ollvm_docker_{arch}.log"
+        proc = _run_logged(cmd, log_path, cwd=obf_root)
+        rows.append({"arch": arch, "image": image, "command": cmd, "returncode": proc.returncode, "log_path": str(log_path)})
+        if proc.returncode != 0:
+            break
+    return {
+        "arches": arches or ["aarch64"],
+        "rows": rows,
+        "returncode": 1 if any(row.get("returncode") != 0 for row in rows) else 0,
+    }
 
 
 def _run_profile_cycle(args: argparse.Namespace, profile: str, cycle_index: int, cycle_dir: Path) -> dict:
@@ -200,7 +232,7 @@ def run_loop(args: argparse.Namespace) -> int:
     write_json(state_path, state)
 
     if args.setup_docker_image:
-        setup = _run_setup_docker_image(args, config, output_root)
+        setup = _run_setup_docker_image(args, config, output_root, profiles)
         state["setup_docker_image"] = setup
         state["updated_at"] = _now()
         write_json(state_path, state)

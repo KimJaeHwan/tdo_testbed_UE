@@ -316,6 +316,12 @@ class Suite09Adapter:
 
 
 class Suite12ObfAdapter:
+    OLLVM_ARCHES = {
+        "aarch64": "aarch64",
+        "x64": "x86_64",
+        "x86": "x86",
+        "armv7": "armv7",
+    }
     PROFILE_OPTS = {
         "P0": "O0",
         "P1": "O2",
@@ -355,7 +361,8 @@ class Suite12ObfAdapter:
             if not list(root.rglob("case_OBF*_low_pcode.json")):
                 continue
             profile = root.name
-            is_ollvm = profile.startswith("OLLVM_")
+            base_profile, arch_key = self._profile_parts(profile)
+            is_ollvm = base_profile.startswith("OLLVM_")
             variants.append(
                 Variant(
                     suite="12_tdo_testbed_Obf",
@@ -363,9 +370,9 @@ class Suite12ObfAdapter:
                     sample_dir=root,
                     expected_path=expected,
                     case_glob="case_OBF*_low_pcode.json",
-                    arch="host",
+                    arch=self.OLLVM_ARCHES.get(arch_key, "host" if not is_ollvm else arch_key),
                     compiler="ollvm-docker" if is_ollvm else "clang",
-                    opt=self.PROFILE_OPTS.get(profile, profile),
+                    opt=self.PROFILE_OPTS.get(base_profile, base_profile),
                     build_config=profile,
                     binary_path=self.root / "build" / profile / "bin" / "dfbench_obf_basic",
                     source_kind="ollvm-lowpcode" if is_ollvm else "host-lowpcode",
@@ -412,6 +419,7 @@ class Suite12ObfAdapter:
         ]
 
     def _tool_env(self, profile: str) -> dict[str, str]:
+        base_profile, arch_key = self._profile_parts(profile)
         values = {
             "GHIDRA_DIR": self._path_value("tools", "ghidra_home"),
             "GHIDRA_JAVA_HOME": self._path_value("tools", "ghidra_java_home"),
@@ -419,10 +427,19 @@ class Suite12ObfAdapter:
             "TDO_DUMPER_DIR": str(self.config.path("repos", "engine_11") / "scripts"),
             "PYTHON_BIN": self._path_value("tools", "python"),
         }
-        flags = self.OLLVM_FLAGS.get(profile)
+        if profile.startswith("OLLVM_"):
+            values["OBF_OLLVM_ARCH"] = arch_key
+        flags = self.OLLVM_FLAGS.get(base_profile)
         if flags:
             values["OBF_OLLVM_FLAGS"] = flags
         return {key: value for key, value in values.items() if value}
+
+    def _profile_parts(self, profile: str) -> tuple[str, str]:
+        for suffix in sorted(self.OLLVM_ARCHES, key=len, reverse=True):
+            marker = f"_{suffix}"
+            if profile.endswith(marker):
+                return profile[: -len(marker)], suffix
+        return profile, "aarch64" if profile.startswith("OLLVM_") else "host"
 
     def _path_value(self, section: str, key: str) -> str:
         raw = self.config.value(section, key, "")

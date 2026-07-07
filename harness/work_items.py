@@ -18,6 +18,11 @@ from .reporting import write_json
 
 WORK_ITEM_SCHEMA_VERSION = 1
 CANONICAL_SOURCE_LABELS = {"dfb_source_A.ret", "dfb_source_B.ret", "dfb_source_C.ret"}
+SOURCE_LABEL_SHORTHANDS = {
+    "dfb_source_A": "dfb_source_A.ret",
+    "dfb_source_B": "dfb_source_B.ret",
+    "dfb_source_C": "dfb_source_C.ret",
+}
 
 
 def _now() -> str:
@@ -122,7 +127,7 @@ def _validate_proposed_case(payload: dict) -> list[str]:
     proposal = payload.get("proposal") or {}
     errors: list[str] = []
     target = proposal.get("target")
-    if target not in {"suite10-cpp", "suite10-ue"}:
+    if target not in {"suite10-cpp", "suite10-ue", "suite12-obf"}:
         errors.append(f"invalid proposed target: {target}")
     source_text = str(proposal.get("cpp_or_ue") or "")
     if not source_text.strip():
@@ -142,8 +147,8 @@ def _validate_proposed_case(payload: dict) -> list[str]:
     severity = expected.get("severity") or manifest_case.get("severity")
     if severity != "proposed-regression":
         errors.append(f"severity must be proposed-regression, got {severity!r}")
-    if not (expected.get("expected_data_sources") or manifest_case.get("expected_data_sources")):
-        errors.append("missing expected_data_sources")
+    if not _has_expected_sources(expected, manifest_case):
+        errors.append("missing expected source list")
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
     errors.extend(_validate_expected_source_labels(expected, manifest_case))
@@ -180,8 +185,8 @@ def _validate_case_expected(payload: dict) -> list[str]:
     severity = expected.get("severity") or manifest_case.get("severity")
     if severity != "proposed-regression":
         errors.append(f"severity must be proposed-regression, got {severity!r}")
-    if not (expected.get("expected_data_sources") or manifest_case.get("expected_data_sources")):
-        errors.append("missing expected_data_sources")
+    if not _has_expected_sources(expected, manifest_case):
+        errors.append("missing expected source list")
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
     errors.extend(_validate_expected_source_labels(expected, manifest_case))
@@ -195,9 +200,11 @@ def _validate_case_expected(payload: dict) -> list[str]:
 def _validate_expected_source_labels(expected: dict, manifest_case: dict) -> list[str]:
     errors: list[str] = []
     for key in (
+        "expected_sources",
         "expected_data_sources",
         "expected_control_sources",
         "expected_global_sources",
+        "forbidden_sources",
         "forbidden_data_sources",
         "forbidden_control_sources",
     ):
@@ -205,9 +212,34 @@ def _validate_expected_source_labels(expected: dict, manifest_case: dict) -> lis
         if labels is None:
             labels = manifest_case.get(key)
         for label in labels or []:
-            if str(label) not in CANONICAL_SOURCE_LABELS:
+            if _canonical_source_label(label) is None:
                 errors.append(f"{key}: unsupported source label {label!r}; use dfb_source_A/B/C.ret")
     return errors
+
+
+def _canonical_source_label(label: Any) -> str | None:
+    text = str(label)
+    if text in CANONICAL_SOURCE_LABELS:
+        return text
+    return SOURCE_LABEL_SHORTHANDS.get(text)
+
+
+def _canonical_source_list(value: Any) -> list:
+    values = value if isinstance(value, list) else [value]
+    result = []
+    for item in values:
+        canonical = _canonical_source_label(item)
+        result.append(canonical if canonical is not None else item)
+    return result
+
+
+def _has_expected_sources(expected: dict, manifest_case: dict) -> bool:
+    return bool(
+        expected.get("expected_sources")
+        or manifest_case.get("expected_sources")
+        or expected.get("expected_data_sources")
+        or manifest_case.get("expected_data_sources")
+    )
 
 
 def engine_worktree(args: argparse.Namespace, config: HarnessConfig) -> int:
@@ -308,7 +340,7 @@ def case_apply(args: argparse.Namespace, config: HarnessConfig) -> int:
     if not source_path.is_file():
         print(f"missing proposal source: {source_path}")
         return 1
-    target = _target_paths(config.root, args.target)
+    target = _target_paths(config, args.target)
     manifest_case = _manifest_case_from_expected(expected, args.target)
     ok, approval = _guard_approval(args, config)
     plan = {
@@ -336,7 +368,8 @@ def case_apply(args: argparse.Namespace, config: HarnessConfig) -> int:
     return 0
 
 
-def _target_paths(root: Path, target: str) -> dict[str, Path]:
+def _target_paths(config: HarnessConfig, target: str) -> dict[str, Path]:
+    root = config.root
     if target == "suite10-cpp":
         return {
             "source_file": root / "cpp_like" / "src" / "cases_fusion.cpp",
@@ -352,14 +385,29 @@ def _target_paths(root: Path, target: str) -> dict[str, Path]:
             / "TraceCases2.cpp",
             "manifest": root / "unreal_playground" / "manifests" / "cases_v2_manifest.json",
         }
+    if target == "suite12-obf":
+        obf_root = config.path("repos", "testbed_12_obf")
+        return {
+            "source_file": obf_root / "src" / "cases_basic_obf.c",
+            "manifest": obf_root / "manifests" / "cases_obf_manifest.json",
+        }
     raise ValueError(f"unknown target: {target}")
 
 
 def _manifest_case_from_expected(expected: dict, target: str) -> dict:
     case_id = str(expected.get("case_id") or "unnamed_case")
     payload = expected.get("expected") or {}
-    binary = "tv2_cpp_like" if target == "suite10-cpp" else "tv2_unreal"
-    source_file = "src/cases_fusion.cpp" if target == "suite10-cpp" else "Source/TraceUnrealPlayground/TraceCases2.cpp"
+    if target == "suite10-cpp":
+        binary = "tv2_cpp_like"
+        source_file = "src/cases_fusion.cpp"
+    elif target == "suite10-ue":
+        binary = "tv2_unreal"
+        source_file = "Source/TraceUnrealPlayground/TraceCases2.cpp"
+    elif target == "suite12-obf":
+        binary = "dfbench_obf_basic"
+        source_file = "src/cases_basic_obf.c"
+    else:
+        raise ValueError(f"unknown target: {target}")
     explicit = payload.get("manifest_case") if isinstance(payload, dict) else None
     if isinstance(explicit, dict):
         manifest_case = dict(explicit)
@@ -367,6 +415,23 @@ def _manifest_case_from_expected(expected: dict, target: str) -> dict:
             manifest_case["expected_flow"] = expected.get("expected_flow")
         if expected.get("forbidden_flow") and "forbidden_flow" not in manifest_case:
             manifest_case["forbidden_flow"] = expected.get("forbidden_flow")
+        if target == "suite12-obf":
+            manifest_case = _normalize_suite12_manifest_case(manifest_case, payload)
+        return manifest_case
+    if target == "suite12-obf":
+        manifest_case = {
+            "id": case_id,
+            "name": payload.get("name", _safe_name(case_id)) if isinstance(payload, dict) else _safe_name(case_id),
+            "binary": payload.get("binary", binary) if isinstance(payload, dict) else binary,
+            "source_file": payload.get("source_file", source_file) if isinstance(payload, dict) else source_file,
+            "function": payload.get("function", f"case_{case_id}") if isinstance(payload, dict) else f"case_{case_id}",
+            "anchor": payload.get("anchor", {"callee": "dfb_sink_int", "arg_index": 0}) if isinstance(payload, dict) else {"callee": "dfb_sink_int", "arg_index": 0},
+            "expected_sources": _source_list(payload, "expected_sources", "expected_data_sources"),
+            "forbidden_sources": _source_list(payload, "forbidden_sources", "forbidden_data_sources"),
+            "expected_features": payload.get("expected_features", ["obfuscation", "proposed"]) if isinstance(payload, dict) else ["obfuscation", "proposed"],
+            "allowed_warnings": payload.get("allowed_warnings", []) if isinstance(payload, dict) else [],
+            "severity": payload.get("severity", "proposed-regression") if isinstance(payload, dict) else "proposed-regression",
+        }
         return manifest_case
     return {
         "id": case_id,
@@ -393,7 +458,41 @@ def _source_list(payload: Any, canonical: str, short: str) -> list:
     if not isinstance(payload, dict):
         return []
     value = payload.get(canonical, payload.get(short, []))
-    return value if isinstance(value, list) else [value]
+    if value is None:
+        return []
+    return _canonical_source_list(value)
+
+
+def _normalize_suite12_manifest_case(manifest_case: dict, payload: Any) -> dict:
+    normalized = dict(manifest_case)
+    if "expected_sources" not in normalized:
+        normalized["expected_sources"] = _source_list(payload, "expected_sources", "expected_data_sources")
+        if not normalized["expected_sources"]:
+            normalized["expected_sources"] = _source_list(normalized, "expected_sources", "expected_data_sources")
+    if "forbidden_sources" not in normalized:
+        normalized["forbidden_sources"] = _source_list(payload, "forbidden_sources", "forbidden_data_sources")
+        if not normalized["forbidden_sources"]:
+            normalized["forbidden_sources"] = _source_list(normalized, "forbidden_sources", "forbidden_data_sources")
+    normalized["expected_sources"] = _canonical_source_list(normalized.get("expected_sources", []))
+    normalized["forbidden_sources"] = _canonical_source_list(normalized.get("forbidden_sources", []))
+    normalized.setdefault("binary", "dfbench_obf_basic")
+    normalized.setdefault("source_file", "src/cases_basic_obf.c")
+    normalized.setdefault("anchor", {"callee": "dfb_sink_int", "arg_index": 0})
+    normalized.setdefault("expected_features", ["obfuscation", "proposed"])
+    normalized.setdefault("allowed_warnings", [])
+    normalized.setdefault("severity", "proposed-regression")
+    for key in (
+        "expected_data_sources",
+        "expected_control_sources",
+        "expected_global_sources",
+        "forbidden_data_sources",
+        "forbidden_control_sources",
+        "expected_flow",
+        "forbidden_flow",
+        "tier",
+    ):
+        normalized.pop(key, None)
+    return normalized
 
 
 def _append_source(target_file: Path, snippet: str, target: str, manifest_case: dict | None = None) -> None:
@@ -490,14 +589,14 @@ def build_parser() -> argparse.ArgumentParser:
     bundle_p = sub.add_parser("case-bundle", help="Create a review bundle from a proposed case work item.")
     bundle_p.add_argument("--expected", type=Path, required=True)
     bundle_p.add_argument("--source", type=Path, default=None)
-    bundle_p.add_argument("--target", choices=["suite10-cpp", "suite10-ue"], required=True)
+    bundle_p.add_argument("--target", choices=["suite10-cpp", "suite10-ue", "suite12-obf"], required=True)
     bundle_p.add_argument("--bundle-dir", type=Path, default=None)
     bundle_p.set_defaults(func=case_bundle)
 
     apply_p = sub.add_parser("case-apply", help="Apply an approved proposed case to a real testbed manifest/source file.")
     apply_p.add_argument("--expected", type=Path, required=True)
     apply_p.add_argument("--source", type=Path, default=None)
-    apply_p.add_argument("--target", choices=["suite10-cpp", "suite10-ue"], required=True)
+    apply_p.add_argument("--target", choices=["suite10-cpp", "suite10-ue", "suite12-obf"], required=True)
     apply_p.add_argument("--approval-key", default="")
     apply_p.add_argument("--allow-unapproved", action="store_true")
     apply_p.add_argument("--dry-run", action="store_true")

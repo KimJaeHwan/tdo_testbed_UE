@@ -273,6 +273,8 @@ def _run_regression(args: argparse.Namespace, config: HarnessConfig, cycle_dir: 
         cmd.append("--include-ue-build")
     if args.include_ue_extract:
         cmd.append("--include-ue-extract")
+    if args.regression_jobs > 1:
+        cmd.extend(["--jobs", str(args.regression_jobs)])
 
     print(f"[engine-dev-loop] regression {phase}: {run_id}")
     proc = _run_logged(cmd, cycle_dir / f"{phase}_regression.log", cwd=ROOT, dry_run=args.dry_run)
@@ -760,6 +762,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--case-scope", default="auto", choices=["auto", "always", "never"])
     parser.add_argument("--case-filter", default="")
     parser.add_argument("--variant-filter", default="")
+    parser.add_argument(
+        "--regression-jobs",
+        type=int,
+        default=1,
+        help="Pass orchestrator --jobs to pre/post regression runs for variant-level multiprocessing.",
+    )
     parser.add_argument(
         "--include-proposed-regression",
         action="store_true",
