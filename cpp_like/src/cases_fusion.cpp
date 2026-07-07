@@ -456,4 +456,71 @@ extern "C" TV2_NOINLINE void case_TV2C611_container_alias_callback_kill_strict()
     dfb_sink_int(view.primary->mid);
 }
 
+
+struct TV2C612Slot {
+    int (*callback)(int);
+    int payload;
+    int decoy;
+};
+
+TV2_NOINLINE static int tv2c612_use_a(int v) {
+    return (v ^ 0x13579) + 7;
+}
+
+TV2_NOINLINE static int tv2c612_use_b(int v) {
+    return (v * 3) - 11;
+}
+
+TV2_NOINLINE static int tv2c612_invoke(TV2C612Slot* slot) {
+    int mixed = slot->callback(slot->payload);
+    return mixed + (slot->decoy & 0);
+}
+
+extern "C" TV2_NOINLINE void case_TV2C612_computed_callback_struct_overwrite(void) {
+    TV2C612Slot slot;
+    slot.callback = tv2c612_use_b;
+    slot.payload = dfb_source_B();
+    slot.decoy = dfb_source_C();
+    slot.callback = tv2c612_use_a;
+    slot.payload = dfb_source_A();
+    int out = tv2c612_invoke(&slot);
+    dfb_sink_int(out);
+}
+
+
+struct TV2C613_Box {
+    int live;
+    int dead;
+    int guard;
+};
+
+typedef void (*TV2C613_Callback)(TV2C613_Box*, int, int);
+
+TV2_NOINLINE void TV2C613_write_live_from_first(TV2C613_Box* box, int first, int second) {
+    box->live = (first ^ 0x13579bdf) + 3;
+    box->dead = second;
+}
+
+TV2_NOINLINE void TV2C613_write_live_from_second(TV2C613_Box* box, int first, int second) {
+    box->live = second + 17;
+    box->dead = first;
+}
+
+TV2_NOINLINE void TV2C613_dispatch(TV2C613_Callback cb, TV2C613_Box* box, int x, int y) {
+    cb(box, x, y);
+}
+
+extern "C" TV2_NOINLINE void case_TV2C613_computed_callback_field_kill() {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2C613_Box box = {0, 0, 0};
+    TV2C613_Callback callbacks[2] = {TV2C613_write_live_from_second, TV2C613_write_live_from_first};
+    volatile unsigned lane = 1u;
+    unsigned idx = lane & 1u;
+    TV2C613_dispatch(callbacks[idx], &box, a, b);
+    box.dead = c;
+    dfb_sink_int(box.live);
+}
+
 } /* extern "C" */

@@ -1751,6 +1751,275 @@
           "to": "dfb_sink_int(view.primary->mid)"
         }
       ]
+    },
+    {
+      "id": "TV2C612",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C612_computed_callback_struct_overwrite",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback",
+        "field-store",
+        "overwrite-kill",
+        "interprocedural-summary"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "payload value stored after B overwrite and passed through tv2c612_invoke to computed callback",
+          "field": "slot.payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C612_computed_callback_struct_overwrite",
+          "kind": "call-ret",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C612Slot, payload)",
+          "reason": "The final write to slot.payload is dfb_source_A(); tv2c612_invoke reads slot.payload, calls the final callback tv2c612_use_a, and the result is sunk.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "resolved final callback target tv2c612_use_a",
+          "field": "callback",
+          "from": "slot.callback",
+          "function": "tv2c612_invoke",
+          "kind": "computed-call-target",
+          "node": "slot.callback",
+          "offset": "offsetof(TV2C612Slot, callback)",
+          "reason": "slot.callback is first assigned tv2c612_use_b and then overwritten by tv2c612_use_a before the indirect call.",
+          "sink": "tv2c612_use_a",
+          "size": "sizeof(int (*)(int))",
+          "source": "slot.callback",
+          "to": "tv2c612_use_a"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "killed payload write",
+          "field": "slot.payload",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2C612_computed_callback_struct_overwrite",
+          "kind": "overwrite-kill",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C612Slot, payload)",
+          "reason": "The B payload write is overwritten by the later A payload write before tv2c612_invoke reads the field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "killed callback target",
+          "field": "slot.callback",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2C612_computed_callback_struct_overwrite",
+          "kind": "dead-callback-target",
+          "node": "tv2c612_use_b",
+          "offset": "offsetof(TV2C612Slot, callback)",
+          "reason": "The callback pointer initially pointing at tv2c612_use_b is overwritten by tv2c612_use_a before the indirect call, so B cannot reach the sink through that callback.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int (*)(int))",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "masked decoy value",
+          "field": "slot.decoy",
+          "from": "dfb_source_C.ret",
+          "function": "tv2c612_invoke",
+          "kind": "zero-mask-decoy",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C612Slot, decoy)",
+          "reason": "slot.decoy is read only under '& 0', so it contributes no data value to the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C613",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C613_computed_callback_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback",
+        "field-sensitive",
+        "interprocedural",
+        "overwrite-kill",
+        "forbidden-source-distraction"
+      ],
+      "allowed_warnings": [
+        "independent dynamic verification not run by this agent because the task explicitly forbids running tests"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "",
+          "function": "case_TV2C613_computed_callback_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "Source A is passed as the first payload argument to the selected callback.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "case_TV2C613_computed_callback_field_kill",
+          "function": "case_TV2C613_computed_callback_field_kill",
+          "kind": "call",
+          "node": "TV2C613_dispatch",
+          "offset": "",
+          "reason": "The case reaches the writer through an interprocedural dispatch helper and a function pointer table.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C613_dispatch"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "TV2C613_dispatch",
+          "function": "TV2C613_dispatch",
+          "kind": "call",
+          "node": "TV2C613_write_live_from_first",
+          "offset": "",
+          "reason": "The volatile lane is initialized to 1, so callbacks[1] is selected by construction.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C613_write_live_from_first"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C613_Box.live",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C613_write_live_from_first",
+          "kind": "store",
+          "node": "box.live",
+          "offset": "offsetof(TV2C613_Box, live)",
+          "reason": "The selected callback stores a transformed value derived from first into the live field.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C613_Box.live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C613_Box.live",
+          "from": "TV2C613_Box.live",
+          "function": "case_TV2C613_computed_callback_field_kill",
+          "kind": "load",
+          "node": "box.live",
+          "offset": "offsetof(TV2C613_Box, live)",
+          "reason": "The sink reads only the live field after the callback returns.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "TV2C613_Box.live",
+          "function": "case_TV2C613_computed_callback_field_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "",
+          "reason": "Only the live field value reaches the void sink call.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C613_Box.dead",
+          "from": "dfb_source_B.ret",
+          "function": "TV2C613_write_live_from_first",
+          "kind": "store",
+          "node": "box.dead",
+          "offset": "offsetof(TV2C613_Box, dead)",
+          "reason": "Source B is stored only in the dead field, which is not loaded for the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "TV2C613_Box.dead"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C613_Box.dead",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C613_computed_callback_field_kill",
+          "kind": "store",
+          "node": "box.dead",
+          "offset": "offsetof(TV2C613_Box, dead)",
+          "reason": "Source C overwrites the dead field after the callback, but the sink reads the disjoint live field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "TV2C613_Box.dead"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C613_Box.live",
+          "from": "TV2C613_dispatch",
+          "function": "TV2C613_dispatch",
+          "kind": "call",
+          "node": "TV2C613_write_live_from_second",
+          "offset": "offsetof(TV2C613_Box, live)",
+          "reason": "callbacks[0] is the unselected table entry; its write from Source B must not be treated as reaching the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "TV2C613_write_live_from_second"
+        }
+      ]
     }
   ]
 }
