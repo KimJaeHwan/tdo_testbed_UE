@@ -101,6 +101,7 @@ class Engine11Runner:
         case_scope_file_threshold: int = DEFAULT_CASE_SCOPE_FILE_THRESHOLD,
         case_scope_byte_threshold: int = DEFAULT_CASE_SCOPE_BYTE_THRESHOLD,
         include_proposed_regressions: bool = False,
+        slice_profile_opcodes: bool = False,
     ):
         self.config = config
         self.engine_root = config.path("repos", "engine_11")
@@ -111,6 +112,7 @@ class Engine11Runner:
         self.case_scope_file_threshold = case_scope_file_threshold
         self.case_scope_byte_threshold = case_scope_byte_threshold
         self.include_proposed_regressions = include_proposed_regressions
+        self.slice_profile_opcodes = slice_profile_opcodes
         self._file_hash_cache: dict[Path, str | None] = {}
         self._directory_hash_cache: dict[tuple[Path, str], str | None] = {}
         self._expected_hash_cache: dict[Path, str | None] = {}
@@ -140,7 +142,7 @@ class Engine11Runner:
         if not cases:
             return [self._error_row(run_id, variant, "NO_CASES", f"no cases matching {variant.case_glob}", run_config_hash)]
         validator = self.ExpectedValidator(variant.expected_path)
-        builder = self.ProgramSliceGraphBuilder()
+        builder = self.ProgramSliceGraphBuilder(profile_opcodes=self.slice_profile_opcodes)
         scope_planner = CaseScopePlanner(
             variant.sample_dir,
             self.output_root,
@@ -428,6 +430,7 @@ def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
         case_scope_file_threshold=int(payload["case_scope_file_threshold"]),
         case_scope_byte_threshold=int(payload["case_scope_byte_threshold"]),
         include_proposed_regressions=bool(payload["include_proposed_regressions"]),
+        slice_profile_opcodes=bool(payload["slice_profile_opcodes"]),
     )
     return int(payload["index"]), runner.run_variant(
         str(payload["run_id"]),
@@ -449,6 +452,7 @@ def _run_variants_parallel(
     case_scope_file_threshold: int,
     case_scope_byte_threshold: int,
     include_proposed_regressions: bool,
+    slice_profile_opcodes: bool,
     jobs: int,
 ) -> list[dict]:
     worker_count = max(1, min(jobs, len(variants)))
@@ -467,6 +471,7 @@ def _run_variants_parallel(
             "case_scope_file_threshold": case_scope_file_threshold,
             "case_scope_byte_threshold": case_scope_byte_threshold,
             "include_proposed_regressions": include_proposed_regressions,
+            "slice_profile_opcodes": slice_profile_opcodes,
         }
         for index, variant in enumerate(variants)
     ]
@@ -711,6 +716,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Number of slowest case timings to write to performance_report.json.",
     )
     parser.add_argument(
+        "--slice-profile-opcodes",
+        action="store_true",
+        help="Collect detailed SliceGraphBuilder opcode timing for performance_report.json.",
+    )
+    parser.add_argument(
         "--regression-baseline",
         default="",
         help="Compare I3 against a prior run id, output directory, or failure_report_v2.json path.",
@@ -818,6 +828,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.case_scope_byte_threshold is not None
         else int(config.value("defaults", "case_scope_byte_threshold", DEFAULT_CASE_SCOPE_BYTE_THRESHOLD)),
         "include_proposed_regression": bool(args.include_proposed_regression),
+        "slice_profile_opcodes": bool(args.slice_profile_opcodes),
     }
     run_config_hash = canonical_hash(run_config)
 
@@ -839,6 +850,7 @@ def main(argv: list[str] | None = None) -> int:
             case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
             case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
             include_proposed_regressions=bool(run_config["include_proposed_regression"]),
+            slice_profile_opcodes=bool(run_config["slice_profile_opcodes"]),
             jobs=jobs,
         )
     else:
@@ -851,6 +863,7 @@ def main(argv: list[str] | None = None) -> int:
             case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
             case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
             include_proposed_regressions=bool(run_config["include_proposed_regression"]),
+            slice_profile_opcodes=bool(run_config["slice_profile_opcodes"]),
         )
         for variant in variants:
             reports.extend(runner.run_variant(run_id, variant, run_config_hash))

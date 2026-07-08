@@ -302,6 +302,7 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
 --no-ledger               memory ledger 갱신 끄기
 --jobs N                  variant 단위 병렬 프로세스 실행
 --slow-case-limit N       performance_report.json에 남길 느린 케이스 수
+--slice-profile-opcodes   SliceGraphBuilder opcode별 timing/profile 수집
 ```
 
 산출물:
