@@ -133,6 +133,7 @@ def performance_report(reports: list[dict], slow_case_limit: int = 20) -> dict:
                 "validation_seconds": _round_optional(timing.get("validation_seconds")),
                 "sink_count": timing.get("sink_count"),
                 "build_profile_top": _top_build_profile(timing.get("build_profile")),
+                "function_build_top": _function_build_top(timing.get("build_profile")),
                 "effective_pcode_path": (row.get("artifacts") or {}).get("effective_pcode_path"),
             }
         )
@@ -189,6 +190,13 @@ def _top_build_profile(profile: Any, limit: int = 8) -> list[dict]:
         rows.append({"stage": str(key), "seconds": round(seconds, 6)})
     rows.sort(key=lambda item: item["seconds"], reverse=True)
     return rows[:limit]
+
+
+def _function_build_top(profile: Any) -> list[dict]:
+    if not isinstance(profile, dict):
+        return []
+    rows = profile.get("function_build_top")
+    return rows if isinstance(rows, list) else []
 
 
 def write_json(path: Path, data: Any) -> None:
