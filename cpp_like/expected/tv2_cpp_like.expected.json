@@ -2020,6 +2020,978 @@
           "to": "TV2C613_write_live_from_second"
         }
       ]
+    },
+    {
+      "id": "TV2C614",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C614_computed_callback_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback-summary",
+        "field-sensitive",
+        "overwrite-kill",
+        "forbidden-noise"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live_value",
+          "field": "return",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C614_computed_callback_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "pdb",
+          "reason": "live_value is assigned directly from dfb_source_A() in the caller.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "live_value"
+        },
+        {
+          "carries": "live_value",
+          "field": "computed callback",
+          "from": "writer(&box, live_value, noise_value)",
+          "function": "case_TV2C614_computed_callback_field_kill",
+          "kind": "call",
+          "node": "TV2C614_write_live",
+          "offset": "pdb",
+          "reason": "selector ^ selector is always zero by construction, so the computed call target is table[0], TV2C614_write_live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "function-pointer",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C614_write_live"
+        },
+        {
+          "carries": "live_value",
+          "field": "TV2C614_Box.live",
+          "from": "live_value",
+          "function": "TV2C614_write_live",
+          "kind": "store",
+          "node": "box.live",
+          "offset": "offsetof(TV2C614_Box, live)",
+          "reason": "TV2C614_write_live stores its live_value parameter into box->live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "box.live"
+        },
+        {
+          "carries": "live_value",
+          "field": "TV2C614_Box.live",
+          "from": "box.live",
+          "function": "case_TV2C614_computed_callback_field_kill",
+          "kind": "load",
+          "node": "box.live",
+          "offset": "offsetof(TV2C614_Box, live)",
+          "reason": "The sink consumes box.live after the callback overwrites the earlier initialization.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "initial live value",
+          "field": "TV2C614_Box.live",
+          "from": "box.live = dfb_source_B()",
+          "function": "case_TV2C614_computed_callback_field_kill",
+          "kind": "overwrite-kill",
+          "node": "box.live initial write",
+          "offset": "offsetof(TV2C614_Box, live)",
+          "reason": "The initial box.live value is overwritten by TV2C614_write_live before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "noise_value",
+          "field": "TV2C614_Box.dead",
+          "from": "box->dead = noise_value",
+          "function": "TV2C614_write_live",
+          "kind": "field-noise",
+          "node": "box.dead",
+          "offset": "offsetof(TV2C614_Box, dead)",
+          "reason": "dfb_source_C.ret is stored only in dead/noise locations or used in selector arithmetic; the sink reads box.live only.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "noise alternative",
+          "field": "computed callback alternative",
+          "from": "table[1]",
+          "function": "case_TV2C614_computed_callback_field_kill",
+          "kind": "unreached-callback",
+          "node": "TV2C614_write_dead",
+          "offset": "pdb",
+          "reason": "table[1] is a syntactic decoy; selector ^ selector forces index zero, so TV2C614_write_dead is not the executed target.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "function-pointer",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C615",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C615_callback_table_field_lane_precise",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback-table",
+        "field-lane-precision",
+        "overwrite-noise-distraction",
+        "interprocedural-slice"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "node.lane1",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C615_write_a_lane1",
+          "kind": "call",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C615_Node, lane1)",
+          "reason": "TV2C615_write_a_lane1 writes dfb_source_A() ^ 0x6151 into lane1.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "node.lane1"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane1",
+          "from": "node.lane1",
+          "function": "case_TV2C615_callback_table_field_lane_precise",
+          "kind": "field-load",
+          "node": "node.lane1",
+          "offset": "offsetof(TV2C615_Node, lane1)",
+          "reason": "The sink argument is loaded from node.lane1 after the selected callback writes that field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "lane0",
+          "from": "dfb_source_B.ret",
+          "function": "TV2C615_write_b_lane0",
+          "kind": "field-disjoint",
+          "node": "node.lane0",
+          "offset": "offsetof(TV2C615_Node, lane0)",
+          "reason": "dfb_source_B only writes lane0 in the unselected callback and the sink reads lane1.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "callback selector",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C615_callback_table_field_lane_precise",
+          "kind": "control-selector",
+          "node": "selector",
+          "offset": "n/a",
+          "reason": "dfb_source_C contributes only to selector/noise; selector determines the callback but is not a data source for the lane1 value, and control sources are intentionally empty.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C616",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C616_callback_field_kill_precise",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback",
+        "field-sensitive",
+        "heap-or-stack-pointer-field",
+        "overwrite-kill",
+        "interprocedural-summary"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live value assigned from dfb_source_A.ret before callback dispatch.",
+          "field": "live",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C616_callback_field_kill_precise",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "stack",
+          "reason": "By construction, live is initialized directly from dfb_source_A().",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C616_Node.value",
+          "from": "live",
+          "function": "case_TV2C616_callback_field_kill_precise",
+          "kind": "call",
+          "node": "tv2c616_write_selected_lane",
+          "offset": "offsetof(TV2C616_Node, value)",
+          "reason": "The selected callback is always tv2c616_write_selected_lane and writes live into first.next->value, where first.next is &second.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "second.value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C616_Node.value",
+          "from": "second.value",
+          "function": "case_TV2C616_callback_field_kill_precise",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "offsetof(TV2C616_Node, value)",
+          "reason": "The sink reads second.value after the callback write.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C616_Node.noise",
+          "from": "dead",
+          "function": "case_TV2C616_callback_field_kill_precise",
+          "kind": "forbidden_source",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C616_Node, noise)",
+          "reason": "dfb_source_B.ret is written only through tv2c616_write_noise_lane to second.noise, while the sink reads second.value.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "second.noise"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C616_Node.noise",
+          "from": "dfb_source_C.ret",
+          "function": "tv2c616_write_selected_lane",
+          "kind": "forbidden_source",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C616_Node, noise)",
+          "reason": "dfb_source_C.ret is only used on the even-value branch to write the noise field; it never reaches node->value or the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "node->noise"
+        }
+      ]
+    },
+    {
+      "id": "TV2C617",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C617_computed_callback_field_payload",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "function-pointer-array",
+        "field-sensitive-load",
+        "callback-summary",
+        "forbidden-decoy-field"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "payload source assigned to cell.payload before callback dispatch",
+          "field": "TV2C617_Cell.payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C617_computed_callback_field_payload",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C617_Cell, payload)",
+          "reason": "source A is stored in the payload field",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "cell.payload"
+        },
+        {
+          "carries": "payload field returned through selected callback",
+          "field": "TV2C617_Cell.payload",
+          "from": "cell.payload",
+          "function": "TV2C617_load_payload",
+          "kind": "field_load",
+          "node": "TV2C617_load_payload",
+          "offset": "offsetof(TV2C617_Cell, payload)",
+          "reason": "dispatch.selector is 1, so chosen callback reads payload",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        },
+        {
+          "carries": "selected callback result",
+          "field": "arg0",
+          "from": "value",
+          "function": "case_TV2C617_computed_callback_field_payload",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "0",
+          "reason": "sink receives the selected callback return value",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "decoy source not selected",
+          "field": "TV2C617_Cell.decoy",
+          "from": "cell.decoy",
+          "function": "TV2C617_load_decoy",
+          "kind": "field_disambiguation",
+          "node": "TV2C617_load_decoy",
+          "offset": "offsetof(TV2C617_Cell, decoy)",
+          "reason": "dispatch.selector is 1 and only fn[1] is called; fn[0] reading decoy is not the sink value",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C618",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C618_nested_field_overwrite_summary",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "nested-field",
+        "interprocedural-write-summary",
+        "overwrite-kill",
+        "forbidden-sibling-field",
+        "forbidden-prior-value"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "source A passed to interprocedural writer",
+          "field": "TV2C618_Box.second.live",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C618_nested_field_overwrite_summary",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C618_Box, second) + offsetof(TV2C618_Node, live)",
+          "reason": "source A is the value argument to the writer helper",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C618_write_second_live.value"
+        },
+        {
+          "carries": "overwrite of second.live",
+          "field": "TV2C618_Box.second.live",
+          "from": "TV2C618_write_second_live.value",
+          "function": "TV2C618_write_second_live",
+          "kind": "store",
+          "node": "TV2C618_write_second_live",
+          "offset": "offsetof(TV2C618_Box, second) + offsetof(TV2C618_Node, live)",
+          "reason": "writer stores source A into the exact nested field later read",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "box.second.live"
+        },
+        {
+          "carries": "nested field loaded through reader helper",
+          "field": "TV2C618_Box.second.live",
+          "from": "box.second.live",
+          "function": "TV2C618_read_second_live",
+          "kind": "load",
+          "node": "TV2C618_read_second_live",
+          "offset": "offsetof(TV2C618_Box, second) + offsetof(TV2C618_Node, live)",
+          "reason": "reader returns the overwritten nested field",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        },
+        {
+          "carries": "reader result",
+          "field": "arg0",
+          "from": "value",
+          "function": "case_TV2C618_nested_field_overwrite_summary",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "0",
+          "reason": "sink receives the value read from box.second.live",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "sibling field must not alias second.live",
+          "field": "TV2C618_Box.first.live",
+          "from": "box.first.live",
+          "function": "case_TV2C618_nested_field_overwrite_summary",
+          "kind": "sibling_field",
+          "node": "box.first.live",
+          "offset": "offsetof(TV2C618_Box, first) + offsetof(TV2C618_Node, live)",
+          "reason": "source B is stored in first.live, a different nested field than the sink read",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "prior value killed by later helper write",
+          "field": "TV2C618_Box.second.live",
+          "from": "box.second.live initial",
+          "function": "case_TV2C618_nested_field_overwrite_summary",
+          "kind": "overwrite_kill",
+          "node": "box.second.live.initial",
+          "offset": "offsetof(TV2C618_Box, second) + offsetof(TV2C618_Node, live)",
+          "reason": "source C initially populates second.live but is overwritten by TV2C618_write_second_live before the reader helper",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C619",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C619_computed_callback_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback",
+        "field-sensitive",
+        "overwrite-kill",
+        "sibling-field-disambiguation"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "value stored into box.second before computed callback read",
+          "field": "TV2C619_Box.second",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C619_computed_callback_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C619_Box, second)",
+          "reason": "source A is assigned to the second field and never overwritten before the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "box.second"
+        },
+        {
+          "carries": "box.second through computed callback target tv2c619_read_second",
+          "field": "TV2C619_Box.second",
+          "from": "box.second",
+          "function": "case_TV2C619_computed_callback_field_kill",
+          "kind": "call",
+          "node": "fp(&box)",
+          "offset": "offsetof(TV2C619_Box, second)",
+          "reason": "choose is constant nonzero by construction, so fp selects the reader of second",
+          "sink": "value",
+          "size": "sizeof(int)",
+          "source": "box.second",
+          "to": "value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "value",
+          "function": "case_TV2C619_computed_callback_field_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int(value)",
+          "offset": "",
+          "reason": "the value returned by the selected callback is passed directly to the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "value",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C619_Box.first",
+          "from": "box.first",
+          "function": "case_TV2C619_computed_callback_field_kill",
+          "kind": "overwrite-kill",
+          "node": "box.first = 0x6191",
+          "offset": "offsetof(TV2C619_Box, first)",
+          "reason": "source B is written only to first, then first is overwritten with a constant before the computed call; it must not reach the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C619_computed_callback_field_kill",
+          "kind": "absent-source",
+          "node": "dfb_source_C.ret",
+          "offset": "",
+          "reason": "source C is not called in this case and must remain absent",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C620",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "interprocedural-summary",
+        "indexed-field",
+        "field-sensitive",
+        "overwrite-kill"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "value stored through tv2c620_store_lane into lane[1]",
+          "field": "TV2C620_State.lane[1]",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C620_State, lane) + sizeof(int)",
+          "reason": "source B is stored to lane index 1 and that lane is read before the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "state.lane[1]"
+        },
+        {
+          "carries": "state.lane[1] through interprocedural load helper",
+          "field": "TV2C620_State.lane[1]",
+          "from": "state.lane[1]",
+          "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+          "kind": "call",
+          "node": "tv2c620_load_lane(&state, idx)",
+          "offset": "offsetof(TV2C620_State, lane) + sizeof(int)",
+          "reason": "idx is a volatile local set to 1, so the helper reads lane[1]",
+          "sink": "value",
+          "size": "sizeof(int)",
+          "source": "state.lane[1]",
+          "to": "value"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "",
+          "from": "value",
+          "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int(value)",
+          "offset": "",
+          "reason": "the helper return is passed directly to the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "value",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C620_State.lane[0]",
+          "from": "state.lane[0]",
+          "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+          "kind": "overwrite-kill",
+          "node": "tv2c620_store_lane(&state, 0, 0x6200)",
+          "offset": "offsetof(TV2C620_State, lane)",
+          "reason": "source A is stored to lane[0], then lane[0] is overwritten by a constant and the sink reads lane[1]",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C620_interproc_indexed_field_summary_kill",
+          "kind": "absent-source",
+          "node": "dfb_source_C.ret",
+          "offset": "",
+          "reason": "source C is not called in this case and must remain absent",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C621",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C621_computed_writer_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "function-pointer",
+        "field-overwrite",
+        "field-sensitive-kill",
+        "interprocedural-slice"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "ret",
+          "from": "dfb_source_C()",
+          "function": "case_TV2C621_computed_writer_field_kill",
+          "kind": "call-return",
+          "node": "dfb_source_C",
+          "offset": "n/a",
+          "reason": "source C is passed as the value argument to the selected writer",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "writer(&node, dfb_source_C())"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C621_Node.live",
+          "from": "writer(&node, dfb_source_C())",
+          "function": "tv2c621_write_live",
+          "kind": "computed-call-summary",
+          "node": "writer",
+          "offset": "offsetof(TV2C621_Node, live)",
+          "reason": "by construction tv2c621_select_writer(0) returns tv2c621_write_live, so the computed call stores C into live",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "n->live = v"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C621_Node.live",
+          "from": "node.live",
+          "function": "case_TV2C621_computed_writer_field_kill",
+          "kind": "field-load",
+          "node": "node.live",
+          "offset": "offsetof(TV2C621_Node, live)",
+          "reason": "sink reads the live field after the computed writer overwrites the earlier A value",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(node.live)"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C621_Node.live",
+          "from": "node.live = dfb_source_A()",
+          "function": "case_TV2C621_computed_writer_field_kill",
+          "kind": "killed-write",
+          "node": "node.live",
+          "offset": "offsetof(TV2C621_Node, live)",
+          "reason": "A is written to live first but is overwritten by the selected computed writer before the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(node.live)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C621_Node.noise",
+          "from": "node.noise = dfb_source_B()",
+          "function": "case_TV2C621_computed_writer_field_kill",
+          "kind": "sibling-field",
+          "node": "node.noise",
+          "offset": "offsetof(TV2C621_Node, noise)",
+          "reason": "B is stored only in the sibling noise field and is never read by the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(node.live)"
+        }
+      ]
+    },
+    {
+      "id": "TV2C622",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C622_computed_write_then_computed_read_field_precise",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback-like-function-pointer",
+        "field-sensitive",
+        "overwrite-kill",
+        "interprocedural-summary"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "live",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C622_computed_write_then_computed_read_field_precise",
+          "kind": "call-return",
+          "node": "dfb_source_A()",
+          "offset": "offsetof(TV2C622_Cell, live)",
+          "reason": "By construction, the selected writer is tv2c622_write_live and stores the A return value into cell.live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "tv2c622_write_live value parameter"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "live",
+          "from": "tv2c622_write_live value parameter",
+          "function": "tv2c622_write_live",
+          "kind": "field-store",
+          "node": "cell.live = value",
+          "offset": "offsetof(TV2C622_Cell, live)",
+          "reason": "The write through the computed function pointer overwrites the initial live field value from dfb_source_B.ret.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "cell.live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "live",
+          "from": "cell.live",
+          "function": "tv2c622_read_live",
+          "kind": "field-load",
+          "node": "return cell->live",
+          "offset": "offsetof(TV2C622_Cell, live)",
+          "reason": "The selected reader is tv2c622_read_live, so the value loaded for the sink is the overwritten live field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "read_live return value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "live",
+          "from": "read_live return value",
+          "function": "case_TV2C622_computed_write_then_computed_read_field_precise",
+          "kind": "data",
+          "node": "dfb_sink_int(value)",
+          "offset": "offsetof(TV2C622_Cell, live)",
+          "reason": "The noise term is masked by zero, so only the live-field load reaches the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "live",
+          "from": "initial cell.live",
+          "function": "case_TV2C622_computed_write_then_computed_read_field_precise",
+          "kind": "field-overwrite-kill",
+          "node": "cell.live = dfb_source_B(); then write_live(&cell, dfb_source_A())",
+          "offset": "offsetof(TV2C622_Cell, live)",
+          "reason": "dfb_source_B.ret is overwritten in the same live field before the computed read used by the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "decoy",
+          "from": "cell.decoy",
+          "function": "case_TV2C622_computed_write_then_computed_read_field_precise",
+          "kind": "field-disjoint",
+          "node": "cell.decoy = dfb_source_C(); read_decoy(&cell)",
+          "offset": "offsetof(TV2C622_Cell, decoy)",
+          "reason": "dfb_source_C.ret is confined to the decoy field, and the only use of read_decoy is masked with zero before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
     }
   ]
 }

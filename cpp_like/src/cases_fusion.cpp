@@ -523,4 +523,304 @@ extern "C" TV2_NOINLINE void case_TV2C613_computed_callback_field_kill() {
     dfb_sink_int(box.live);
 }
 
+
+struct TV2C614_Box {
+    int live;
+    int dead;
+};
+
+typedef void (*TV2C614_WriteFn)(TV2C614_Box*, int, int);
+
+TV2_NOINLINE static void TV2C614_write_live(TV2C614_Box* box, int live_value, int noise_value) {
+    box->dead = noise_value;
+    box->live = live_value;
+}
+
+TV2_NOINLINE static void TV2C614_write_dead(TV2C614_Box* box, int live_value, int noise_value) {
+    box->live = noise_value;
+    box->dead = live_value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C614_computed_callback_field_kill(void) {
+    TV2C614_Box box;
+    box.live = dfb_source_B();
+    box.dead = dfb_source_C();
+
+    int selector = (dfb_source_C() ^ 0x55) & 1;
+    TV2C614_WriteFn table[2] = {TV2C614_write_live, TV2C614_write_dead};
+    TV2C614_WriteFn writer = table[selector ^ selector];
+
+    int live_value = dfb_source_A();
+    int noise_value = dfb_source_C();
+    writer(&box, live_value, noise_value);
+
+    dfb_sink_int(box.live);
+}
+
+
+struct TV2C615_Node {
+  int lane0;
+  int lane1;
+};
+
+using TV2C615_Callback = int (*)(TV2C615_Node *node, int noise);
+
+TV2_NOINLINE static int TV2C615_write_a_lane1(TV2C615_Node *node, int noise) {
+  node->lane1 = dfb_source_A() ^ 0x6151;
+  node->lane0 = noise;
+  return node->lane1;
+}
+
+TV2_NOINLINE static int TV2C615_write_b_lane0(TV2C615_Node *node, int noise) {
+  node->lane0 = dfb_source_B() ^ noise;
+  return node->lane0;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C615_callback_table_field_lane_precise(void) {
+  TV2C615_Node node = {0, 0};
+  TV2C615_Callback table[2] = {TV2C615_write_a_lane1, TV2C615_write_b_lane0};
+  int selector = (dfb_source_C() & 1) ^ 1;
+  int noise = dfb_source_C() | 0x20;
+  table[selector](&node, noise);
+  int value = node.lane1;
+  dfb_sink_int(value);
+}
+
+
+struct TV2C616_Node {
+    int value;
+    int noise;
+    TV2C616_Node* next;
+};
+
+typedef void (*TV2C616_Callback)(TV2C616_Node*, int);
+
+TV2_NOINLINE void tv2c616_write_selected_lane(TV2C616_Node* node, int v) {
+    if ((v & 1) != 0) {
+        node->value = v;
+    } else {
+        node->noise = dfb_source_C();
+        node->value = v + 1;
+    }
+}
+
+TV2_NOINLINE void tv2c616_write_noise_lane(TV2C616_Node* node, int v) {
+    node->noise = v;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C616_callback_field_kill_precise(void) {
+    TV2C616_Node first = {0, 0, 0};
+    TV2C616_Node second = {0, 0, 0};
+    first.next = &second;
+    second.next = &first;
+
+    int live = dfb_source_A();
+    int dead = dfb_source_B();
+    TV2C616_Callback cb = ((live ^ 0x1357) & 1) ? tv2c616_write_selected_lane : tv2c616_write_selected_lane;
+    TV2C616_Callback noise_cb = tv2c616_write_noise_lane;
+
+    noise_cb(first.next, dead);
+    cb(first.next, live);
+    dfb_sink_int(second.value);
+}
+
+
+struct TV2C617_Cell {
+    int tag;
+    int payload;
+    int decoy;
+};
+
+typedef int (*TV2C617_LoadFn)(TV2C617_Cell *);
+
+static TV2_NOINLINE int TV2C617_load_payload(TV2C617_Cell *cell) {
+    return cell->payload;
+}
+
+static TV2_NOINLINE int TV2C617_load_decoy(TV2C617_Cell *cell) {
+    return cell->decoy;
+}
+
+struct TV2C617_Dispatch {
+    int selector;
+    TV2C617_LoadFn fn[2];
+};
+
+extern "C" TV2_NOINLINE void case_TV2C617_computed_callback_field_payload(void) {
+    TV2C617_Cell cell;
+    cell.tag = 0x617;
+    cell.payload = dfb_source_A();
+    cell.decoy = dfb_source_B();
+
+    TV2C617_Dispatch dispatch;
+    dispatch.selector = 1;
+    dispatch.fn[0] = &TV2C617_load_decoy;
+    dispatch.fn[1] = &TV2C617_load_payload;
+
+    TV2C617_LoadFn chosen = dispatch.fn[dispatch.selector];
+    int value = chosen(&cell);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C618_Node {
+    int live;
+    int stale;
+};
+
+struct TV2C618_Box {
+    TV2C618_Node first;
+    TV2C618_Node second;
+};
+
+static TV2_NOINLINE void TV2C618_write_second_live(TV2C618_Box *box, int value) {
+    box->second.live = value;
+}
+
+static TV2_NOINLINE int TV2C618_read_second_live(TV2C618_Box *box) {
+    return box->second.live;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C618_nested_field_overwrite_summary(void) {
+    TV2C618_Box box;
+    box.first.live = dfb_source_B();
+    box.first.stale = 0x1818;
+    box.second.live = dfb_source_C();
+    box.second.stale = 0x2828;
+
+    TV2C618_write_second_live(&box, dfb_source_A());
+    int value = TV2C618_read_second_live(&box);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C619_Box {
+    int first;
+    int second;
+};
+
+using TV2C619_Select = int (*)(TV2C619_Box*);
+
+TV2_NOINLINE int tv2c619_read_second(TV2C619_Box* box) {
+    return box->second;
+}
+
+TV2_NOINLINE int tv2c619_read_first(TV2C619_Box* box) {
+    return box->first;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C619_computed_callback_field_kill(void) {
+    TV2C619_Box box;
+    box.first = dfb_source_B();
+    box.second = dfb_source_A();
+    box.first = 0x6191;
+
+    volatile int choose = 1;
+    TV2C619_Select fp = choose ? tv2c619_read_second : tv2c619_read_first;
+    int value = fp(&box);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C620_State {
+    int lane[3];
+};
+
+TV2_NOINLINE void tv2c620_store_lane(TV2C620_State* state, int index, int value) {
+    state->lane[index] = value;
+}
+
+TV2_NOINLINE int tv2c620_load_lane(TV2C620_State* state, int index) {
+    return state->lane[index];
+}
+
+extern "C" TV2_NOINLINE void case_TV2C620_interproc_indexed_field_summary_kill(void) {
+    TV2C620_State state;
+    tv2c620_store_lane(&state, 0, dfb_source_A());
+    tv2c620_store_lane(&state, 1, dfb_source_B());
+    tv2c620_store_lane(&state, 0, 0x6200);
+
+    volatile int idx = 1;
+    int value = tv2c620_load_lane(&state, idx);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C621_Node {
+    int live;
+    int noise;
+};
+
+typedef void (*TV2C621_Writer)(TV2C621_Node *, int);
+
+TV2_NOINLINE void tv2c621_write_live(TV2C621_Node *n, int v) {
+    n->live = v;
+}
+
+TV2_NOINLINE void tv2c621_write_noise(TV2C621_Node *n, int v) {
+    n->noise = v;
+}
+
+TV2_NOINLINE TV2C621_Writer tv2c621_select_writer(int selector) {
+    volatile int guard = selector ^ 0x621;
+    if ((guard ^ 0x621) == 1) {
+        return tv2c621_write_noise;
+    }
+    return tv2c621_write_live;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C621_computed_writer_field_kill() {
+    TV2C621_Node node;
+    node.live = dfb_source_A();
+    node.noise = dfb_source_B();
+    TV2C621_Writer writer = tv2c621_select_writer(0);
+    writer(&node, dfb_source_C());
+    dfb_sink_int(node.live);
+}
+
+
+struct TV2C622_Cell { int live; int decoy; };
+
+typedef int (*TV2C622_ReadFn)(TV2C622_Cell*);
+typedef void (*TV2C622_WriteFn)(TV2C622_Cell*, int);
+
+TV2_NOINLINE static void tv2c622_write_live(TV2C622_Cell* cell, int value) {
+  cell->live = value;
+}
+
+TV2_NOINLINE static void tv2c622_write_decoy(TV2C622_Cell* cell, int value) {
+  cell->decoy = value;
+}
+
+TV2_NOINLINE static int tv2c622_read_live(TV2C622_Cell* cell) {
+  return cell->live;
+}
+
+TV2_NOINLINE static int tv2c622_read_decoy(TV2C622_Cell* cell) {
+  return cell->decoy;
+}
+
+TV2_NOINLINE static TV2C622_WriteFn tv2c622_pick_writer(int selector) {
+  return selector ? tv2c622_write_live : tv2c622_write_decoy;
+}
+
+TV2_NOINLINE static TV2C622_ReadFn tv2c622_pick_reader(int selector) {
+  return selector ? tv2c622_read_live : tv2c622_read_decoy;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C622_computed_write_then_computed_read_field_precise(void) {
+  TV2C622_Cell cell;
+  cell.live = dfb_source_B();
+  cell.decoy = dfb_source_C();
+
+  TV2C622_WriteFn write_live = tv2c622_pick_writer(1);
+  TV2C622_ReadFn read_live = tv2c622_pick_reader(1);
+  TV2C622_ReadFn read_decoy = tv2c622_pick_reader(0);
+
+  write_live(&cell, dfb_source_A());
+  int noise = read_decoy(&cell);
+  int value = read_live(&cell) ^ (noise & 0);
+  dfb_sink_int(value);
+}
+
 } /* extern "C" */
