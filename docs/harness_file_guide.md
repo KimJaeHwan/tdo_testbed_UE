@@ -58,7 +58,7 @@ harness/
 - build/extract prepare step 실행
 - Engine11 분석 실행
 - expected 검증
-- `failure_report_v2.json`, `summary.json`, `gate.json` 생성
+- `failure_report_v2.json`, `summary.json`, `performance_report.json`, `gate.json` 생성
 - artifact cache / ledger 갱신
 - human gate / agent task 생성
 
@@ -73,6 +73,10 @@ python3 -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifa
 `case_author`가 만든 `severity: proposed-regression` 케이스는 기본 회귀에서 격리된다.
 새 융합/frontier 케이스까지 엔진 개발 대상으로 포함하려면
 `--include-proposed-regression`을 명시한다.
+
+`performance_report.json`은 케이스별 timing과 slow-case 목록을 담는다.
+성능 작업 중에는 기존 `gate.json`으로 회귀 안전성을 확인하고,
+`performance_report.json`으로 병목 케이스와 variant를 추적한다.
 
 ### `harness/adapters.py`
 

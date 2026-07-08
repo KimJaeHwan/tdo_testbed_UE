@@ -301,6 +301,7 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
 --no-cache                engine/verify 캐시 재사용 끄기
 --no-ledger               memory ledger 갱신 끄기
 --jobs N                  variant 단위 병렬 프로세스 실행
+--slow-case-limit N       performance_report.json에 남길 느린 케이스 수
 ```
 
 산출물:
@@ -308,6 +309,7 @@ P1(Development)와 P0(DebugGame) 모두 현재 build/extract/analyze smoke로 �
 ```text
 output/harness/<run_id>/failure_report_v2.json
 output/harness/<run_id>/summary.json
+output/harness/<run_id>/performance_report.json
 output/harness/<run_id>/gate.json
 output/harness/<run_id>/human_gate.json
 output/harness/<run_id>/agent_tasks.json

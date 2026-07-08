@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -19,6 +20,7 @@ from .memory.store import Memory
 from .reporting import (
     canonical_hash,
     git_commit,
+    performance_report,
     print_summary,
     sha256_directory,
     sha256_file,
@@ -109,6 +111,9 @@ class Engine11Runner:
         self.case_scope_file_threshold = case_scope_file_threshold
         self.case_scope_byte_threshold = case_scope_byte_threshold
         self.include_proposed_regressions = include_proposed_regressions
+        self._file_hash_cache: dict[Path, str | None] = {}
+        self._directory_hash_cache: dict[tuple[Path, str], str | None] = {}
+        self._expected_hash_cache: dict[Path, str | None] = {}
         _ensure_engine_python(self.engine_root)
         _add_engine_to_syspath(self.engine_root)
 
@@ -159,16 +164,24 @@ class Engine11Runner:
         run_config_hash: str,
         scope_planner: CaseScopePlanner,
     ) -> dict:
+        case_start = time.perf_counter()
+        timing: dict[str, float | int] = {}
+        scope_start = time.perf_counter()
         scoped_case = scope_planner.materialize(json_path)
+        timing["scope_seconds"] = time.perf_counter() - scope_start
+        artifact_start = time.perf_counter()
         artifacts = self._artifacts(variant, json_path, run_config_hash, scoped_case)
         engine = self._engine(run_config_hash)
+        timing["artifact_seconds"] = time.perf_counter() - artifact_start
         if self.use_cache and self.memory is not None:
+            cache_start = time.perf_counter()
             cached = self.memory.cached_result(
                 artifacts.get("pcode_hash"),
                 engine.get("commit"),
                 run_config_hash,
                 artifacts.get("expected_hash"),
             )
+            timing["cache_lookup_seconds"] = time.perf_counter() - cache_start
             if cached is not None:
                 cached["run_id"] = run_id
                 cached["suite"] = variant.suite
@@ -183,23 +196,36 @@ class Engine11Runner:
                     "source_result_path": (source_cache.get("source_result_path") or source_cache.get("result_path")),
                 }
                 cached["pcode_scope"] = scoped_case.manifest
+                timing["total_seconds"] = time.perf_counter() - case_start
+                timing["sink_count"] = len(cached.get("actual_sources") or [])
+                cached["timing"] = timing
                 return cached
         try:
+            build_start = time.perf_counter()
             fg = builder.build_for_target(scoped_case.target_path)
+            timing["build_seconds"] = time.perf_counter() - build_start
             data_sources: set[str] = set()
             control_sources: set[str] = set()
             cuts: list[str] = []
+            query_seconds = 0.0
+            timing["sink_count"] = len(fg.sink_index)
             for sink in fg.sink_index.values():
+                query_start = time.perf_counter()
                 data_query = self.BackwardSliceQuery(fg)
                 data_result = data_query.run(sink)
                 data_sources.update(data_result.source_labels)
                 control_query = self.BackwardSliceQuery(fg, self.DATA_CONTROL_SLICE_EDGES, mode="data+control")
                 control_sources.update(control_query.run(sink).source_labels)
-                cuts.extend(self._cut_points(fg, data_query, sink))
+                cuts.extend(self._cut_points(fg, data_query, data_result))
+                query_seconds += time.perf_counter() - query_start
+            timing["query_seconds"] = query_seconds
             control_sources -= data_sources
+            validation_start = time.perf_counter()
             validation = validator.validate(fg.function_name, data_sources, control_sources)
+            timing["validation_seconds"] = time.perf_counter() - validation_start
             missing = validation.get("missing_expected_sources", []) + validation.get("missing_expected_control_sources", [])
             forbidden = validation.get("forbidden_sources_found", []) + validation.get("forbidden_control_sources_found", [])
+            timing["total_seconds"] = time.perf_counter() - case_start
             return {
                 "schema_version": 2,
                 "run_id": run_id,
@@ -223,11 +249,14 @@ class Engine11Runner:
                 "budgets": {"budget_exceeded": False, "details": []},
                 "pcode_scope": scoped_case.manifest,
                 "cache": {"hit": False},
+                "timing": timing,
             }
         except Exception as exc:  # noqa: BLE001
             row = self._error_row(run_id, variant, json_path.stem, str(exc), run_config_hash)
             row["artifacts"] = artifacts
             row["pcode_scope"] = scoped_case.manifest
+            timing["total_seconds"] = time.perf_counter() - case_start
+            row["timing"] = timing
             return row
 
     def _error_row(
@@ -257,10 +286,10 @@ class Engine11Runner:
             "edge_kinds_seen": [],
             "cut": [],
             "budgets": {"budget_exceeded": False, "details": []},
+            "timing": {"total_seconds": 0.0},
         }
 
-    def _cut_points(self, fg, query, sink) -> list[str]:
-        result = query.run(sink)
+    def _cut_points(self, fg, query, result) -> list[str]:
         graph = fg.slice_graph
         leaves = []
         for node in result.visited:
@@ -336,27 +365,49 @@ class Engine11Runner:
             pcode_hash = scoped_case.scope_hash
             effective_path = scoped_case.target_path
         elif json_path is not None:
-            pcode_hash = sha256_file(json_path)
+            pcode_hash = self._sha256_file(json_path)
             effective_path = json_path
         else:
-            pcode_hash = sha256_directory(variant.sample_dir, variant.case_glob)
+            pcode_hash = self._sha256_directory(variant.sample_dir, variant.case_glob)
             effective_path = variant.sample_dir
         return {
             "binary_path": str(variant.binary_path) if variant.binary_path else None,
-            "binary_hash": sha256_file(variant.binary_path),
+            "binary_hash": self._sha256_file(variant.binary_path),
             "pcode_path": str(json_path or variant.sample_dir),
             "effective_pcode_path": str(effective_path),
             "pcode_hash": pcode_hash,
-            "root_pcode_hash": sha256_file(json_path) if json_path else None,
+            "root_pcode_hash": scoped_case.root_file_hash
+            if scoped_case is not None
+            else (self._sha256_file(json_path) if json_path else None),
             "metadata_path": str(json_path or variant.sample_dir),
             "result_path": None,
             "diagnose_dump_path": None,
             "expected_path": str(variant.expected_path),
-            "expected_hash": sha256_file(variant.expected_path)
-            if variant.expected_path.is_file()
-            else sha256_directory(variant.expected_path, "*.expected.json"),
+            "expected_hash": self._expected_hash(variant.expected_path),
             "run_config_hash": run_config_hash,
         }
+
+    def _sha256_file(self, path: Path | None) -> str | None:
+        if path is None:
+            return None
+        key = Path(path)
+        if key not in self._file_hash_cache:
+            self._file_hash_cache[key] = sha256_file(key)
+        return self._file_hash_cache[key]
+
+    def _sha256_directory(self, path: Path, pattern: str) -> str | None:
+        key = (Path(path), pattern)
+        if key not in self._directory_hash_cache:
+            self._directory_hash_cache[key] = sha256_directory(key[0], pattern)
+        return self._directory_hash_cache[key]
+
+    def _expected_hash(self, path: Path) -> str | None:
+        key = Path(path)
+        if key not in self._expected_hash_cache:
+            self._expected_hash_cache[key] = (
+                self._sha256_file(key) if key.is_file() else self._sha256_directory(key, "*.expected.json")
+            )
+        return self._expected_hash_cache[key]
 
 
 def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
@@ -652,6 +703,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Run selected variants in parallel worker processes. Case order remains deterministic within each variant.",
     )
     parser.add_argument(
+        "--slow-case-limit",
+        type=int,
+        default=20,
+        help="Number of slowest case timings to write to performance_report.json.",
+    )
+    parser.add_argument(
         "--regression-baseline",
         default="",
         help="Compare I3 against a prior run id, output directory, or failure_report_v2.json path.",
@@ -815,6 +872,7 @@ def main(argv: list[str] | None = None) -> int:
 
     write_json(output_root / "failure_report_v2.json", reports)
     write_json(output_root / "summary.json", summary)
+    write_json(output_root / "performance_report.json", performance_report(reports, args.slow_case_limit))
     write_json(output_root / "gate.json", gate)
     write_json(output_root / "human_gate.json", human_gate)
     write_json(output_root / "agent_tasks.json", agent_tasks)

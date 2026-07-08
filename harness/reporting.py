@@ -57,7 +57,16 @@ def summarize(reports: list[dict]) -> dict:
         suite = row.get("suite") or "unknown"
         bucket = suites.setdefault(
             suite,
-            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "cache_hits": 0, "variants": {}},
+            {
+                "pass": 0,
+                "fail": 0,
+                "error": 0,
+                "degraded": 0,
+                "false_positive": 0,
+                "cache_hits": 0,
+                "timing": _empty_timing_bucket(),
+                "variants": {},
+            },
         )
         verdict = str(row.get("verdict") or "ERROR").lower()
         if verdict == "pass":
@@ -72,11 +81,20 @@ def summarize(reports: list[dict]) -> dict:
             bucket["false_positive"] += 1
         if (row.get("cache") or {}).get("hit"):
             bucket["cache_hits"] += 1
+        _add_timing(bucket["timing"], row)
 
         variant = row.get("variant_label") or "unknown"
         vb = bucket["variants"].setdefault(
             variant,
-            {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "cache_hits": 0},
+            {
+                "pass": 0,
+                "fail": 0,
+                "error": 0,
+                "degraded": 0,
+                "false_positive": 0,
+                "cache_hits": 0,
+                "timing": _empty_timing_bucket(),
+            },
         )
         if verdict == "pass":
             vb["pass"] += 1
@@ -90,7 +108,70 @@ def summarize(reports: list[dict]) -> dict:
             vb["false_positive"] += 1
         if (row.get("cache") or {}).get("hit"):
             vb["cache_hits"] += 1
+        _add_timing(vb["timing"], row)
     return {"schema_version": 2, "suites": suites}
+
+
+def performance_report(reports: list[dict], slow_case_limit: int = 20) -> dict:
+    rows = []
+    for row in reports:
+        timing = row.get("timing") or {}
+        total_seconds = float(timing.get("total_seconds") or 0.0)
+        rows.append(
+            {
+                "suite": row.get("suite"),
+                "variant": row.get("variant_label"),
+                "case": row.get("case"),
+                "function": row.get("function"),
+                "verdict": row.get("verdict"),
+                "cache_hit": bool((row.get("cache") or {}).get("hit")),
+                "total_seconds": round(total_seconds, 6),
+                "scope_seconds": _round_optional(timing.get("scope_seconds")),
+                "artifact_seconds": _round_optional(timing.get("artifact_seconds")),
+                "build_seconds": _round_optional(timing.get("build_seconds")),
+                "query_seconds": _round_optional(timing.get("query_seconds")),
+                "validation_seconds": _round_optional(timing.get("validation_seconds")),
+                "sink_count": timing.get("sink_count"),
+                "effective_pcode_path": (row.get("artifacts") or {}).get("effective_pcode_path"),
+            }
+        )
+    rows.sort(key=lambda item: item["total_seconds"], reverse=True)
+    return {
+        "schema_version": 1,
+        "case_count": len(rows),
+        "slow_case_limit": slow_case_limit,
+        "slow_cases": rows[: max(0, slow_case_limit)],
+        "total_seconds": round(sum(row["total_seconds"] for row in rows), 6),
+    }
+
+
+def _empty_timing_bucket() -> dict:
+    return {
+        "case_count": 0,
+        "total_seconds": 0.0,
+        "max_case_seconds": 0.0,
+        "slowest_case": None,
+    }
+
+
+def _add_timing(bucket: dict, row: dict) -> None:
+    timing = row.get("timing") or {}
+    total_seconds = float(timing.get("total_seconds") or 0.0)
+    bucket["case_count"] += 1
+    bucket["total_seconds"] = round(float(bucket.get("total_seconds") or 0.0) + total_seconds, 6)
+    if total_seconds > float(bucket.get("max_case_seconds") or 0.0):
+        bucket["max_case_seconds"] = round(total_seconds, 6)
+        bucket["slowest_case"] = {
+            "case": row.get("case"),
+            "function": row.get("function"),
+            "variant": row.get("variant_label"),
+        }
+
+
+def _round_optional(value: Any) -> float | None:
+    if value is None:
+        return None
+    return round(float(value), 6)
 
 
 def write_json(path: Path, data: Any) -> None:

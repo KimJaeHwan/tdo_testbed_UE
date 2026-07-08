@@ -28,6 +28,7 @@ class ScopedCase:
     target_path: Path
     scope_dir: Path
     scope_hash: str
+    root_file_hash: str | None
     scope_files: tuple[Path, ...]
     missing_internal_calls: tuple[str, ...]
     enabled: bool
@@ -42,6 +43,7 @@ class ScopedCase:
             "reason": self.reason,
             "scope_dir": str(self.scope_dir),
             "scope_hash": self.scope_hash,
+            "root_file_hash": self.root_file_hash,
             "scope_files": [str(path) for path in self.scope_files],
             "missing_internal_calls": list(self.missing_internal_calls),
             "source_file_count": self.source_file_count,
@@ -88,11 +90,13 @@ class CaseScopePlanner:
         source_file_count = self._source_file_count or 0
         source_bytes = self._source_bytes or 0
         if not self._should_scope(source_file_count, source_bytes):
+            entry = self._entries.get(case_path)
             return ScopedCase(
                 original_path=case_path,
                 target_path=case_path,
                 scope_dir=case_path.parent,
                 scope_hash=self._directory_hash(case_path.name),
+                root_file_hash=entry.file_hash if entry is not None else None,
                 scope_files=tuple(sorted(self._entries)),
                 missing_internal_calls=(),
                 enabled=False,
@@ -102,6 +106,7 @@ class CaseScopePlanner:
             )
 
         closure, missing = self._closure_for(case_path)
+        entry = self._entries.get(case_path)
         scope_hash = self._scope_hash(closure, case_path.name)
         scope_dir = (
             self.output_root
@@ -121,6 +126,7 @@ class CaseScopePlanner:
             target_path=scope_dir / case_path.name,
             scope_dir=scope_dir,
             scope_hash=scope_hash,
+            root_file_hash=entry.file_hash if entry is not None else None,
             scope_files=tuple(sorted(closure)),
             missing_internal_calls=tuple(sorted(missing)),
             enabled=True,
