@@ -132,6 +132,7 @@ def performance_report(reports: list[dict], slow_case_limit: int = 20) -> dict:
                 "query_seconds": _round_optional(timing.get("query_seconds")),
                 "validation_seconds": _round_optional(timing.get("validation_seconds")),
                 "sink_count": timing.get("sink_count"),
+                "build_profile_top": _top_build_profile(timing.get("build_profile")),
                 "effective_pcode_path": (row.get("artifacts") or {}).get("effective_pcode_path"),
             }
         )
@@ -172,6 +173,22 @@ def _round_optional(value: Any) -> float | None:
     if value is None:
         return None
     return round(float(value), 6)
+
+
+def _top_build_profile(profile: Any, limit: int = 8) -> list[dict]:
+    if not isinstance(profile, dict):
+        return []
+    rows = []
+    for key, value in profile.items():
+        if not str(key).endswith("_seconds") and not str(key).endswith(":seconds"):
+            continue
+        try:
+            seconds = float(value)
+        except (TypeError, ValueError):
+            continue
+        rows.append({"stage": str(key), "seconds": round(seconds, 6)})
+    rows.sort(key=lambda item: item["seconds"], reverse=True)
+    return rows[:limit]
 
 
 def write_json(path: Path, data: Any) -> None:

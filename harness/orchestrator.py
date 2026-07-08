@@ -204,6 +204,8 @@ class Engine11Runner:
             build_start = time.perf_counter()
             fg = builder.build_for_target(scoped_case.target_path)
             timing["build_seconds"] = time.perf_counter() - build_start
+            if timing["build_seconds"] >= 0.05:
+                timing["build_profile"] = getattr(fg, "build_profile", {})
             data_sources: set[str] = set()
             control_sources: set[str] = set()
             cuts: list[str] = []

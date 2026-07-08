@@ -76,7 +76,9 @@ python3 -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifa
 
 `performance_report.json`은 케이스별 timing과 slow-case 목록을 담는다.
 성능 작업 중에는 기존 `gate.json`으로 회귀 안전성을 확인하고,
-`performance_report.json`으로 병목 케이스와 variant를 추적한다.
+`performance_report.json`으로 병목 케이스와 variant를 추적한다. 엔진이
+`build_profile`을 제공하는 경우 slow-case 항목에 build 내부 stage별
+상위 비용도 함께 기록된다.
 
 ### `harness/adapters.py`
 
