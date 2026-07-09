@@ -217,6 +217,21 @@ python3 -m harness.agent_loop \
   --stop-on-no-progress
 ```
 
+### `harness/frontier_auto_loop.py`
+
+`frontier_case_loop`를 여러 cycle 반복하는 장시간 루프다.
+
+역할:
+- case_author로 신규 frontier/fusion case 생성
+- case apply, expected regeneration, prepare, post-apply regression 반복
+- 필요하면 nested `engine_dev_loop`로 Engine11 수리
+- cycle별 생성/적용 case와 green 여부를 `frontier_auto_loop_state.json`에 기록
+
+`--stop-after-green-cycles N`을 주면 최종 post-apply/engine regression이 green인
+cycle이 N번 연속 나왔을 때 `green_streak_complete` 상태로 멈춘다. 긴 루프를
+무작정 끝까지 돌리는 대신, “새 케이스를 계속 던져도 안정적으로 PASS만
+나오는지”를 확인하는 데 쓴다.
+
 ### `harness/engine_dev_loop.py`
 
 `lowpcode_data_origin`을 직접 수정하는 개발 루프다. 분석 전용 `agent_loop`와 달리

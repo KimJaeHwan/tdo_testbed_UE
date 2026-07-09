@@ -188,6 +188,68 @@ def _case_apply_rows(cycle_dir: Path, cycle_state: dict) -> list[dict]:
     return []
 
 
+def _metrics_green(metrics: Any) -> bool:
+    if not isinstance(metrics, dict):
+        return False
+    if int(metrics.get("total") or 0) <= 0:
+        return False
+    return not any(int(metrics.get(key) or 0) for key in ("fail", "error", "degraded", "false_positive"))
+
+
+def _phase(cycle_state: dict, name: str) -> dict | None:
+    for phase in cycle_state.get("phases") or []:
+        if isinstance(phase, dict) and phase.get("name") == name:
+            return phase
+    return None
+
+
+def _post_apply_green(cycle_state: dict) -> bool:
+    phase = _phase(cycle_state, "post_apply_regression")
+    rows = phase.get("rows") if isinstance(phase, dict) else None
+    if not isinstance(rows, list) or not rows:
+        return False
+    for row in rows:
+        if not isinstance(row, dict):
+            return False
+        if row.get("returncode") not in {0, 1}:
+            return False
+        if not _metrics_green(row.get("metrics")):
+            return False
+    return True
+
+
+def _engine_dev_green(cycle_state: dict) -> bool:
+    phase = _phase(cycle_state, "engine_dev_loop")
+    if not isinstance(phase, dict):
+        return False
+    if phase.get("skipped"):
+        return phase.get("reason") == "post_apply_regression_green"
+    state_path = Path(str(phase.get("state_path") or ""))
+    engine_state = _read_json(state_path, {})
+    if not isinstance(engine_state, dict):
+        return False
+    if engine_state.get("status") in {"fully_green_before_edit", "fully_green_after_edit"}:
+        return True
+    for cycle in reversed(engine_state.get("cycles") or []):
+        comparison = cycle.get("comparison") if isinstance(cycle, dict) else None
+        if isinstance(comparison, dict):
+            return bool(comparison.get("fully_green"))
+    return False
+
+
+def _cycle_green_evaluation(cycle_state: dict) -> dict:
+    if cycle_state.get("status") != "complete":
+        return {"green": False, "reason": f"frontier_status={cycle_state.get('status') or 'unknown'}"}
+    baseline = _phase(cycle_state, "baseline_regression")
+    if isinstance(baseline, dict) and not _metrics_green(baseline.get("metrics")):
+        return {"green": False, "reason": "baseline_not_green"}
+    if _post_apply_green(cycle_state):
+        return {"green": True, "reason": "post_apply_regression_green"}
+    if _engine_dev_green(cycle_state):
+        return {"green": True, "reason": "engine_dev_loop_final_green"}
+    return {"green": False, "reason": "post_apply_or_engine_not_green"}
+
+
 def _cycle_summary(cycle_dir: Path, returncode: int) -> dict:
     state_path = cycle_dir / "frontier_case_loop_state.json"
     cycle_state = _read_json(state_path, {})
@@ -211,6 +273,7 @@ def _cycle_summary(cycle_dir: Path, returncode: int) -> dict:
         "frontier_status": cycle_state.get("status"),
         "generated_or_applied_cases": cases,
         "case_count": len(cases),
+        "green_evaluation": _cycle_green_evaluation(cycle_state),
     }
 
 
@@ -237,6 +300,8 @@ def run_loop(args: argparse.Namespace) -> int:
         "max_cycles": args.max_cycles,
         "duration_hours": args.duration_hours,
         "frontier_args": frontier_args,
+        "stop_after_green_cycles": args.stop_after_green_cycles,
+        "consecutive_green_cycles": 0,
         "cycles": [],
     }
     write_json(state_path, state)
@@ -283,10 +348,18 @@ def run_loop(args: argparse.Namespace) -> int:
             **summary,
         }
         state["cycles"].append(cycle)
+        if (cycle.get("green_evaluation") or {}).get("green"):
+            state["consecutive_green_cycles"] = int(state.get("consecutive_green_cycles") or 0) + 1
+        else:
+            state["consecutive_green_cycles"] = 0
+        cycle["consecutive_green_cycles"] = state["consecutive_green_cycles"]
         state["updated_at"] = _now()
         write_json(state_path, state)
         if proc.returncode != 0 or summary.get("frontier_status") != "complete":
             state["status"] = "frontier_failed"
+            break
+        if args.stop_after_green_cycles > 0 and state["consecutive_green_cycles"] >= args.stop_after_green_cycles:
+            state["status"] = "green_streak_complete"
             break
         if args.sleep_seconds > 0 and _should_continue(args, cycle_index, started):
             time.sleep(args.sleep_seconds)
@@ -312,6 +385,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-cycles", type=int, default=1, help="0 means unlimited until duration/failure/manual stop.")
     parser.add_argument("--duration-hours", type=float, default=0.0, help="0 means no wall-clock limit.")
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
+    parser.add_argument(
+        "--stop-after-green-cycles",
+        type=int,
+        default=0,
+        help="Stop after this many consecutive complete cycles whose final post-apply/engine regression is green. 0 disables the streak gate.",
+    )
     parser.add_argument("--setup-suite12-docker-image", action="store_true", help="Ensure the Suite12 OLLVM Docker image exists before starting cycles.")
     parser.add_argument("--suite12-docker-image", default="", help="Override Suite12 OLLVM Docker image. Empty uses an arch-specific default.")
     parser.add_argument("--suite12-docker-arch", default="", help="Comma list or all. Empty infers from --prepare-profiles.")
