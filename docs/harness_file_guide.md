@@ -79,6 +79,11 @@ python3 -m harness.orchestrator --suite 10 --mode local-samples --prepare-artifa
 `performance_report.json`으로 병목 케이스와 variant를 추적한다. 엔진이
 `build_profile`을 제공하는 경우 slow-case 항목에 build 내부 stage별
 상위 비용도 함께 기록된다.
+대형 바이너리 대비 성능 작업에서는 `scale_profile` 섹션을 함께 본다.
+이 섹션은 이미 수집된 report row와 `build_profile`만 재사용해서
+profiled build 수, scope file 수, stage 누적 비용, hot function, hot call
+boundary를 집계한다. core 의미론을 바꾸지 않고 cache/parallel/graph-backend
+최적화 우선순위를 고르기 위한 계기판이다.
 
 ### `harness/adapters.py`
 
