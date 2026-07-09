@@ -239,15 +239,41 @@ def _engine_dev_green(cycle_state: dict) -> bool:
 
 def _cycle_green_evaluation(cycle_state: dict) -> dict:
     if cycle_state.get("status") != "complete":
-        return {"green": False, "reason": f"frontier_status={cycle_state.get('status') or 'unknown'}"}
+        return {
+            "green": False,
+            "post_apply_green": False,
+            "final_green": False,
+            "reason": f"frontier_status={cycle_state.get('status') or 'unknown'}",
+        }
     baseline = _phase(cycle_state, "baseline_regression")
     if isinstance(baseline, dict) and not _metrics_green(baseline.get("metrics")):
-        return {"green": False, "reason": "baseline_not_green"}
-    if _post_apply_green(cycle_state):
-        return {"green": True, "reason": "post_apply_regression_green"}
-    if _engine_dev_green(cycle_state):
-        return {"green": True, "reason": "engine_dev_loop_final_green"}
-    return {"green": False, "reason": "post_apply_or_engine_not_green"}
+        return {
+            "green": False,
+            "post_apply_green": False,
+            "final_green": False,
+            "reason": "baseline_not_green",
+        }
+    post_apply_green = _post_apply_green(cycle_state)
+    engine_green = _engine_dev_green(cycle_state)
+    final_green = post_apply_green or engine_green
+    if post_apply_green:
+        reason = "post_apply_regression_green"
+    elif engine_green:
+        reason = "engine_dev_loop_final_green"
+    else:
+        reason = "post_apply_or_engine_not_green"
+    return {
+        "green": final_green,
+        "post_apply_green": post_apply_green,
+        "final_green": final_green,
+        "reason": reason,
+    }
+
+
+def _green_for_streak(evaluation: dict, mode: str) -> bool:
+    if mode == "post-apply":
+        return bool(evaluation.get("post_apply_green"))
+    return bool(evaluation.get("final_green") or evaluation.get("green"))
 
 
 def _cycle_summary(cycle_dir: Path, returncode: int) -> dict:
@@ -301,6 +327,7 @@ def run_loop(args: argparse.Namespace) -> int:
         "duration_hours": args.duration_hours,
         "frontier_args": frontier_args,
         "stop_after_green_cycles": args.stop_after_green_cycles,
+        "green_streak_mode": args.green_streak_mode,
         "consecutive_green_cycles": 0,
         "cycles": [],
     }
@@ -348,7 +375,7 @@ def run_loop(args: argparse.Namespace) -> int:
             **summary,
         }
         state["cycles"].append(cycle)
-        if (cycle.get("green_evaluation") or {}).get("green"):
+        if _green_for_streak(cycle.get("green_evaluation") or {}, args.green_streak_mode):
             state["consecutive_green_cycles"] = int(state.get("consecutive_green_cycles") or 0) + 1
         else:
             state["consecutive_green_cycles"] = 0
@@ -389,7 +416,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--stop-after-green-cycles",
         type=int,
         default=0,
-        help="Stop after this many consecutive complete cycles whose final post-apply/engine regression is green. 0 disables the streak gate.",
+        help="Stop after this many consecutive complete green cycles. 0 disables the streak gate.",
+    )
+    parser.add_argument(
+        "--green-streak-mode",
+        choices=["final", "post-apply"],
+        default="final",
+        help="final counts cycles repaired by nested engine_dev_loop; post-apply counts only cases that pass immediately before engine repair.",
     )
     parser.add_argument("--setup-suite12-docker-image", action="store_true", help="Ensure the Suite12 OLLVM Docker image exists before starting cycles.")
     parser.add_argument("--suite12-docker-image", default="", help="Override Suite12 OLLVM Docker image. Empty uses an arch-specific default.")

@@ -227,10 +227,12 @@ python3 -m harness.agent_loop \
 - 필요하면 nested `engine_dev_loop`로 Engine11 수리
 - cycle별 생성/적용 case와 green 여부를 `frontier_auto_loop_state.json`에 기록
 
-`--stop-after-green-cycles N`을 주면 최종 post-apply/engine regression이 green인
-cycle이 N번 연속 나왔을 때 `green_streak_complete` 상태로 멈춘다. 긴 루프를
-무작정 끝까지 돌리는 대신, “새 케이스를 계속 던져도 안정적으로 PASS만
-나오는지”를 확인하는 데 쓴다.
+`--stop-after-green-cycles N`을 주면 green cycle이 N번 연속 나왔을 때
+`green_streak_complete` 상태로 멈춘다. 기본 `--green-streak-mode final`은
+nested `engine_dev_loop` 수리 후 최종 green도 카운트한다. 현재 엔진이 새
+케이스를 수리 없이 바로 통과하는지 확인하려면 `--green-streak-mode post-apply`
+를 함께 사용한다. 이 모드는 case apply 이후 post-apply regression이 즉시
+green인 cycle만 카운트한다.
 
 ### `harness/engine_dev_loop.py`
 

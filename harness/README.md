@@ -223,6 +223,8 @@ python -m harness.frontier_auto_loop \
   --clean-output \
   --max-cycles 0 \
   --duration-hours 4.5 \
+  --stop-after-green-cycles 3 \
+  --green-streak-mode post-apply \
   --setup-suite12-docker-image \
   -- \
   --suite 12 \
