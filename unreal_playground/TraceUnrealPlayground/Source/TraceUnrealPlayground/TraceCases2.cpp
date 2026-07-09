@@ -118,6 +118,7 @@ extern "C" TV2_NOINLINE void case_TV2R301_tarray_swap_remove_reindexed_field();
 extern "C" TV2_NOINLINE void case_TV2R302_tmap_fname_wrong_key_field();
 extern "C" TV2_NOINLINE void case_TV2R303_tarray_alias_callback_field_write();
 
+extern "C" TV2_NOINLINE void case_TV2R304_ue_callback_heap_field_precision();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -135,6 +136,7 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R301_tarray_swap_remove_reindexed_field();
 	case_TV2R302_tmap_fname_wrong_key_field();
 	case_TV2R303_tarray_alias_callback_field_write();
+	case_TV2R304_ue_callback_heap_field_precision();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -265,3 +267,30 @@ extern "C" TV2_NOINLINE void case_TV2R303_tarray_alias_callback_field_write() {
   int32 Observed = Items[0].Payload;
   dfb_sink_int(Observed);
 }
+
+struct TV2R304_Cell {
+    int First;
+    int Second;
+};
+
+typedef void (*TV2R304_Writer)(TV2R304_Cell*, int);
+
+extern "C" TV2_NOINLINE void tv2r304_write_second(TV2R304_Cell* Cell, int Value) {
+    Cell->Second = Value + 17;
+}
+
+extern "C" TV2_NOINLINE void tv2r304_write_first(TV2R304_Cell* Cell, int Value) {
+    Cell->First = Value ^ 0x55;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R304_ue_callback_heap_field_precision() {
+    TV2R304_Cell* Cell = new TV2R304_Cell();
+    Cell->First = dfb_source_B();
+    Cell->Second = dfb_source_C();
+    TV2R304_Writer Writers[2] = { tv2r304_write_first, tv2r304_write_second };
+    TV2R304_Writer Writer = Writers[0];
+    Writer(Cell, dfb_source_A());
+    dfb_sink_int(Cell->First);
+    delete Cell;
+}
+

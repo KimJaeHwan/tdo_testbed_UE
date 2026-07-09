@@ -2992,6 +2992,364 @@
           "to": "dfb_sink_int.arg0"
         }
       ]
+    },
+    {
+      "id": "TV2C623",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C623_computed_writer_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "function-pointer",
+        "interprocedural-summary",
+        "field-sensitive-store",
+        "overwrite-kill",
+        "forbidden-decoy-source"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live source value",
+          "field": "",
+          "from": "",
+          "function": "case_TV2C623_computed_writer_field_kill",
+          "kind": "call",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "live is initialized directly from dfb_source_A and passed as the value argument to the selected writer",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "dfb_source_A.ret into node.lane0",
+          "field": "",
+          "from": "case_TV2C623_computed_writer_field_kill",
+          "function": "case_TV2C623_computed_writer_field_kill",
+          "kind": "computed_call",
+          "node": "writer(&node, live, decoy)",
+          "offset": "",
+          "reason": "selector is constant 0 by construction, so the computed call targets tv2c623_write_lane0",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "tv2c623_write_lane0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C623_Node::lane0",
+          "from": "",
+          "function": "tv2c623_write_lane0",
+          "kind": "store",
+          "node": "n->lane0 = value",
+          "offset": "offsetof(TV2C623_Node, lane0)",
+          "reason": "tv2c623_write_lane0 writes the live source value to lane0",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C623_Node::lane0",
+          "from": "",
+          "function": "case_TV2C623_computed_writer_field_kill",
+          "kind": "load",
+          "node": "node.lane0",
+          "offset": "offsetof(TV2C623_Node, lane0)",
+          "reason": "the sink reads lane0 after the computed writer overwrites the earlier lane0 value",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C623_Node::lane0",
+          "from": "",
+          "function": "case_TV2C623_computed_writer_field_kill",
+          "kind": "store_killed",
+          "node": "node.lane0 = killed",
+          "offset": "offsetof(TV2C623_Node, lane0)",
+          "reason": "dfb_source_B reaches an earlier lane0 store, but that store is overwritten by tv2c623_write_lane0 before the sink load",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": ""
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C623_Node::noise",
+          "from": "",
+          "function": "tv2c623_write_lane0",
+          "kind": "decoy_field_store",
+          "node": "n->noise = decoy ^ 0x6230",
+          "offset": "offsetof(TV2C623_Node, noise)",
+          "reason": "dfb_source_C is written only to the noise field, and the sink reads lane0",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": ""
+        }
+      ]
+    },
+    {
+      "id": "TV2C624",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C624_computed_callback_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback",
+        "field-sensitive",
+        "overwrite-kill",
+        "interprocedural-slice"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live value passed through computed callback tv2c624_store_live into n.live via xor transform",
+          "field": "callback-argument",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C624_computed_callback_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "n/a",
+          "reason": "n.tag is constant 1, so the indirect table call selects tv2c624_store_live; that helper overwrites n.live using the A value before the sink reads n.live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C624_Node.live",
+          "from": "tv2c624_store_live:n->live",
+          "function": "tv2c624_store_live",
+          "kind": "field-write",
+          "node": "n.live",
+          "offset": "offsetof(TV2C624_Node, live)",
+          "reason": "The sink reads the same field written by the selected callback.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "case_TV2C624_computed_callback_field_kill:n.live"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C624_Node.live",
+          "from": "initial n.live assignment",
+          "function": "case_TV2C624_computed_callback_field_kill",
+          "kind": "field-kill",
+          "node": "n.live initial write",
+          "offset": "offsetof(TV2C624_Node, live)",
+          "reason": "The selected callback overwrites n.live after the C-sourced initialization, so C must not reach the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C624_Node.decoy",
+          "from": "n.decoy assignment",
+          "function": "case_TV2C624_computed_callback_field_kill",
+          "kind": "field-distraction",
+          "node": "n.decoy",
+          "offset": "offsetof(TV2C624_Node, decoy)",
+          "reason": "B only flows through the decoy field, and that field is not read by the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2C625",
+      "binary": "tv2_cpp_like",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2C625_computed_callback_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "computed-call",
+        "callback-summary",
+        "field-sensitive-store",
+        "overwrite-kill",
+        "false-positive-guard"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live_value",
+          "field": "",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "live_value is assigned directly from dfb_source_A by construction.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "live_value",
+          "field": "",
+          "from": "case_TV2C625_computed_callback_field_kill",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "call",
+          "node": "writer(&box, live_value)",
+          "offset": "",
+          "reason": "TV2C625_pick_writer(1) selects TV2C625_write_live through a computed function pointer; the callback stores live_value.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C625_write_live"
+        },
+        {
+          "carries": "live_value",
+          "field": "TV2C625_Box.live",
+          "from": "",
+          "function": "TV2C625_write_live",
+          "kind": "store",
+          "node": "box->live = value",
+          "offset": "offsetof(TV2C625_Box, live)",
+          "reason": "The selected callback writes dfb_source_A-derived value into the live field.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "live_value",
+          "field": "TV2C625_Box.live",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "load",
+          "node": "out = box.live",
+          "offset": "offsetof(TV2C625_Box, live)",
+          "reason": "The sink argument is loaded from the live field after the callback write.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        },
+        {
+          "carries": "live_value",
+          "field": "",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int(out)",
+          "offset": "",
+          "reason": "The sink receives out, which is the live field value written from dfb_source_A.ret.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": ""
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "",
+          "field": "TV2C625_Box.live",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "kill",
+          "node": "box.live = dfb_source_B()",
+          "offset": "offsetof(TV2C625_Box, live)",
+          "reason": "The initial B-derived live field value is overwritten by TV2C625_write_live before box.live is loaded for the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": ""
+        },
+        {
+          "carries": "",
+          "field": "TV2C625_Box.decoy",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "field-disjoint",
+          "node": "box.decoy = dfb_source_C()",
+          "offset": "offsetof(TV2C625_Box, decoy)",
+          "reason": "The C-derived value is written only to decoy, and the sink reads live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": ""
+        },
+        {
+          "carries": "",
+          "field": "TV2C625_Box.decoy",
+          "from": "",
+          "function": "case_TV2C625_computed_callback_field_kill",
+          "kind": "field-disjoint",
+          "node": "box.decoy = decoy_value",
+          "offset": "offsetof(TV2C625_Box, decoy)",
+          "reason": "The second B-derived value is written only to decoy, and the sink reads live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": ""
+        }
+      ]
     }
   ]
 }

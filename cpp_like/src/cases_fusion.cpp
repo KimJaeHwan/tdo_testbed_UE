@@ -823,4 +823,106 @@ extern "C" TV2_NOINLINE void case_TV2C622_computed_write_then_computed_read_fiel
   dfb_sink_int(value);
 }
 
+
+struct TV2C623_Node {
+    int lane0;
+    int lane1;
+    int noise;
+};
+
+using TV2C623_Writer = void (*)(TV2C623_Node *, int, int);
+
+TV2_NOINLINE static void tv2c623_write_lane0(TV2C623_Node *n, int value, int decoy) {
+    n->lane0 = value;
+    n->noise = decoy ^ 0x6230;
+}
+
+TV2_NOINLINE static void tv2c623_write_lane1(TV2C623_Node *n, int value, int decoy) {
+    n->lane1 = value;
+    n->noise = decoy + 0x17;
+}
+
+TV2_NOINLINE static TV2C623_Writer tv2c623_pick_writer(int selector) {
+    return (selector & 1) ? &tv2c623_write_lane1 : &tv2c623_write_lane0;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C623_computed_writer_field_kill(void) {
+    TV2C623_Node node = {0, 0, 0};
+    int live = dfb_source_A();
+    int killed = dfb_source_B();
+    int decoy = dfb_source_C();
+    node.lane0 = killed;
+    TV2C623_Writer writer = tv2c623_pick_writer(0);
+    writer(&node, live, decoy);
+    dfb_sink_int(node.lane0);
+}
+
+
+struct TV2C624_Node {
+    int tag;
+    int live;
+    int decoy;
+};
+
+typedef void (*TV2C624_Callback)(TV2C624_Node*, int);
+
+TV2_NOINLINE static void tv2c624_store_live(TV2C624_Node* n, int v) {
+    n->live = v ^ 0x1357;
+}
+
+TV2_NOINLINE static void tv2c624_store_decoy(TV2C624_Node* n, int v) {
+    n->decoy = v + 0x2468;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C624_computed_callback_field_kill(void) {
+    TV2C624_Node n;
+    n.tag = 1;
+    n.live = dfb_source_C();
+    n.decoy = dfb_source_B();
+    TV2C624_Callback table[2] = { tv2c624_store_decoy, tv2c624_store_live };
+    TV2C624_Callback cb = table[n.tag & 1];
+    cb(&n, dfb_source_A());
+    n.decoy = 0x4040;
+    dfb_sink_int(n.live);
+}
+
+
+struct TV2C625_Box {
+    int live;
+    int decoy;
+};
+
+typedef void (*TV2C625_WriteFn)(TV2C625_Box*, int);
+
+static TV2_NOINLINE void TV2C625_write_live(TV2C625_Box* box, int value) {
+    box->live = value;
+}
+
+static TV2_NOINLINE void TV2C625_write_decoy(TV2C625_Box* box, int value) {
+    box->decoy = value;
+}
+
+static TV2_NOINLINE TV2C625_WriteFn TV2C625_pick_writer(int tag) {
+    volatile int stable_tag = tag;
+    if ((stable_tag & 3) == 1) {
+        return &TV2C625_write_live;
+    }
+    return &TV2C625_write_decoy;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C625_computed_callback_field_kill() {
+    TV2C625_Box box;
+    box.live = dfb_source_B();
+    box.decoy = dfb_source_C();
+
+    TV2C625_WriteFn writer = TV2C625_pick_writer(1);
+    int live_value = dfb_source_A();
+    int decoy_value = dfb_source_B();
+    writer(&box, live_value);
+    box.decoy = decoy_value;
+
+    int out = box.live;
+    dfb_sink_int(out);
+}
+
 } /* extern "C" */

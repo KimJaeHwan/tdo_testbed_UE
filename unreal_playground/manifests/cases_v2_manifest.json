@@ -1716,6 +1716,100 @@
       "severity": "proposed-regression",
       "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-field",
+        "computed-call",
+        "callback",
+        "overwrite-kill",
+        "field-sensitive"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "callback-argument",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R304_ue_callback_heap_field_precision",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "Writer is constructed from Writers[0], which is tv2r304_write_first; that helper writes Cell->First from A before the sink reads Cell->First.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R304_Cell.First",
+          "from": "tv2r304_write_first:Cell->First",
+          "function": "tv2r304_write_first",
+          "kind": "field-write",
+          "node": "Cell->First",
+          "offset": "heap",
+          "reason": "UE absolute heap offsets should be represented with the heap sentinel; the same heap field written by the callback is read at the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "case_TV2R304_ue_callback_heap_field_precision:Cell->First"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R304_Cell.First",
+          "from": "initial Cell->First assignment",
+          "function": "case_TV2R304_ue_callback_heap_field_precision",
+          "kind": "field-kill",
+          "node": "Cell->First initial write",
+          "offset": "heap",
+          "reason": "B initializes Cell->First but is overwritten by tv2r304_write_first before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R304_Cell.Second",
+          "from": "Cell->Second assignment",
+          "function": "case_TV2R304_ue_callback_heap_field_precision",
+          "kind": "field-distraction",
+          "node": "Cell->Second",
+          "offset": "heap",
+          "reason": "C is confined to the sibling heap field Cell->Second, which the sink never reads.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R304_ue_callback_heap_field_precision",
+      "id": "TV2R304",
+      "name": "ue_callback_heap_field_precision",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2
