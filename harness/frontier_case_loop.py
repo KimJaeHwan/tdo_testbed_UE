@@ -474,6 +474,10 @@ def _run_prepare_after_apply(args: argparse.Namespace, output_root: Path, apply_
             if target != "suite12-obf" and profile.startswith("OLLVM_"):
                 continue
             variant_filter = _variant_filter_for_target_profile(target, profile)
+            target_requires_ue_prepare = target == "suite10-ue"
+            skip_tier0_prepare = args.skip_tier0_prepare or target_requires_ue_prepare
+            include_ue_build = args.include_ue_build or target_requires_ue_prepare
+            include_ue_extract = args.include_ue_extract or target_requires_ue_prepare
             out_dir = output_root / "prepare_after_apply" / _safe_label(target) / profile
             cmd = [
                 sys.executable,
@@ -497,11 +501,11 @@ def _run_prepare_after_apply(args: argparse.Namespace, output_root: Path, apply_
                 cmd.extend(["--arch", args.prepare_arch])
             if args.force_prepare:
                 cmd.append("--force-prepare")
-            if args.skip_tier0_prepare:
+            if skip_tier0_prepare:
                 cmd.append("--skip-tier0-prepare")
-            if args.include_ue_build:
+            if include_ue_build:
                 cmd.append("--include-ue-build")
-            if args.include_ue_extract:
+            if include_ue_extract:
                 cmd.append("--include-ue-extract")
             log_path = output_root / "prepare_after_apply" / f"{_safe_label(target)}_{profile}.log"
             proc = _run_logged(cmd, log_path)
@@ -511,6 +515,10 @@ def _run_prepare_after_apply(args: argparse.Namespace, output_root: Path, apply_
                     "profile": profile,
                     "variant_filter": variant_filter,
                     "command": cmd,
+                    "auto_target_prepare": target_requires_ue_prepare,
+                    "skip_tier0_prepare": skip_tier0_prepare,
+                    "include_ue_build": include_ue_build,
+                    "include_ue_extract": include_ue_extract,
                     "returncode": proc.returncode,
                     "log_path": str(log_path),
                 }
