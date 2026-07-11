@@ -1363,4 +1363,190 @@ extern "C" TV2_NOINLINE void case_TV2C638_computed_callback_field_summary(void) 
     dfb_sink_int(cell.live);
 }
 
+
+struct TV2C639Node {
+    int hot;
+    int cold;
+    int pad;
+};
+
+TV2_NOINLINE static void tv2c639_store_lane(TV2C639Node* n, int v) {
+    n->hot = v;
+}
+
+TV2_NOINLINE static int tv2c639_select_lane(TV2C639Node* first, TV2C639Node* second, int selector) {
+    TV2C639Node* chosen = (selector & 1) ? second : first;
+    return chosen->hot;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C639_alias_join_field_kill(void) {
+    TV2C639Node left = {0, 0, 0};
+    TV2C639Node right = {0, 0, 0};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+
+    tv2c639_store_lane(&left, a);
+    tv2c639_store_lane(&right, b);
+    left.cold = c;
+    right.cold = c + 17;
+    left.hot = 0x5a5a;
+
+    int out = tv2c639_select_lane(&left, &right, 1);
+    dfb_sink_int(out);
+}
+
+
+struct TV2C640_Node {
+    int live;
+    int noise;
+};
+
+struct TV2C640_Base {
+    virtual ~TV2C640_Base() {}
+    virtual int pick(TV2C640_Node* n) = 0;
+};
+
+struct TV2C640_ReadLive : TV2C640_Base {
+    int pick(TV2C640_Node* n) override {
+        return n->live;
+    }
+};
+
+typedef void (*TV2C640_Callback)(TV2C640_Node*, int, int);
+
+static TV2_NOINLINE void TV2C640_write_live_noise(TV2C640_Node* n, int live, int noise) {
+    n->noise = noise;
+    n->live = live;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C640_lambda_virtual_heap_field_kill() {
+    TV2C640_Node* n = new TV2C640_Node{0, 0};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2C640_Callback cb = TV2C640_write_live_noise;
+    auto stage = [cb, n](int live, int noise) {
+        cb(n, live, noise);
+        n->noise = noise ^ 0x1234;
+    };
+    stage(a, b);
+    n->noise = c;
+    TV2C640_Base* reader = new TV2C640_ReadLive();
+    int out = reader->pick(n);
+    dfb_sink_int(out);
+    delete reader;
+    delete n;
+}
+
+
+struct TV2C641_Cell {
+    int lane0;
+    int lane1;
+    int noise;
+};
+
+static TV2_NOINLINE void tv2c641_write_lane(TV2C641_Cell* cell, int choose_a) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    cell->noise = b ^ 0x5a5a;
+    if ((choose_a ^ 0x13) == 0x12) {
+        cell->lane0 = a + 9;
+    } else {
+        cell->lane0 = b + 11;
+    }
+    cell->lane1 = b - 3;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C641_stack_field_kill_after_branch(void) {
+    TV2C641_Cell cell = {0, 0, 0};
+    tv2c641_write_lane(&cell, 1);
+    cell.lane1 = 0x314159;
+    dfb_sink_int(cell.lane0);
+}
+
+
+struct TV2C642_Node {
+  int left;
+  int pad;
+  int right;
+};
+
+static TV2_NOINLINE int TV2C642_pick_right(TV2C642_Node* n, int noise) {
+  volatile int guard = (noise ^ 0x13579) & 3;
+  if (guard == 99) {
+    return n->left;
+  }
+  return n->right;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C642_field_overwrite_helper_noise(void) {
+  TV2C642_Node node;
+  node.left = dfb_source_B();
+  node.pad = dfb_source_C();
+  node.right = dfb_source_A();
+  node.left = 0x6420;
+  int out = TV2C642_pick_right(&node, node.pad);
+  dfb_sink_int(out);
+}
+
+
+struct TV2C643_Cell {
+    int payload;
+    int decoy;
+};
+
+typedef void (*TV2C643_WriteFn)(TV2C643_Cell *, int);
+
+TV2_NOINLINE static void tv2c643_write_payload(TV2C643_Cell *cell, int v) {
+    cell->payload = v;
+}
+
+TV2_NOINLINE static void tv2c643_write_decoy(TV2C643_Cell *cell, int v) {
+    cell->decoy = v;
+}
+
+TV2_NOINLINE static int tv2c643_read_payload(const TV2C643_Cell *cell) {
+    return cell->payload;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C643_indirect_field_write_then_decoy_overwrite(void) {
+    TV2C643_Cell cell;
+    cell.payload = 0x11111111;
+    cell.decoy = dfb_source_B();
+    TV2C643_WriteFn writer = tv2c643_write_payload;
+    writer(&cell, dfb_source_A());
+    tv2c643_write_decoy(&cell, 0x22222222);
+    dfb_sink_int(tv2c643_read_payload(&cell));
+}
+
+
+struct TV2C644_Row {
+    int live;
+    int dead;
+};
+
+typedef void (*TV2C644_WriteFn)(TV2C644_Row *, int);
+
+static TV2_NOINLINE void tv2c644_write_live(TV2C644_Row *row, int v) {
+    row->live = v;
+}
+
+static TV2_NOINLINE void tv2c644_write_dead(TV2C644_Row *row, int v) {
+    row->dead = v;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C644_callback_field_lane_survives_dead_write() {
+    TV2C644_Row row = {0, 0};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2C644_WriteFn write = ((a ^ 0x55) != 0) ? tv2c644_write_live : tv2c644_write_live;
+    write(&row, a);
+    tv2c644_write_dead(&row, b);
+    int noise = c ^ row.dead;
+    row.dead = noise;
+    dfb_sink_int(row.live);
+}
+
 } /* extern "C" */

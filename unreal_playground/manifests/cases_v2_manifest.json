@@ -2678,6 +2678,549 @@
       "severity": "proposed-regression",
       "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-object",
+        "indirect-slot-load",
+        "field-sensitive-store-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "ret",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2R314_heap_slot_indirect_field_precise",
+          "kind": "call-return",
+          "node": "dfb_source_B",
+          "offset": "ret",
+          "reason": "b is written into bBox->Primary by the helper.",
+          "sink": "bBox.Primary",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "tv2r314_write_primary(bBox, b)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "Primary",
+          "from": "slots[1]->Primary",
+          "function": "tv2r314_read_indirect",
+          "kind": "heap-field-load",
+          "node": "bBox.Primary",
+          "offset": "heap",
+          "reason": "slots[1] is bBox and the helper returns its Primary field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "bBox.Primary",
+          "to": "dfb_sink_int(out)"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Primary",
+          "from": "tv2r314_write_primary(aBox, a)",
+          "function": "case_TV2R314_heap_slot_indirect_field_precise",
+          "kind": "killed-or-unselected-store",
+          "node": "aBox.Primary",
+          "offset": "heap",
+          "reason": "aBox->Primary is overwritten with a constant and slots[1] selects bBox, not aBox.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(out)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Secondary",
+          "from": "Secondary field stores",
+          "function": "case_TV2R314_heap_slot_indirect_field_precise",
+          "kind": "wrong-field",
+          "node": "aBox.Secondary/bBox.Secondary",
+          "offset": "heap",
+          "reason": "dfb_source_C.ret is stored only in Secondary fields; the sink reads Primary from bBox.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(out)"
+        }
+      ],
+      "function": "case_TV2R314_heap_slot_indirect_field_precise",
+      "id": "TV2R314",
+      "name": "heap_slot_indirect_field_precise",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "tarray-heap",
+        "heap-field-precision",
+        "interproc-store-load",
+        "overwrite-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "live payload selected for sink",
+          "field": "",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R315_tarray_heap_field_kill",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "A is passed as the live value to the fill helper.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R315_Cell.live",
+          "from": "live parameter",
+          "function": "TV2R315_fill",
+          "kind": "store",
+          "node": "TV2R315_fill",
+          "offset": "heap",
+          "reason": "The helper stores the live parameter into the selected TArray heap element live field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "cells[1].live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R315_Cell.live",
+          "from": "cells[1].live",
+          "function": "TV2R315_pick_live",
+          "kind": "load",
+          "node": "TV2R315_pick_live",
+          "offset": "heap",
+          "reason": "The picker loads only the live field from the same TArray heap element.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "out"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "out",
+          "function": "case_TV2R315_tarray_heap_field_kill",
+          "kind": "sink",
+          "node": "dfb_sink_int",
+          "offset": "",
+          "reason": "The sink receives the value loaded from the live field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dead field only",
+          "field": "TV2R315_Cell.dead",
+          "from": "b",
+          "function": "case_TV2R315_tarray_heap_field_kill",
+          "kind": "forbidden_source",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "B is stored only into the dead field and then overwritten before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dead overwrite only",
+          "field": "TV2R315_Cell.dead",
+          "from": "c",
+          "function": "case_TV2R315_tarray_heap_field_kill",
+          "kind": "forbidden_source",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "C overwrites only the dead field; the sink path loads the disjoint live field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R315_tarray_heap_field_kill",
+      "id": "TV2R315",
+      "name": "tarray_heap_field_kill",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "indirect-call",
+        "local-struct-field",
+        "field-sensitive-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "A flows through constant function-pointer call to head field",
+          "field": "box.head",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R316_indirect_local_struct_field",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "pdb",
+          "reason": "fn is assigned tv2r316_write_head by construction; that helper writes live + 5 to box.head, and the sink reads box.head",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "box.head"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "decoy only",
+          "field": "box.tail/scratch",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2R316_indirect_local_struct_field",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "pdb",
+          "reason": "B is only written to scratch and tail; tail is overwritten before the sink and scratch is never read by the sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R316_indirect_local_struct_field",
+      "id": "TV2R316",
+      "name": "indirect_local_struct_field",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-local",
+        "heap-sentinel",
+        "array-lane-sensitivity",
+        "overwrite-kill",
+        "interprocedural-helper"
+      ],
+      "expected_flow": [
+        {
+          "carries": "sink-value-source-A-ret",
+          "field": "TV2R317_Payload.slots[1]",
+          "from": "payload->slots[1]",
+          "function": "case_TV2R317_indexed_heap_lane_noise",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "idx is forced to 0 after slots[2] is overwritten with a constant, so TV2R317_load_indexed reads payload->slots[1], which was assigned dfb_source_A.ret.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "neighbor-lane-noise",
+          "field": "TV2R317_Payload.slots[0]",
+          "from": "payload->slots[0]",
+          "function": "case_TV2R317_indexed_heap_lane_noise",
+          "kind": "forbidden_source",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "The helper reads slots[bounded + 1]; with bounded equal to 0, slots[0] is a neighboring heap lane and never reaches the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "overwritten-index-noise",
+          "field": "TV2R317_Payload.slots[2]",
+          "from": "payload->slots[2]",
+          "function": "case_TV2R317_indexed_heap_lane_noise",
+          "kind": "forbidden_source",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "slots[2] is first assigned dfb_source_C.ret but is overwritten with constant 0x3170 before idx is computed, so C is neither data nor control source for the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R317_indexed_heap_lane_noise",
+      "id": "TV2R317",
+      "name": "indexed_heap_lane_noise",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-field",
+        "indirect-call",
+        "field-precision",
+        "overwrite-kill",
+        "no-arg-no-ret"
+      ],
+      "expected_flow": [
+        {
+          "carries": "value stored in heap node live field",
+          "field": "TV2R318_Node.live",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R318_heap_struct_indirect_reader_noise",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "A is stored into node->live, the selected reader is tv2r318_read_live, and the returned live field is passed to dfb_sink_int.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "live",
+          "from": "tv2r318_store_live.node->live",
+          "function": "tv2r318_read_live",
+          "kind": "field",
+          "node": "TV2R318_Node.live",
+          "offset": "heap",
+          "reason": "UE case uses heap sentinel offset; no absolute field offset is asserted.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "tv2r318_read_live.ret"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R318_Node.noise",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2R318_heap_struct_indirect_reader_noise",
+          "kind": "source",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "C is assigned to node->noise, then node->noise is overwritten with a constant; the selected reader reads live, not noise.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R318_heap_struct_indirect_reader_noise",
+      "id": "TV2R318",
+      "name": "heap_struct_indirect_reader_noise",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [
+        "independent dynamic endpoint check not executed by case-author provider"
+      ],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap",
+        "callback",
+        "field-sensitive",
+        "decoy-lane"
+      ],
+      "expected_flow": [
+        {
+          "carries": "A value read into local a",
+          "field": "",
+          "from": "",
+          "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "",
+          "reason": "source call result is assigned to a by construction",
+          "sink": "",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "A value",
+          "field": "TV2R319_Cell::payload",
+          "from": "a",
+          "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+          "kind": "call",
+          "node": "tv2r319_stage_payload",
+          "offset": "heap",
+          "reason": "callback stage writes A into heap payload field",
+          "sink": "",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "cell->payload"
+        },
+        {
+          "carries": "A value",
+          "field": "TV2R319_Cell::payload",
+          "from": "cell->payload",
+          "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+          "kind": "load",
+          "node": "tv2r319_read_payload",
+          "offset": "heap",
+          "reason": "read helper returns heap payload field, then out is passed to sink",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "out"
+        }
+      ],
+      "expected_global_sources": [],
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "B value",
+          "field": "TV2R319_Cell::decoy",
+          "from": "b",
+          "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+          "kind": "store",
+          "node": "cell->decoy",
+          "offset": "heap",
+          "reason": "B is stored only in heap decoy field and never read by tv2r319_read_payload",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "cell->decoy"
+        },
+        {
+          "carries": "C-derived decoy update",
+          "field": "TV2R319_Cell::decoy",
+          "from": "c",
+          "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+          "kind": "store",
+          "node": "cell->decoy",
+          "offset": "heap",
+          "reason": "C affects only decoy and branch condition; expected_control_sources remains empty because sink value is not control-selected",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "cell->decoy"
+        }
+      ],
+      "function": "case_TV2R319_heap_struct_callback_decoy_lane",
+      "id": "TV2R319",
+      "name": "heap_struct_callback_decoy_lane",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

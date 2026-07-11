@@ -128,6 +128,12 @@ extern "C" TV2_NOINLINE void case_TV2R310_ue_callback_heap_payload();
 extern "C" TV2_NOINLINE void case_TV2R311_ue_summary_computed_reader_field();
 extern "C" TV2_NOINLINE void case_TV2R312_heap_callback_chain_overwrite();
 extern "C" TV2_NOINLINE void case_TV2R313_ue_indirect_writer_field_guard();
+extern "C" TV2_NOINLINE void case_TV2R314_heap_slot_indirect_field_precise();
+extern "C" TV2_NOINLINE void case_TV2R315_tarray_heap_field_kill();
+extern "C" TV2_NOINLINE void case_TV2R316_indirect_local_struct_field();
+extern "C" TV2_NOINLINE void case_TV2R317_indexed_heap_lane_noise();
+extern "C" TV2_NOINLINE void case_TV2R318_heap_struct_indirect_reader_noise();
+extern "C" TV2_NOINLINE void case_TV2R319_heap_struct_callback_decoy_lane();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -155,6 +161,12 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R311_ue_summary_computed_reader_field();
 	case_TV2R312_heap_callback_chain_overwrite();
 	case_TV2R313_ue_indirect_writer_field_guard();
+	case_TV2R314_heap_slot_indirect_field_precise();
+	case_TV2R315_tarray_heap_field_kill();
+	case_TV2R316_indirect_local_struct_field();
+	case_TV2R317_indexed_heap_lane_noise();
+	case_TV2R318_heap_struct_indirect_reader_noise();
+	case_TV2R319_heap_struct_callback_decoy_lane();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -598,5 +610,183 @@ extern "C" TV2_NOINLINE void case_TV2R313_ue_indirect_writer_field_guard(void) {
     writer(&box);
     TV2R313_write_decoy(&box);
     dfb_sink_int(box.payload);
+}
+
+struct TV2R314Box {
+    int Primary;
+    int Secondary;
+};
+
+TV2_NOINLINE static void tv2r314_write_primary(TV2R314Box* box, int value) {
+    box->Primary = value;
+}
+
+TV2_NOINLINE static int tv2r314_read_indirect(TV2R314Box** slots, int index) {
+    TV2R314Box* picked = slots[index];
+    return picked->Primary;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R314_heap_slot_indirect_field_precise(void) {
+    TV2R314Box* aBox = new TV2R314Box();
+    TV2R314Box* bBox = new TV2R314Box();
+    aBox->Primary = 0;
+    aBox->Secondary = 0;
+    bBox->Primary = 0;
+    bBox->Secondary = 0;
+
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+
+    tv2r314_write_primary(aBox, a);
+    tv2r314_write_primary(bBox, b);
+    aBox->Primary = 0x7070;
+    aBox->Secondary = c;
+    bBox->Secondary = c ^ 0x55;
+
+    TV2R314Box* slots[2];
+    slots[0] = aBox;
+    slots[1] = bBox;
+    int out = tv2r314_read_indirect(slots, 1);
+    dfb_sink_int(out);
+
+    delete aBox;
+    delete bBox;
+}
+
+struct TV2R315_Cell {
+    int live;
+    int dead;
+};
+
+static TV2_NOINLINE void TV2R315_fill(TV2R315_Cell* cells, int index, int live, int dead) {
+    cells[index].dead = dead;
+    cells[index].live = live;
+}
+
+static TV2_NOINLINE int TV2R315_pick_live(TV2R315_Cell* cells, int index) {
+    return cells[index].live;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R315_tarray_heap_field_kill() {
+    TArray<TV2R315_Cell> cells;
+    cells.SetNum(3);
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2R315_fill(cells.GetData(), 1, a, b);
+    cells[1].dead = c;
+    int out = TV2R315_pick_live(cells.GetData(), 1);
+    dfb_sink_int(out);
+}
+
+struct TV2R316_Box {
+    int head;
+    int tail;
+    int scratch;
+};
+
+typedef void (*TV2R316_WriteFn)(TV2R316_Box*, int, int);
+
+static TV2_NOINLINE void tv2r316_write_head(TV2R316_Box* box, int live, int decoy) {
+    box->scratch = decoy ^ 0x44;
+    box->head = live + 5;
+}
+
+static TV2_NOINLINE void tv2r316_write_tail(TV2R316_Box* box, int live, int decoy) {
+    box->tail = decoy + live;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R316_indirect_local_struct_field(void) {
+    TV2R316_Box box = {0, 0, 0};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    TV2R316_WriteFn fn = tv2r316_write_head;
+    fn(&box, a, b);
+    tv2r316_write_tail(&box, 7, b);
+    box.tail = 0x515151;
+    dfb_sink_int(box.head);
+}
+
+struct TV2R317_Payload {
+  int slots[3];
+};
+
+static TV2_NOINLINE int TV2R317_load_indexed(TV2R317_Payload* payload, int idx) {
+  int bounded = idx & 1;
+  return payload->slots[bounded + 1];
+}
+
+extern "C" TV2_NOINLINE void case_TV2R317_indexed_heap_lane_noise(void) {
+  TV2R317_Payload* payload = new TV2R317_Payload();
+  payload->slots[0] = dfb_source_B();
+  payload->slots[1] = dfb_source_A();
+  payload->slots[2] = dfb_source_C();
+  payload->slots[2] = 0x3170;
+  int idx = payload->slots[2] & 0;
+  int out = TV2R317_load_indexed(payload, idx);
+  dfb_sink_int(out);
+  delete payload;
+}
+
+struct TV2R318_Node {
+    int live;
+    int noise;
+};
+
+typedef int (*TV2R318_ReadFn)(TV2R318_Node *);
+
+TV2_NOINLINE static void tv2r318_store_live(TV2R318_Node *node, int v) {
+    node->live = v;
+}
+
+TV2_NOINLINE static int tv2r318_read_live(TV2R318_Node *node) {
+    return node->live;
+}
+
+TV2_NOINLINE static int tv2r318_read_noise(TV2R318_Node *node) {
+    return node->noise;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R318_heap_struct_indirect_reader_noise(void) {
+    TV2R318_Node *node = new TV2R318_Node();
+    node->live = 0;
+    node->noise = dfb_source_C();
+    tv2r318_store_live(node, dfb_source_A());
+    node->noise = 0x33333333;
+    TV2R318_ReadFn reader = tv2r318_read_live;
+    dfb_sink_int(reader(node));
+    delete node;
+}
+
+struct TV2R319_Cell {
+    int payload;
+    int decoy;
+};
+
+static TV2_NOINLINE void tv2r319_stage_payload(TV2R319_Cell *cell, int v) {
+    cell->payload = v;
+}
+
+static TV2_NOINLINE int tv2r319_read_payload(const TV2R319_Cell *cell) {
+    return cell->payload;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R319_heap_struct_callback_decoy_lane() {
+    TV2R319_Cell *cell = new TV2R319_Cell();
+    cell->payload = 0;
+    cell->decoy = 0;
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    void (*stage)(TV2R319_Cell *, int) = tv2r319_stage_payload;
+    stage(cell, a);
+    cell->decoy = b;
+    if ((c | 1) != 0) {
+        cell->decoy ^= c;
+    }
+    int out = tv2r319_read_payload(cell);
+    dfb_sink_int(out);
+    delete cell;
 }
 
