@@ -147,8 +147,7 @@ def _validate_proposed_case(payload: dict) -> list[str]:
     severity = expected.get("severity") or manifest_case.get("severity")
     if severity != "proposed-regression":
         errors.append(f"severity must be proposed-regression, got {severity!r}")
-    if not _has_expected_sources(expected, manifest_case):
-        errors.append("missing expected source list")
+    errors.extend(_validate_expected_source_policy(expected, manifest_case))
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
     errors.extend(_validate_expected_source_labels(expected, manifest_case))
@@ -185,8 +184,7 @@ def _validate_case_expected(payload: dict) -> list[str]:
     severity = expected.get("severity") or manifest_case.get("severity")
     if severity != "proposed-regression":
         errors.append(f"severity must be proposed-regression, got {severity!r}")
-    if not _has_expected_sources(expected, manifest_case):
-        errors.append("missing expected source list")
+    errors.extend(_validate_expected_source_policy(expected, manifest_case))
     if not (expected.get("anchor") or manifest_case.get("anchor")):
         errors.append("missing wrapper anchor")
     errors.extend(_validate_expected_source_labels(expected, manifest_case))
@@ -233,6 +231,20 @@ def _canonical_source_list(value: Any) -> list:
     return result
 
 
+def _validate_expected_source_policy(expected: dict, manifest_case: dict) -> list[str]:
+    if _has_expected_sources(expected, manifest_case):
+        if _expects_no_sources(expected, manifest_case):
+            return ["expected_no_sources conflicts with expected source list"]
+        return []
+    if not _expects_no_sources(expected, manifest_case):
+        return ["missing expected source list"]
+    if _has_expected_control_or_global_sources(expected, manifest_case):
+        return ["expected_no_sources conflicts with expected control/global source list"]
+    if not _has_forbidden_sources(expected, manifest_case):
+        return ["expected_no_sources requires at least one forbidden source list"]
+    return []
+
+
 def _has_expected_sources(expected: dict, manifest_case: dict) -> bool:
     return bool(
         expected.get("expected_sources")
@@ -240,6 +252,30 @@ def _has_expected_sources(expected: dict, manifest_case: dict) -> bool:
         or expected.get("expected_data_sources")
         or manifest_case.get("expected_data_sources")
     )
+
+
+def _has_expected_control_or_global_sources(expected: dict, manifest_case: dict) -> bool:
+    return bool(
+        expected.get("expected_control_sources")
+        or manifest_case.get("expected_control_sources")
+        or expected.get("expected_global_sources")
+        or manifest_case.get("expected_global_sources")
+    )
+
+
+def _has_forbidden_sources(expected: dict, manifest_case: dict) -> bool:
+    return bool(
+        expected.get("forbidden_sources")
+        or manifest_case.get("forbidden_sources")
+        or expected.get("forbidden_data_sources")
+        or manifest_case.get("forbidden_data_sources")
+        or expected.get("forbidden_control_sources")
+        or manifest_case.get("forbidden_control_sources")
+    )
+
+
+def _expects_no_sources(expected: dict, manifest_case: dict) -> bool:
+    return bool(expected.get("expected_no_sources") or manifest_case.get("expected_no_sources"))
 
 
 def engine_worktree(args: argparse.Namespace, config: HarnessConfig) -> int:
@@ -415,6 +451,8 @@ def _manifest_case_from_expected(expected: dict, target: str) -> dict:
             manifest_case["expected_flow"] = expected.get("expected_flow")
         if expected.get("forbidden_flow") and "forbidden_flow" not in manifest_case:
             manifest_case["forbidden_flow"] = expected.get("forbidden_flow")
+        if payload.get("expected_no_sources") and "expected_no_sources" not in manifest_case:
+            manifest_case["expected_no_sources"] = True
         if target == "suite12-obf":
             manifest_case = _normalize_suite12_manifest_case(manifest_case, payload)
         return manifest_case
@@ -432,8 +470,10 @@ def _manifest_case_from_expected(expected: dict, target: str) -> dict:
             "allowed_warnings": payload.get("allowed_warnings", []) if isinstance(payload, dict) else [],
             "severity": payload.get("severity", "proposed-regression") if isinstance(payload, dict) else "proposed-regression",
         }
+        if isinstance(payload, dict) and payload.get("expected_no_sources"):
+            manifest_case["expected_no_sources"] = True
         return manifest_case
-    return {
+    manifest_case = {
         "id": case_id,
         "tier": int(payload.get("tier", 0) if isinstance(payload, dict) else 0),
         "severity": payload.get("severity", "proposed-regression") if isinstance(payload, dict) else "proposed-regression",
@@ -452,6 +492,9 @@ def _manifest_case_from_expected(expected: dict, target: str) -> dict:
         "expected_flow": expected.get("expected_flow") or [],
         "forbidden_flow": expected.get("forbidden_flow") or [],
     }
+    if isinstance(payload, dict) and payload.get("expected_no_sources"):
+        manifest_case["expected_no_sources"] = True
+    return manifest_case
 
 
 def _source_list(payload: Any, canonical: str, short: str) -> list:
@@ -481,6 +524,8 @@ def _normalize_suite12_manifest_case(manifest_case: dict, payload: Any) -> dict:
     normalized.setdefault("expected_features", ["obfuscation", "proposed"])
     normalized.setdefault("allowed_warnings", [])
     normalized.setdefault("severity", "proposed-regression")
+    if (isinstance(payload, dict) and payload.get("expected_no_sources")) or normalized.get("expected_no_sources"):
+        normalized["expected_no_sources"] = True
     for key in (
         "expected_data_sources",
         "expected_control_sources",

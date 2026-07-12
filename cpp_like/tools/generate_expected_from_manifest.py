@@ -69,7 +69,7 @@ def main():
             # 중간 slice 흐름(정답 경로). 끝점뿐 아니라 의도된 경유점을 오라클에 박는다.
             # source→sink 순서. field/semantic 라벨은 overlay 힌트이고, 핵심은
             # op/edge/size/carries(어느 source를 실어 나르는지) + 순서다.
-            for opt in ("expected_flow", "forbidden_flow", "expected_edge_kinds",
+            for opt in ("expected_no_sources", "expected_flow", "forbidden_flow", "expected_edge_kinds",
                         "expected_memory_ranges", "forbidden_memory_ranges"):
                 if opt in case:
                     entry[opt] = case[opt]

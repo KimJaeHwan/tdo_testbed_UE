@@ -28,6 +28,7 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
         "function": "case_...",
         "source_file": "src/cases_fusion.cpp | Source/TraceUnrealPlayground/TraceCases2.cpp | src/cases_basic_obf.c",
         "anchor": {"callee": "dfb_sink_int", "arg_index": 0, "storage": "test-wrapper-only"},
+        "expected_no_sources": false,
         "expected_data_sources": ["..."],
         "expected_sources": ["..."],
         "expected_control_sources": [],
@@ -46,6 +47,7 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
           "function": "case_...",
           "source_file": "src/cases_fusion.cpp | Source/TraceUnrealPlayground/TraceCases2.cpp | src/cases_basic_obf.c",
           "anchor": {"callee": "dfb_sink_int", "arg_index": 0, "storage": "test-wrapper-only"},
+          "expected_no_sources": false,
           "expected_data_sources": ["..."],
           "expected_sources": ["..."],
           "expected_control_sources": [],
@@ -81,4 +83,5 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - `suite12-obf` 케이스는 OLLVM 변형에서도 풀려야 하므로 opaque predicate, flattened control, helper thunk, field/noise distraction을 섞되 정답은 by-construction이어야 한다.
 - 좋은 케이스는 특정 이름을 외우지 않아도 low-pcode graph, observed storage, metadata, summary evidence만으로 풀려야 한다.
 - fully green을 목표로 오라클을 약하게 만들지 말 것. FP를 유발할 수 있는 forbidden source를 반드시 설계하고 근거를 적는다.
+- negative-only 케이스도 허용된다. 단, 정말 어떤 source도 sink에 도달하면 안 되는 by-construction 케이스일 때만 `expected_no_sources: true`를 expected와 manifest_case 둘 다에 넣고, `expected_data_sources`/`expected_sources`/`expected_control_sources`/`expected_global_sources`는 비워라. 이 경우 `forbidden_data_sources` 또는 `forbidden_sources`는 반드시 하나 이상 있어야 한다.
 - source label은 반드시 `dfb_source_A.ret`, `dfb_source_B.ret`, `dfb_source_C.ret`처럼 `.ret` suffix까지 쓴다. `dfb_source_A` 같은 shorthand를 출력하지 않는다.

@@ -1549,4 +1549,115 @@ extern "C" TV2_NOINLINE void case_TV2C644_callback_field_lane_survives_dead_writ
     dfb_sink_int(row.live);
 }
 
+
+struct TV2C645_Cell { int lane0; int lane1; int noise; };
+
+TV2_NOINLINE static void tv2c645_store_first_lane(TV2C645_Cell* c, int v) {
+    c->lane0 = v;
+}
+
+TV2_NOINLINE static void tv2c645_store_second_lane(TV2C645_Cell* c, int v) {
+    c->lane1 = v;
+}
+
+TV2_NOINLINE static int tv2c645_pick_live_lane(TV2C645_Cell* c, int selector) {
+    int* p = selector ? &c->lane1 : &c->lane0;
+    return *p;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C645_split_store_indirect_lane(void) {
+    TV2C645_Cell c = {0, 0, 0};
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int distract = dfb_source_C();
+    tv2c645_store_first_lane(&c, a);
+    tv2c645_store_second_lane(&c, b);
+    c.noise = distract;
+    int out = tv2c645_pick_live_lane(&c, 1);
+    dfb_sink_int(out);
+}
+
+
+struct TV2C646_Cell {
+    int live;
+    int dead;
+};
+
+TV2_NOINLINE static int tv2c646_affine_keep(int v) {
+    return (v * 3) + 17;
+}
+
+TV2_NOINLINE static void tv2c646_store_live(TV2C646_Cell* cell, int live_value, int noise_value) {
+    cell->dead = noise_value;
+    cell->live = live_value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C646_heap_lambda_alias_overwrite(void) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+
+    TV2C646_Cell* cell = new TV2C646_Cell();
+    cell->live = b;
+    cell->dead = a;
+
+    auto writer = [cell](int live_value, int noise_value) {
+        tv2c646_store_live(cell, live_value, noise_value);
+    };
+
+    writer(tv2c646_affine_keep(a), b);
+    int out = cell->live + 5;
+    dfb_sink_int(out);
+    delete cell;
+}
+
+
+struct TV2C647_Cell {
+  int live;
+  int dead;
+};
+
+typedef void (*TV2C647_WriteFn)(TV2C647_Cell *, int, int);
+
+static TV2_NOINLINE void tv2c647_write_pair(TV2C647_Cell *cell, int first, int second) {
+  int TV2C647_Cell::* slot = &TV2C647_Cell::live;
+  cell->dead = first;
+  cell->*slot = first;
+  cell->*slot = second;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C647_member_pointer_callback_overwrite(void) {
+  TV2C647_Cell cell = {0, 0};
+  int a = dfb_source_A();
+  int b = dfb_source_B();
+  TV2C647_WriteFn writer = tv2c647_write_pair;
+  writer(&cell, a, b);
+  dfb_sink_int(cell.live);
+}
+
+
+struct TV2C648_Node {
+    int lane0;
+    int lane1;
+    int lane2;
+};
+
+static TV2_NOINLINE void tv2c648_write_lane(TV2C648_Node* n, int selector, int value) {
+    volatile int guard = selector ^ 0x4a17;
+    if ((guard & 1) == 0) {
+        n->lane1 = value;
+    } else {
+        n->lane0 = dfb_source_C();
+        n->lane1 = value;
+    }
+}
+
+extern "C" TV2_NOINLINE void case_TV2C648_indirect_field_overwrite_sink(void) {
+    TV2C648_Node n;
+    n.lane0 = dfb_source_B();
+    n.lane1 = dfb_source_A();
+    n.lane2 = 0x6480;
+    tv2c648_write_lane(&n, 0x4a16, 0x13572468);
+    dfb_sink_int(n.lane1);
+}
+
 } /* extern "C" */

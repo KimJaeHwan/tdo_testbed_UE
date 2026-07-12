@@ -3153,6 +3153,370 @@
           "to": "cell->decoy"
         }
       ]
+    },
+    {
+      "id": "TV2R320",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R320_heap_select_payload",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-object",
+        "callee-selected-pointer",
+        "field-sensitive-load",
+        "false-positive-guard"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "live sink value",
+          "field": "Payload",
+          "from": "right->Payload",
+          "function": "case_TV2R320_heap_select_payload",
+          "kind": "heap-field-flow",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "constant selector 1 chooses right; right->Payload contains dfb_source_B.ret; sink consumes Payload",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "tv2r320_select_node / tv2r320_read_payload / dfb_sink_int"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "unchosen object payload",
+          "field": "Payload",
+          "from": "left->Payload",
+          "function": "case_TV2R320_heap_select_payload",
+          "kind": "heap-object-disjoint",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "left is not selected because selector is constant 1",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        },
+        {
+          "carries": "dead shadow field",
+          "field": "Shadow",
+          "from": "left/right Shadow fields",
+          "function": "case_TV2R320_heap_select_payload",
+          "kind": "heap-field-disjoint",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "Shadow is written on both heap objects but never read into the sink value",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ]
+    },
+    {
+      "id": "TV2R321",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R321_heap_dispatch_field_kill",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "heap-field",
+        "function-pointer-dispatch",
+        "interproc-store",
+        "overwrite-kill",
+        "forbidden-shadow-field"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "integer selected by function-table store",
+          "field": "TV2R321_Cell.live",
+          "from": "dfb_source_B.ret -> table[0] -> tv2r321_write_selected -> cell.live",
+          "function": "case_TV2R321_heap_dispatch_field_kill",
+          "kind": "data",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "tv2r321_pick_writer is source-independent and selects tv2r321_write_selected, which writes dfb_source_B.ret to the live heap field read at the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "cell.live -> out -> dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "initial live value overwritten before sink",
+          "field": "TV2R321_Cell.live",
+          "from": "dfb_source_A.ret -> initial cell.live",
+          "function": "case_TV2R321_heap_dispatch_field_kill",
+          "kind": "data",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "The initial live field write from dfb_source_A.ret is killed by the selected function-table store before the sink reads cell.live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "shadow/noise field only",
+          "field": "TV2R321_Cell.shadow",
+          "from": "dfb_source_C.ret -> cell.shadow",
+          "function": "case_TV2R321_heap_dispatch_field_kill",
+          "kind": "data",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "dfb_source_C.ret reaches only the shadow field, which is never read for the sink argument.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2R322",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R322_heap_field_overwrite_opaque_branch",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue-extern-c-symbol",
+        "heap-field-precision",
+        "overwrite-kill",
+        "opaque-local-branch"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "source value b is passed into the heap node writer.",
+          "field": "return",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2R322_heap_field_overwrite_opaque_branch",
+          "kind": "source",
+          "node": "dfb_source_B.ret",
+          "offset": "0",
+          "reason": "b is initialized directly from dfb_source_B and supplied as the third argument to tv2r322_seed_node.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "b"
+        },
+        {
+          "carries": "b overwrites the earlier a store to the same heap field.",
+          "field": "TV2R322_Node::Payload",
+          "from": "b",
+          "function": "tv2r322_seed_node",
+          "kind": "store",
+          "node": "node->Payload",
+          "offset": "heap",
+          "reason": "The branch condition is based on local Shadow after OR with 1, so the overwrite statement is always reached by source-code construction.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "node->Payload"
+        },
+        {
+          "carries": "out receives the final Payload field value before delete.",
+          "field": "TV2R322_Node::Payload",
+          "from": "node->Payload",
+          "function": "case_TV2R322_heap_field_overwrite_opaque_branch",
+          "kind": "load",
+          "node": "node->Payload",
+          "offset": "heap",
+          "reason": "out is assigned from node->Payload after tv2r322_seed_node returns.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "out"
+        },
+        {
+          "carries": "sink argument is out, which is the final heap Payload value.",
+          "field": "argument0",
+          "from": "out",
+          "function": "case_TV2R322_heap_field_overwrite_opaque_branch",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "0",
+          "reason": "dfb_sink_int(out) is the only sink call in the case.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret is killed by the later Payload=b store.",
+          "field": "TV2R322_Node::Payload",
+          "from": "a",
+          "function": "tv2r322_seed_node",
+          "kind": "store",
+          "node": "node->Payload",
+          "offset": "heap",
+          "reason": "a is first stored to Payload, but that value is overwritten before the caller reads Payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "Shadow is only used to make a local opaque branch and is never loaded into the sink value.",
+          "field": "TV2R322_Node::Shadow",
+          "from": "node->Shadow",
+          "function": "tv2r322_seed_node",
+          "kind": "store",
+          "node": "node->Shadow",
+          "offset": "heap",
+          "reason": "The manifest has no expected control sources; control-only use of a does not make a data flow to dfb_sink_int.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "no value from source C is read in this case.",
+          "field": "return",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2R322_heap_field_overwrite_opaque_branch",
+          "kind": "source",
+          "node": "dfb_source_C.ret",
+          "offset": "0",
+          "reason": "The snippet never calls dfb_source_C.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ]
+    },
+    {
+      "id": "TV2R323",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R323_funcptr_live_field_overwrite",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "function-pointer-call",
+        "heap-or-stack-field-precision",
+        "overwrite-kill",
+        "forbidden-source-distraction"
+      ],
+      "allowed_warnings": [],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R323_Payload.live",
+          "from": "writer(&p, dfb_source_C())",
+          "function": "tv2r323_write_live",
+          "kind": "data",
+          "node": "p.live final store",
+          "offset": "pdb",
+          "reason": "The function pointer is assigned to tv2r323_write_live and writes dfb_source_C.ret into the live field, which is read at the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(p.live)"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R323_Payload.live",
+          "from": "p.live initial assignment",
+          "function": "case_TV2R323_funcptr_live_field_overwrite",
+          "kind": "data",
+          "node": "p.live initial store",
+          "offset": "pdb",
+          "reason": "The initial live-field value is overwritten by the indirect call before the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(p.live)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R323_Payload.stable",
+          "from": "p.stable assignment",
+          "function": "case_TV2R323_funcptr_live_field_overwrite",
+          "kind": "data",
+          "node": "p.stable neighboring store",
+          "offset": "pdb",
+          "reason": "stable is a neighboring field and should not be conflated with live.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(p.live)"
+        }
+      ]
     }
   ]
 }
