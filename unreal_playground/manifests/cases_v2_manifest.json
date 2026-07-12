@@ -3593,6 +3593,206 @@
       "severity": "proposed-regression",
       "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-local",
+        "heap",
+        "field-sensitive-memory",
+        "overwrite-kill",
+        "interprocedural-helper"
+      ],
+      "expected_flow": [
+        {
+          "carries": "heap payload live value",
+          "field": "return",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2R324_heap_payload_noise_cross_field",
+          "kind": "source",
+          "node": "dfb_source_C.ret",
+          "offset": "0",
+          "reason": "C is written to payload after A and before the payload read.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "box->payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R324_Box::payload",
+          "from": "tv2r324_write_payload(box, c)",
+          "function": "tv2r324_write_payload",
+          "kind": "store",
+          "node": "box->payload",
+          "offset": "heap",
+          "reason": "UE absolute heap offset should use the heap sentinel; payload is the read field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "tv2r324_read_payload(box)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "arg0",
+          "from": "out",
+          "function": "case_TV2R324_heap_payload_noise_cross_field",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "0",
+          "reason": "The sink argument is the value returned by tv2r324_read_payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "return",
+          "from": "tv2r324_write_payload(box, a)",
+          "function": "case_TV2R324_heap_payload_noise_cross_field",
+          "kind": "forbidden_source",
+          "node": "dfb_source_A.ret",
+          "offset": "0",
+          "reason": "A is overwritten in the same heap payload field by C before the read.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "return",
+          "from": "tv2r324_write_noise(box, b)",
+          "function": "case_TV2R324_heap_payload_noise_cross_field",
+          "kind": "forbidden_source",
+          "node": "dfb_source_B.ret",
+          "offset": "0",
+          "reason": "B is confined to the noise field; the sink reads payload only.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R324_heap_payload_noise_cross_field",
+      "id": "TV2R324",
+      "name": "heap payload noise cross field",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-field",
+        "callee-summary",
+        "forbidden-shadow-field"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "node->payload = a",
+          "function": "case_TV2R325_heap_field_survives_shadow_noise",
+          "kind": "data",
+          "node": "TV2R325_Node.payload",
+          "offset": "heap",
+          "reason": "The helper loads node->payload and returns it unchanged because the xor pair cancels when executed.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "TV2R325_pick_payload return"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "out",
+          "function": "case_TV2R325_heap_field_survives_shadow_noise",
+          "kind": "data",
+          "node": "dfb_sink_int.arg0",
+          "offset": "heap",
+          "reason": "out is the helper result loaded from payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(out)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "shadow",
+          "from": "node->shadow = b",
+          "function": "case_TV2R325_heap_field_survives_shadow_noise",
+          "kind": "data",
+          "node": "TV2R325_Node.shadow",
+          "offset": "heap",
+          "reason": "shadow is written but never read for the sink value.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret as branch selector only",
+          "field": "selector",
+          "from": "selector branch",
+          "function": "TV2R325_pick_payload",
+          "kind": "control",
+          "node": "TV2R325_pick_payload.branch",
+          "offset": "heap",
+          "reason": "The branch may execute a cancelling xor pair; it does not create an expected control source for this data-flow oracle.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "local"
+        }
+      ],
+      "function": "case_TV2R325_heap_field_survives_shadow_noise",
+      "id": "TV2R325",
+      "name": "heap_field_survives_shadow_noise",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

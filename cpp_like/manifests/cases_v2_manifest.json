@@ -5672,6 +5672,435 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "cpp-virtual-call",
+        "field-precision",
+        "overwrite-kill",
+        "forbidden-noise"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C649_Cell.live",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C649_virtual_field_overwrite_precise",
+          "kind": "source_to_field",
+          "node": "cell.live",
+          "offset": "offsetof(TV2C649_Cell, live)",
+          "reason": "Initial live field is seeded from C before virtual dispatch.",
+          "sink": "cell.live",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "cell.live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C649_Cell.live",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C649_Second::pick",
+          "kind": "overwrite_kill",
+          "node": "cell.live",
+          "offset": "offsetof(TV2C649_Cell, live)",
+          "reason": "The selected virtual target is TV2C649_Second::pick, which overwrites live with A.",
+          "sink": "cell.live",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "cell.live"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C649_Cell.live",
+          "from": "cell.live",
+          "function": "case_TV2C649_virtual_field_overwrite_precise",
+          "kind": "source_to_sink",
+          "node": "dfb_sink_int",
+          "offset": "offsetof(TV2C649_Cell, live)",
+          "reason": "Both branch arms sink cell.live after the virtual call; by construction the live field carries only A at that point.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C649_Cell.live",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C649_virtual_field_overwrite_precise",
+          "kind": "killed_source_to_sink",
+          "node": "cell.live",
+          "offset": "offsetof(TV2C649_Cell, live)",
+          "reason": "C is overwritten in the same field before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C649_Cell.noise",
+          "from": "dfb_source_B.ret",
+          "function": "TV2C649_First::pick",
+          "kind": "wrong_field_to_sink",
+          "node": "cell.noise",
+          "offset": "offsetof(TV2C649_Cell, noise)",
+          "reason": "B is written only by the non-selected virtual implementation and, even there, only to noise, not live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C649_virtual_field_overwrite_precise",
+      "id": "TV2C649",
+      "name": "TV2C649 virtual field overwrite precise",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "field-sensitive stack struct",
+        "interprocedural store/load",
+        "overwrite kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "tv2c650_store_selected_lane",
+          "function": "case_TV2C650_struct_lane_store_through_helper",
+          "kind": "data",
+          "node": "TV2C650Node.payload",
+          "offset": "offsetof(TV2C650Node, payload)",
+          "reason": "live source A is stored into payload through a helper and the sink reads only payload after unrelated tag and decoy writes",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "tv2c650_read_payload_after_noise"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "decoy",
+          "from": "node.decoy = dead",
+          "function": "case_TV2C650_struct_lane_store_through_helper",
+          "kind": "data",
+          "node": "TV2C650Node.decoy",
+          "offset": "offsetof(TV2C650Node, decoy)",
+          "reason": "source B is written only to decoy, and tv2c650_read_payload_after_noise overwrites decoy before returning payload",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C650_struct_lane_store_through_helper",
+      "id": "TV2C650",
+      "name": "struct lane store through helper",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "field-precision",
+        "interprocedural-store",
+        "overwrite-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "data",
+          "field": "TV2C651_Cell::live",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C651_field_rewrite_live_decoy_precision",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C651_Cell, live)",
+          "reason": "dfb_source_A() is stored through tv2c651_store_live into cell.live, and tv2c651_read_live returns only cell.live to dfb_sink_int.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "tv2c651_store_live cell.live"
+        },
+        {
+          "carries": "data",
+          "field": "TV2C651_Cell::live",
+          "from": "tv2c651_read_live cell.live",
+          "function": "case_TV2C651_field_rewrite_live_decoy_precision",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "offsetof(TV2C651_Cell, live)",
+          "reason": "The sink argument is the value loaded from cell.live after the live-field write.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "data",
+          "field": "TV2C651_Cell::decoy",
+          "from": "tv2c651_store_decoy cell.decoy",
+          "function": "case_TV2C651_field_rewrite_live_decoy_precision",
+          "kind": "field-disjoint",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C651_Cell, decoy)",
+          "reason": "dfb_source_B() is written only to cell.decoy; the sink reads cell.live, and the decoy field is overwritten with a constant before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "data",
+          "field": "",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C651_field_rewrite_live_decoy_precision",
+          "kind": "absent-source",
+          "node": "dfb_source_C.ret",
+          "offset": "",
+          "reason": "dfb_source_C() is not called in this case, so it cannot reach the sink by construction.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C651_field_rewrite_live_decoy_precision",
+      "id": "TV2C651",
+      "name": "field_rewrite_live_decoy_precision",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "field-sensitive-memory",
+        "indexed-store",
+        "overwrite-kill",
+        "interprocedural-helper"
+      ],
+      "expected_flow": [
+        {
+          "carries": "live value written last to cell.lanes[live_index] before sink",
+          "field": "return",
+          "from": "dfb_source_C.ret",
+          "function": "case_TV2C652_indirect_indexed_lane_overwrite",
+          "kind": "source",
+          "node": "dfb_source_C.ret",
+          "offset": "0",
+          "reason": "By construction the final store to the sink-read lane uses c.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "cell.lanes[live_index]"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C652_Cell::lanes[2]",
+          "from": "tv2c652_store_lane(&cell, live_index, c)",
+          "function": "tv2c652_store_lane",
+          "kind": "store",
+          "node": "cell.lanes[live_index]",
+          "offset": "offsetof(TV2C652_Cell, lanes) + 2 * sizeof(int)",
+          "reason": "guard is 7, so live_index is 2; the C store overwrites the earlier A value in the same lane.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "tv2c652_read_lane(&cell, live_index)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "arg0",
+          "from": "out",
+          "function": "case_TV2C652_indirect_indexed_lane_overwrite",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "0",
+          "reason": "out is loaded from the overwritten live lane.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "return",
+          "from": "tv2c652_store_lane(&cell, live_index, a)",
+          "function": "case_TV2C652_indirect_indexed_lane_overwrite",
+          "kind": "forbidden_source",
+          "node": "dfb_source_A.ret",
+          "offset": "0",
+          "reason": "A reaches the live lane only before the later C store to the same computed lane; the later store kills it.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "return",
+          "from": "tv2c652_store_lane(&cell, dead_index, b)",
+          "function": "case_TV2C652_indirect_indexed_lane_overwrite",
+          "kind": "forbidden_source",
+          "node": "dfb_source_B.ret",
+          "offset": "0",
+          "reason": "B is stored to dead_index 1 while the sink reads live_index 2, so it is a lane-precision false-positive trap.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C652_indirect_indexed_lane_overwrite",
+      "id": "TV2C652",
+      "name": "indirect indexed lane overwrite",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "partial-store",
+        "lane-overwrite",
+        "negative-only"
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "constant 0x1234 only after overwrite",
+          "field": "TV2C653_Box.lane.low16",
+          "from": "box.lane full-width earlier store",
+          "function": "case_TV2C653_partial_store_kills_sink_lane",
+          "kind": "data",
+          "node": "dfb_sink_int.arg0",
+          "offset": "offsetof(TV2C653_Box, lane)",
+          "reason": "The sink reloads only the low 16-bit lane after that lane is overwritten with a constant.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "2",
+          "source": "dfb_source_A.ret",
+          "to": "low16 reload"
+        },
+        {
+          "carries": "distractor only, never read for sink",
+          "field": "TV2C653_Box.noise",
+          "from": "box.noise",
+          "function": "case_TV2C653_partial_store_kills_sink_lane",
+          "kind": "data",
+          "node": "dfb_sink_int.arg0",
+          "offset": "offsetof(TV2C653_Box, noise)",
+          "reason": "dfb_source_B.ret is stored in the adjacent field and is never loaded into observed.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C653_partial_store_kills_sink_lane",
+      "id": "TV2C653",
+      "name": "partial_store_kills_sink_lane",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

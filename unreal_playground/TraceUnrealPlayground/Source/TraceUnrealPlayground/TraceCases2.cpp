@@ -138,6 +138,8 @@ extern "C" TV2_NOINLINE void case_TV2R320_heap_select_payload();
 extern "C" TV2_NOINLINE void case_TV2R321_heap_dispatch_field_kill();
 extern "C" TV2_NOINLINE void case_TV2R322_heap_field_overwrite_opaque_branch();
 extern "C" TV2_NOINLINE void case_TV2R323_funcptr_live_field_overwrite();
+extern "C" TV2_NOINLINE void case_TV2R324_heap_payload_noise_cross_field();
+extern "C" TV2_NOINLINE void case_TV2R325_heap_field_survives_shadow_noise();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -175,6 +177,8 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R321_heap_dispatch_field_kill();
 	case_TV2R322_heap_field_overwrite_opaque_branch();
 	case_TV2R323_funcptr_live_field_overwrite();
+	case_TV2R324_heap_payload_noise_cross_field();
+	case_TV2R325_heap_field_survives_shadow_noise();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -913,5 +917,62 @@ extern "C" TV2_NOINLINE void case_TV2R323_funcptr_live_field_overwrite(void) {
     writer(&p, dfb_source_C());
     tv2r323_write_noise(&p, 0x7777);
     dfb_sink_int(p.live);
+}
+
+struct TV2R324_Box {
+    int payload;
+    int noise;
+};
+
+TV2_NOINLINE static void tv2r324_write_payload(TV2R324_Box* box, int value) {
+    box->payload = value;
+}
+
+TV2_NOINLINE static void tv2r324_write_noise(TV2R324_Box* box, int value) {
+    box->noise = value;
+}
+
+TV2_NOINLINE static int tv2r324_read_payload(const TV2R324_Box* box) {
+    return box->payload;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R324_heap_payload_noise_cross_field(void) {
+    TV2R324_Box* box = new TV2R324_Box();
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+
+    tv2r324_write_payload(box, a);
+    tv2r324_write_noise(box, b);
+    tv2r324_write_payload(box, c);
+
+    int out = tv2r324_read_payload(box);
+    dfb_sink_int(out);
+    delete box;
+}
+
+struct TV2R325_Node {
+    int payload;
+    int shadow;
+};
+
+static TV2_NOINLINE int TV2R325_pick_payload(TV2R325_Node *node, int selector) {
+    int local = node->payload;
+    if ((selector & 3) == 1) {
+        local ^= 0x2026;
+        local ^= 0x2026;
+    }
+    return local;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R325_heap_field_survives_shadow_noise() {
+    TV2R325_Node *node = new TV2R325_Node();
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    node->payload = a;
+    node->shadow = b;
+    int out = TV2R325_pick_payload(node, b);
+    delete node;
+    dfb_sink_int(out);
 }
 
