@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-CASE_SCOPE_SCHEMA_VERSION = 1
+CASE_SCOPE_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -172,7 +173,7 @@ class CaseScopePlanner:
         entries: dict[Path, FunctionEntry] = {}
         name_index: dict[str, set[Path]] = {}
         total_size = 0
-        for path in sorted(self.sample_dir.glob("*_low_pcode.json")):
+        for path in sorted(self.sample_dir.rglob("*_low_pcode.json")):
             entry = self._load_entry(path)
             entries[path] = entry
             total_size += entry.size_bytes
@@ -188,6 +189,12 @@ class CaseScopePlanner:
             data = json.load(f)
         function_name = str(data.get("function_name") or _function_name_from_path(path))
         call_names: set[str] = set()
+        functions_by_entry = (data.get("indices") or {}).get("functions_by_entry") or {}
+        names_by_entry = {
+            _normalize_address(entry): str(info.get("name") or "")
+            for entry, info in functions_by_entry.items()
+            if isinstance(info, dict) and info.get("name")
+        }
         for instr in data.get("instructions") or []:
             if not isinstance(instr, dict):
                 continue
@@ -204,6 +211,24 @@ class CaseScopePlanner:
                         value = proto.get(key)
                         if value:
                             call_names.add(str(value))
+            for ref in instr.get("refs_from") or []:
+                if not isinstance(ref, dict):
+                    continue
+                if ref.get("is_flow") or ref.get("is_call") or ref.get("is_jump"):
+                    continue
+                name = names_by_entry.get(_normalize_address(ref.get("to")))
+                if name:
+                    call_names.add(name)
+        data_refs_by_from = (data.get("indices") or {}).get("data_refs_by_from") or {}
+        for refs in data_refs_by_from.values():
+            for ref in refs or []:
+                if not isinstance(ref, dict):
+                    continue
+                if ref.get("is_flow") or ref.get("is_call") or ref.get("is_jump"):
+                    continue
+                name = names_by_entry.get(_normalize_address(ref.get("to")))
+                if name:
+                    call_names.add(name)
         size_bytes = path.stat().st_size
         return FunctionEntry(
             path=path,
@@ -235,6 +260,12 @@ class CaseScopePlanner:
             if entry.source_or_sink:
                 closure.add(path)
 
+        if self._can_use_case_family_scope(case_path):
+            for path in self._family_helper_paths(case_path):
+                if path not in closure:
+                    closure.add(path)
+                    stack.append(path)
+
         while stack:
             current = stack.pop()
             entry = self._entries.get(current)
@@ -251,6 +282,31 @@ class CaseScopePlanner:
                     closure.add(candidate)
                     stack.append(candidate)
         return closure, missing
+
+    def _family_helper_paths(self, case_path: Path) -> set[Path]:
+        self._ensure_index()
+        assert self._entries is not None
+        root_entry = self._entries.get(case_path)
+        tokens = _case_family_tokens(case_path.name)
+        if root_entry is not None:
+            tokens.update(_case_family_tokens(root_entry.function_name))
+        if not tokens:
+            return set()
+        family_paths: set[Path] = set()
+        lowered_tokens = {token.lower() for token in tokens}
+        for path, entry in self._entries.items():
+            haystacks = {
+                path.name.lower(),
+                entry.function_name.lower(),
+                _function_name_from_path(path).lower(),
+            }
+            if any(token in item for token in lowered_tokens for item in haystacks):
+                family_paths.add(path)
+        return family_paths
+
+    def _can_use_case_family_scope(self, case_path: Path) -> bool:
+        parts = {part.lower() for part in case_path.parts}
+        return "cpp_like" in parts
 
     def _scope_hash(self, closure: set[Path], target_name: str) -> str:
         self._ensure_index()
@@ -281,6 +337,25 @@ def _function_name_from_path(path: Path) -> str:
     if name.endswith("_low_pcode.json"):
         return name[: -len("_low_pcode.json")]
     return path.stem
+
+
+def _normalize_address(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().replace("L", "")
+    if not text:
+        return ""
+    try:
+        return f"{int(text, 16):08x}"
+    except ValueError:
+        return text.lower()
+
+
+def _case_family_tokens(text: str) -> set[str]:
+    return {
+        match.group(0)
+        for match in re.finditer(r"[A-Z][A-Z0-9]{1,15}\d{3,}", text, flags=re.IGNORECASE)
+    }
 
 
 def _safe_label(text: str) -> str:
