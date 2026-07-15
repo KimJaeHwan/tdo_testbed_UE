@@ -117,12 +117,43 @@ def _read_existing_case_ids(config: HarnessConfig) -> list[str]:
     return sorted(case_ids)
 
 
+def _suite_tokens(suite_arg: str) -> set[str]:
+    tokens: set[str] = set()
+    for raw in str(suite_arg or "").split(","):
+        item = raw.strip().lower()
+        if not item:
+            continue
+        tokens.add(item)
+        if item.isdigit():
+            tokens.add(str(int(item)))
+    return tokens
+
+
+def _allowed_case_targets_for_suite_arg(suite_arg: str) -> list[str]:
+    tokens = _suite_tokens(suite_arg)
+    allowed: list[str] = []
+    if {"10", "10_tdo_testbed_ue", "tdo_testbed_ue"} & tokens:
+        allowed.extend(["suite10-cpp", "suite10-ue"])
+    if {"12", "12_tdo_testbed_obf", "tdo_testbed_obf"} & tokens:
+        allowed.append("suite12-obf")
+    if not allowed:
+        allowed.extend(["suite10-cpp", "suite10-ue", "suite12-obf"])
+    return allowed
+
+
+def _disallowed_case_targets_for_suite_arg(suite_arg: str) -> list[str]:
+    all_targets = {"suite10-cpp", "suite10-ue", "suite12-obf"}
+    return sorted(all_targets.difference(_allowed_case_targets_for_suite_arg(suite_arg)))
+
+
 def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, report_path: Path, tasks_path: Path) -> dict:
     report = _read_json(report_path, [])
     if not isinstance(report, list):
         report = []
     capability_map = _read_json(config.path("output", "memory") / "capability_map.json", {})
     existing_case_ids = _read_existing_case_ids(config)
+    allowed_targets = _allowed_case_targets_for_suite_arg(args.suite)
+    disallowed_targets = _disallowed_case_targets_for_suite_arg(args.suite)
     task = {
         "agent": "case_author",
         "schema_version": 1,
@@ -134,6 +165,8 @@ def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, re
             "report_metrics": _metrics(report),
             "gate": invariant_status(report, ROOT) if report else {},
             "gap_note": _gap_note(args),
+            "allowed_targets": allowed_targets,
+            "disallowed_targets": disallowed_targets,
             "existing_case_ids": existing_case_ids,
             "case_id_policy": {
                 "do_not_reuse_existing_case_ids": True,
@@ -152,7 +185,12 @@ def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, re
         },
     }
     write_json(tasks_path, [task])
-    return {"tasks_path": str(tasks_path), "task_count": 1}
+    return {
+        "tasks_path": str(tasks_path),
+        "task_count": 1,
+        "allowed_targets": allowed_targets,
+        "disallowed_targets": disallowed_targets,
+    }
 
 
 def _run_regression(args: argparse.Namespace, output_root: Path, phase: str) -> dict:
@@ -351,9 +389,24 @@ def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_d
         return result
     expected_paths = sorted((proposal_dir / "work_items" / "source_cases").glob("*.expected.proposal.json"))
     rows: list[dict] = []
+    allowed_targets = set(_allowed_case_targets_for_suite_arg(args.suite))
     for expected_path in expected_paths:
         target = _target_from_expected(expected_path)
         case_id = _case_id_from_expected(expected_path)
+        if target not in allowed_targets:
+            rows.append(
+                {
+                    "expected": str(expected_path),
+                    "target": target,
+                    "case_id": case_id,
+                    "returncode": 0,
+                    "mode": args.apply_mode,
+                    "skipped": True,
+                    "reason": f"target_not_allowed_for_suite:{args.suite}",
+                    "allowed_targets": sorted(allowed_targets),
+                }
+            )
+            continue
         cmd = [
             sys.executable,
             "-m",
@@ -387,7 +440,13 @@ def _apply_or_plan_cases(args: argparse.Namespace, output_root: Path, proposal_d
                 "mode": args.apply_mode,
             }
         )
-    result = {"mode": args.apply_mode, "case_count": len(rows), "rows": rows}
+    result = {
+        "mode": args.apply_mode,
+        "case_count": sum(1 for row in rows if not row.get("skipped")),
+        "disallowed_count": sum(1 for row in rows if row.get("skipped")),
+        "allowed_targets": sorted(allowed_targets),
+        "rows": rows,
+    }
     write_json(output_root / "case_apply_plan.json", result)
     return result
 
@@ -790,6 +849,11 @@ def run_frontier_loop(args: argparse.Namespace) -> int:
     state["phases"].append({"name": "case_apply", **apply_result})
     if any(row.get("returncode") != 0 for row in apply_result["rows"]):
         state["status"] = "case_apply_failed"
+        write_json(state_path, state)
+        return 3
+    if apply_result.get("disallowed_count") and not apply_result.get("case_count"):
+        state["status"] = "case_author_no_allowed_proposals"
+        state["finished_at"] = _now()
         write_json(state_path, state)
         return 3
 

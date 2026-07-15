@@ -140,6 +140,21 @@ extern "C" TV2_NOINLINE void case_TV2R322_heap_field_overwrite_opaque_branch();
 extern "C" TV2_NOINLINE void case_TV2R323_funcptr_live_field_overwrite();
 extern "C" TV2_NOINLINE void case_TV2R324_heap_payload_noise_cross_field();
 extern "C" TV2_NOINLINE void case_TV2R325_heap_field_survives_shadow_noise();
+extern "C" TV2_NOINLINE void case_TV2R326_heap_alias_selected_node();
+extern "C" TV2_NOINLINE void case_TV2R327_masked_node_payload();
+extern "C" TV2_NOINLINE void case_TV2R328_indirect_node_pick_payload();
+extern "C" TV2_NOINLINE void case_TV2R329_tarray_swap_remove_live_tail_payload();
+extern "C" TV2_NOINLINE void case_TV2R330_heap_selected_node_payload();
+extern "C" TV2_NOINLINE void case_TV2R331_heap_alias_selected_node();
+extern "C" TV2_NOINLINE void case_TV2R332_heap_alias_stale_copy_kill();
+extern "C" TV2_NOINLINE void case_TV2R333_static_alias_overwrite_no_source();
+extern "C" TV2_NOINLINE void case_TV2R334_heap_alias_negative_after_overwrite();
+extern "C" TV2_NOINLINE void case_TV2R335_tarray_selected_payload_kills_noise();
+extern "C" TV2_NOINLINE void case_TV2R336_heap_selected_node_payload_kill();
+extern "C" TV2_NOINLINE void case_TV2R337_heap_alias_selected_node_multisink();
+extern "C" TV2_NOINLINE void case_TV2R338_heap_alias_negative_stale();
+extern "C" TV2_NOINLINE void case_TV2R339_heap_alias_selected_node_payload();
+extern "C" TV2_NOINLINE void case_TV2R340_heap_alias_selected_node_no_flow();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -179,6 +194,21 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R323_funcptr_live_field_overwrite();
 	case_TV2R324_heap_payload_noise_cross_field();
 	case_TV2R325_heap_field_survives_shadow_noise();
+	case_TV2R326_heap_alias_selected_node();
+	case_TV2R327_masked_node_payload();
+	case_TV2R328_indirect_node_pick_payload();
+	case_TV2R329_tarray_swap_remove_live_tail_payload();
+	case_TV2R330_heap_selected_node_payload();
+	case_TV2R331_heap_alias_selected_node();
+	case_TV2R332_heap_alias_stale_copy_kill();
+	case_TV2R333_static_alias_overwrite_no_source();
+	case_TV2R334_heap_alias_negative_after_overwrite();
+	case_TV2R335_tarray_selected_payload_kills_noise();
+	case_TV2R336_heap_selected_node_payload_kill();
+	case_TV2R337_heap_alias_selected_node_multisink();
+	case_TV2R338_heap_alias_negative_stale();
+	case_TV2R339_heap_alias_selected_node_payload();
+	case_TV2R340_heap_alias_selected_node_no_flow();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -974,5 +1004,420 @@ extern "C" TV2_NOINLINE void case_TV2R325_heap_field_survives_shadow_noise() {
     int out = TV2R325_pick_payload(node, b);
     delete node;
     dfb_sink_int(out);
+}
+
+struct TV2R326_Node {
+    int payload;
+    int shadow;
+};
+
+static TV2_NOINLINE TV2R326_Node *tv2r326_choose_node(TV2R326_Node *first, TV2R326_Node *second, int selector) {
+    if ((selector & 1) == 0) {
+        return first;
+    }
+    return second;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R326_heap_alias_selected_node(void) {
+    TV2R326_Node left;
+    TV2R326_Node right;
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    left.payload = a;
+    left.shadow = b;
+    right.payload = b;
+    right.shadow = 0x326326;
+    TV2R326_Node *picked = tv2r326_choose_node(&left, &right, 2);
+    picked->shadow = 0;
+    dfb_sink_int(picked->payload);
+}
+
+struct TV2R327_Node {
+    int payload;
+    TV2R327_Node* next;
+};
+
+static TV2_NOINLINE TV2R327_Node* TV2R327_pick(TV2R327_Node* first, TV2R327_Node* second, int selector) {
+    return ((selector & 7) == 3) ? second : first;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R327_masked_node_payload(void) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2R327_Node left;
+    TV2R327_Node right;
+    left.payload = b ^ c;
+    left.next = &right;
+    right.payload = a;
+    right.next = &left;
+    int selector = (c ^ c) + 3;
+    TV2R327_Node* chosen = TV2R327_pick(&left, left.next, selector);
+    dfb_sink_int(chosen->payload);
+}
+
+struct TV2R328Node {
+    int Payload;
+    int Tag;
+    TV2R328Node* Next;
+};
+
+static TV2_NOINLINE TV2R328Node* TV2R328PickNode(TV2R328Node* first, TV2R328Node* second, int guard) {
+    TV2R328Node* table[2] = { second, first };
+    unsigned idx = ((unsigned)guard | 1u) & 1u;
+    return table[idx];
+}
+
+extern "C" TV2_NOINLINE void case_TV2R328_indirect_node_pick_payload(void) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2R328Node first = { a, c, 0 };
+    TV2R328Node second = { b, c ^ 0x328, &first };
+    first.Next = &second;
+    TV2R328Node* chosen = TV2R328PickNode(&first, &second, c);
+    dfb_sink_int(chosen->Payload);
+}
+
+struct TV2R329_Cell
+{
+    int Payload;
+    int Noise;
+};
+
+extern "C" TV2_NOINLINE void case_TV2R329_tarray_swap_remove_live_tail_payload()
+{
+    TArray<TV2R329_Cell> Cells;
+    Cells.Reserve(3);
+
+    TV2R329_Cell Removed;
+    Removed.Payload = dfb_source_A();
+    Removed.Noise = 101;
+
+    TV2R329_Cell Neighbor;
+    Neighbor.Payload = 202;
+    Neighbor.Noise = dfb_source_B();
+
+    TV2R329_Cell Tail;
+    Tail.Payload = dfb_source_C();
+    Tail.Noise = 303;
+
+    Cells.Add(Removed);
+    Cells.Add(Neighbor);
+    Cells.Add(Tail);
+
+    Cells.RemoveAtSwap(0, 1, EAllowShrinking::No);
+
+    int Out = Cells[0].Payload;
+    dfb_sink_int(Out);
+}
+
+struct TV2R330_Node {
+    int Payload;
+    int Decoy;
+};
+
+static TV2_NOINLINE TV2R330_Node* case_TV2R330_pick_node(TV2R330_Node* left, TV2R330_Node* right, int selector) {
+    return ((selector & 1) == 0) ? left : right;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R330_heap_selected_node_payload(void) {
+    int live = dfb_source_A();
+    int decoy = dfb_source_B();
+    int noise = dfb_source_C();
+    TV2R330_Node left;
+    TV2R330_Node right;
+    left.Payload = decoy;
+    left.Decoy = noise;
+    right.Payload = live;
+    right.Decoy = 0x224466;
+    TV2R330_Node* picked = case_TV2R330_pick_node(&left, &right, 1);
+    left.Payload = 0x1234;
+    int out = picked->Payload;
+    dfb_sink_int(out);
+}
+
+struct TV2R331_Node { int Payload; int Decoy; TV2R331_Node* Next; };
+
+extern "C" TV2_NOINLINE TV2R331_Node* TV2R331_choose_node(TV2R331_Node* left, TV2R331_Node* right, int selector) {
+    return ((selector ^ selector) == 0) ? right : left;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R331_heap_alias_selected_node(void) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+    TV2R331_Node* left = new TV2R331_Node{b, c, nullptr};
+    TV2R331_Node* right = new TV2R331_Node{c, b, nullptr};
+    TV2R331_Node* picked = TV2R331_choose_node(left, right, a);
+    picked->Payload = a;
+    left->Decoy = b;
+    right->Decoy = c;
+    int out = picked->Payload;
+    dfb_sink_int(out);
+    delete left;
+    delete right;
+}
+
+struct TV2R332_Node {
+  int payload;
+  int decoy;
+};
+
+static TV2_NOINLINE void tv2r332_write_payload(TV2R332_Node* n, int v) {
+  n->payload = v;
+}
+
+static TV2_NOINLINE TV2R332_Node* tv2r332_pick_live(TV2R332_Node* first, TV2R332_Node* second) {
+  volatile int pick_first = 1;
+  return pick_first ? first : second;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R332_heap_alias_stale_copy_kill() {
+  TV2R332_Node* first = new TV2R332_Node{0, 0};
+  TV2R332_Node* second = new TV2R332_Node{0, 0};
+  int a = dfb_source_A();
+  int b = dfb_source_B();
+  int c = dfb_source_C();
+  tv2r332_write_payload(first, a);
+  TV2R332_Node stale = *first;
+  tv2r332_write_payload(first, b);
+  tv2r332_write_payload(second, c);
+  TV2R332_Node* live = tv2r332_pick_live(first, second);
+  int out = live->payload;
+  dfb_sink_int(out);
+  delete first;
+  delete second;
+  (void)stale;
+}
+
+struct TV2R333_Node {
+    int payload;
+    int decoy;
+};
+
+static TV2R333_Node GTV2R333_Left;
+static TV2R333_Node GTV2R333_Right;
+
+static TV2_NOINLINE TV2R333_Node* TV2R333_pick_left(void) {
+    return &GTV2R333_Left;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R333_static_alias_overwrite_no_source(void) {
+    TV2R333_Node* live = TV2R333_pick_left();
+    live->payload = dfb_source_A();
+    live->decoy = dfb_source_B();
+    GTV2R333_Right.payload = dfb_source_C();
+    live->payload = 0x7333;
+    live->decoy = 0x7334;
+    dfb_sink_int(live->payload);
+}
+
+struct TV2R334_Node {
+    int payload;
+    int decoy;
+};
+
+static TV2_NOINLINE TV2R334_Node* tv2r334_pick_node(TV2R334_Node* first, TV2R334_Node* second, int selector) {
+    return selector ? second : first;
+}
+
+static TV2_NOINLINE void tv2r334_write_payload(TV2R334_Node* node, int value) {
+    node->payload = value;
+}
+
+static TV2_NOINLINE void tv2r334_write_decoy(TV2R334_Node* node, int value) {
+    node->decoy = value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R334_heap_alias_negative_after_overwrite(void) {
+    TV2R334_Node* left = new TV2R334_Node{0, 0};
+    TV2R334_Node* right = new TV2R334_Node{0, 0};
+    TV2R334_Node* chosen = tv2r334_pick_node(left, right, 1);
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    tv2r334_write_payload(chosen, a);
+    tv2r334_write_decoy(left, b);
+    chosen->payload = 0x3340;
+    dfb_sink_int(chosen->payload);
+    delete left;
+    delete right;
+}
+
+struct TV2R335_Node {
+    int Payload;
+    int Noise;
+};
+
+static TV2_NOINLINE void tv2r335_fill_nodes(TArray<TV2R335_Node>& Nodes) {
+    Nodes.SetNum(2);
+    Nodes[0].Payload = dfb_source_A();
+    Nodes[0].Noise = dfb_source_B();
+    Nodes[1].Payload = dfb_source_C();
+    Nodes[1].Noise = 0x3350;
+}
+
+static TV2_NOINLINE TV2R335_Node* tv2r335_pick_live(TArray<TV2R335_Node>& Nodes) {
+    return &Nodes[1];
+}
+
+extern "C" TV2_NOINLINE void case_TV2R335_tarray_selected_payload_kills_noise() {
+    TArray<TV2R335_Node> Nodes;
+    tv2r335_fill_nodes(Nodes);
+    TV2R335_Node* Picked = tv2r335_pick_live(Nodes);
+    Picked->Noise = 0x3351;
+    dfb_sink_int(Picked->Payload);
+}
+
+struct TV2R336_Node {
+  int Payload;
+  int Noise;
+};
+
+static TV2_NOINLINE TV2R336_Node* tv2r336_pick_node(TV2R336_Node* left, TV2R336_Node* right, int selector) {
+  return selector ? right : left;
+}
+
+static TV2_NOINLINE void tv2r336_write_payload(TV2R336_Node* node) {
+  node->Payload = dfb_source_A();
+}
+
+static TV2_NOINLINE void tv2r336_write_noise_then_kill(TV2R336_Node* node) {
+  node->Noise = dfb_source_B();
+  node->Noise = 0x3360;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R336_heap_selected_node_payload_kill() {
+  TV2R336_Node* left = new TV2R336_Node{0, 0};
+  TV2R336_Node* right = new TV2R336_Node{0, 0};
+  TV2R336_Node* selected = tv2r336_pick_node(left, right, 1);
+  tv2r336_write_payload(selected);
+  tv2r336_write_noise_then_kill(selected);
+  left->Payload = dfb_source_C();
+  dfb_sink_int(selected->Payload);
+  dfb_sink_int(selected->Noise);
+  delete left;
+  delete right;
+}
+
+struct TV2R337_Node {
+    int payload;
+    int decoy;
+};
+
+static TV2_NOINLINE TV2R337_Node* tv2r337_pick_node(TV2R337_Node* left, TV2R337_Node* right, int selector) {
+    return (selector & 1) ? right : left;
+}
+
+static TV2_NOINLINE void tv2r337_write_nodes(TV2R337_Node* left, TV2R337_Node* right) {
+    left->payload = dfb_source_A();
+    right->payload = dfb_source_B();
+    right->decoy = dfb_source_C();
+    right->decoy = 77;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R337_heap_alias_selected_node_multisink() {
+    TV2R337_Node* left = new TV2R337_Node{0, 0};
+    TV2R337_Node* right = new TV2R337_Node{0, 0};
+    tv2r337_write_nodes(left, right);
+    TV2R337_Node* selected = tv2r337_pick_node(left, right, 1);
+    dfb_sink_int(selected->payload);
+    dfb_sink_int(selected->decoy);
+    delete left;
+    delete right;
+}
+
+struct TV2R338_Node {
+    int payload;
+    int stale;
+    TV2R338_Node* alias;
+};
+
+static TV2_NOINLINE TV2R338_Node* tv2r338_select(TV2R338_Node* left, TV2R338_Node* right, int selector) {
+    return (selector & 1) ? right : left;
+}
+
+static TV2_NOINLINE void tv2r338_prepare(TV2R338_Node* left, TV2R338_Node* right) {
+    left->payload = dfb_source_A();
+    left->stale = dfb_source_B();
+    right->payload = 0x3380;
+    right->stale = left->stale;
+    left->payload = 0x3381;
+    left->alias = right;
+    right->alias = left;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R338_heap_alias_negative_stale(void) {
+    TV2R338_Node* left = new TV2R338_Node();
+    TV2R338_Node* right = new TV2R338_Node();
+    tv2r338_prepare(left, right);
+    TV2R338_Node* picked = tv2r338_select(left->alias, right->alias, 0);
+    int observed = picked->payload;
+    delete right;
+    delete left;
+    dfb_sink_int(observed);
+}
+
+struct TV2R339_Node {
+    int payload;
+    int noise;
+};
+
+TV2_NOINLINE static TV2R339_Node* tv2r339_pick_node(TV2R339_Node* left, TV2R339_Node* right) {
+    return right;
+}
+
+TV2_NOINLINE static void tv2r339_write_nodes(TV2R339_Node* left, TV2R339_Node* right) {
+    left->payload = dfb_source_A();
+    left->noise = dfb_source_C();
+    right->payload = dfb_source_B();
+    right->noise = 0x339;
+}
+
+TV2_NOINLINE static int tv2r339_read_payload(TV2R339_Node* node) {
+    return node->payload;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R339_heap_alias_selected_node_payload() {
+    TV2R339_Node* left = new TV2R339_Node();
+    TV2R339_Node* right = new TV2R339_Node();
+    left->payload = 0;
+    left->noise = 0;
+    right->payload = 0;
+    right->noise = 0;
+    tv2r339_write_nodes(left, right);
+    TV2R339_Node* selected = tv2r339_pick_node(left, right);
+    int value = tv2r339_read_payload(selected);
+    dfb_sink_int(value);
+    delete left;
+    delete right;
+}
+
+struct TV2R340_Node {
+    int Payload;
+    int Noise;
+};
+
+TV2_NOINLINE static TV2R340_Node* tv2r340_pick_live(TV2R340_Node* left, TV2R340_Node* right) {
+    return (left->Noise == 0x340) ? right : left;
+}
+
+TV2_NOINLINE static void tv2r340_write_nodes(TV2R340_Node* first, TV2R340_Node* second) {
+    first->Payload = dfb_source_A();
+    first->Noise = dfb_source_C();
+    second->Payload = dfb_source_B();
+    second->Noise = 0x340;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R340_heap_alias_selected_node_no_flow(void) {
+    TV2R340_Node* first = new TV2R340_Node{0, 0};
+    TV2R340_Node* second = new TV2R340_Node{0, 0};
+    tv2r340_write_nodes(first, second);
+    first->Payload = 0x3401;
+    second->Payload = 0x3402;
+    TV2R340_Node* picked = tv2r340_pick_live(first, second);
+    dfb_sink_int(picked->Payload);
+    delete first;
+    delete second;
 }
 

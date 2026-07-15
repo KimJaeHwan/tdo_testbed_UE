@@ -3793,6 +3793,1346 @@
       "severity": "proposed-regression",
       "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "constant-selected-alias",
+        "field-sensitive"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "call_source",
+          "node": "dfb_source_A()",
+          "offset": "",
+          "reason": "A is assigned to local a.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "a",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "store",
+          "node": "left.payload = a",
+          "offset": "pdb",
+          "reason": "The left node payload is written from A.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "left.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "left",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "alias_select",
+          "node": "tv2r326_choose_node(&left, &right, 2)",
+          "offset": "",
+          "reason": "The constant even selector makes picked alias left by construction.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "picked"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "left.payload",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "load",
+          "node": "picked->payload",
+          "offset": "pdb",
+          "reason": "picked aliases left, so loading picked->payload reads A.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "",
+          "from": "picked->payload",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "call_sink",
+          "node": "dfb_sink_int(picked->payload)",
+          "offset": "",
+          "reason": "The sink receives the selected payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "shadow",
+          "from": "left.shadow",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "field_disjoint",
+          "node": "left.shadow = b",
+          "offset": "pdb",
+          "reason": "B in left.shadow is overwritten with zero through picked->shadow and the sink reads payload, not shadow.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "payload",
+          "from": "right.payload",
+          "function": "case_TV2R326_heap_alias_selected_node",
+          "kind": "alias_not_selected",
+          "node": "right.payload = b",
+          "offset": "pdb",
+          "reason": "The selector is constant 2, so picked aliases left, not right; right.payload cannot reach the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R326_heap_alias_selected_node",
+      "id": "TV2R326",
+      "name": "heap_alias_selected_node",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "pointer-selection",
+        "heap-offset-sentinel:pdb",
+        "frontier-derived:TV2R326",
+        "evidence:/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE/output/harness/frontier_auto_core_09_10_post_apply_green_06/cycle_0007/baseline_regression/failure_report_v2.json"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "return",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "pdb",
+          "reason": "by construction a receives dfb_source_A return",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R327_Node::payload",
+          "from": "a",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "store",
+          "node": "right.payload",
+          "offset": "pdb",
+          "reason": "right.payload is assigned a directly",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "right.payload"
+        },
+        {
+          "carries": "address of right",
+          "field": "TV2R327_Node*",
+          "from": "left.next",
+          "function": "TV2R327_pick",
+          "kind": "select",
+          "node": "chosen",
+          "offset": "pdb",
+          "reason": "selector is (c ^ c) + 3, so selector & 7 equals 3 and TV2R327_pick returns second, which is left.next == &right",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(void*)",
+          "source": "dfb_source_A.ret",
+          "to": "chosen"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R327_Node::payload",
+          "from": "right.payload",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "load",
+          "node": "chosen->payload",
+          "offset": "pdb",
+          "reason": "chosen points to right, whose payload contains A",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "chosen->payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "arg0",
+          "from": "chosen->payload",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "pdb",
+          "reason": "sink is called with chosen->payload as a void statement",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R327_Node::payload",
+          "from": "b",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "forbidden",
+          "node": "left.payload",
+          "offset": "pdb",
+          "reason": "B contributes only to left.payload, but chosen points to right",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R327_Node::payload",
+          "from": "c",
+          "function": "case_TV2R327_masked_node_payload",
+          "kind": "forbidden",
+          "node": "left.payload",
+          "offset": "pdb",
+          "reason": "C contributes to left.payload and selector self-cancellation, but no C data is loaded from chosen->payload",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R327_masked_node_payload",
+      "id": "TV2R327",
+      "name": "masked node payload",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "indirect-node-pick",
+        "heap-sentinel-compatible",
+        "decoy-neighbor-field"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "ret",
+          "from": "",
+          "function": "case_TV2R328_indirect_node_pick_payload",
+          "kind": "call-ret",
+          "node": "dfb_source_A",
+          "offset": "",
+          "reason": "a is initialized directly from dfb_source_A().",
+          "sink": "",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "a",
+          "function": "case_TV2R328_indirect_node_pick_payload",
+          "kind": "field-init",
+          "node": "first.Payload",
+          "offset": "pdb",
+          "reason": "first.Payload is constructed from A.",
+          "sink": "",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "first.Payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "return",
+          "from": "table[1]",
+          "function": "TV2R328PickNode",
+          "kind": "select",
+          "node": "TV2R328PickNode",
+          "offset": "",
+          "reason": "idx is forced to 1 by ((guard | 1) & 1), so the helper returns first regardless of guard data.",
+          "sink": "",
+          "size": "",
+          "source": "dfb_source_A.ret",
+          "to": "chosen"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "arg0",
+          "from": "chosen->Payload",
+          "function": "case_TV2R328_indirect_node_pick_payload",
+          "kind": "sink",
+          "node": "dfb_sink_int",
+          "offset": "",
+          "reason": "chosen points to first, whose Payload is A.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "Payload",
+          "from": "b",
+          "function": "case_TV2R328_indirect_node_pick_payload",
+          "kind": "unselected-node",
+          "node": "second.Payload",
+          "offset": "pdb",
+          "reason": "second is present in the table but table[0] is not selected.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "second.Payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "guard",
+          "from": "c",
+          "function": "TV2R328PickNode",
+          "kind": "control-decoy",
+          "node": "TV2R328PickNode.guard",
+          "offset": "",
+          "reason": "C participates in guard computation, but OR with 1 then AND with 1 makes idx constant 1; no data/control source should be reported at the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "idx"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Tag",
+          "from": "c",
+          "function": "case_TV2R328_indirect_node_pick_payload",
+          "kind": "neighbor-field",
+          "node": "first.Tag",
+          "offset": "pdb",
+          "reason": "C is stored in Tag fields, while the sink reads Payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "first.Tag"
+        }
+      ],
+      "function": "case_TV2R328_indirect_node_pick_payload",
+      "id": "TV2R328",
+      "name": "indirect_node_pick_payload",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "ue",
+        "tarray",
+        "swap-remove",
+        "field-reindex",
+        "false-positive-regression"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Payload",
+          "from": "Cells[2].Payload before RemoveAtSwap(0)",
+          "function": "case_TV2R329_tarray_swap_remove_live_tail_payload",
+          "kind": "data",
+          "node": "Tail.Payload",
+          "offset": "heap",
+          "reason": "RemoveAtSwap(0) moves the tail element into index 0; the sink reads Payload from that moved tail cell.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_C.ret",
+          "to": "Cells[0].Payload after tail element is swapped into removed slot"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "Cells[0].Payload before RemoveAtSwap(0)",
+          "function": "case_TV2R329_tarray_swap_remove_live_tail_payload",
+          "kind": "data",
+          "node": "Removed.Payload",
+          "offset": "heap",
+          "reason": "The original index 0 element is removed by RemoveAtSwap before the sink load; its payload must not be reported as reaching the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "Noise",
+          "from": "Cells[1].Noise",
+          "function": "case_TV2R329_tarray_swap_remove_live_tail_payload",
+          "kind": "data",
+          "node": "Neighbor.Noise",
+          "offset": "heap",
+          "reason": "The B source is stored only in the Noise field of the surviving neighbor cell; the sink reads Payload from index 0, so this is a field-sensitivity decoy.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "int",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2R329_tarray_swap_remove_live_tail_payload",
+      "id": "TV2R329",
+      "name": "tarray_swap_remove_live_tail_payload",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-c-symbol",
+        "selected-pointer",
+        "field-lane-precision"
+      ],
+      "expected_flow": [
+        {
+          "carries": "live value stored in selected node payload",
+          "field": "TV2R330_Node.Payload",
+          "from": "right.Payload = live",
+          "function": "case_TV2R330_heap_selected_node_payload",
+          "kind": "data",
+          "node": "dfb_source_A.ret",
+          "offset": "heap",
+          "reason": "The selector is constant 1, so picked aliases right; out reads right.Payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(out)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "decoy value stored in unselected node payload then overwritten",
+          "field": "TV2R330_Node.Payload",
+          "from": "left.Payload = decoy",
+          "function": "case_TV2R330_heap_selected_node_payload",
+          "kind": "data",
+          "node": "dfb_source_B.ret",
+          "offset": "heap",
+          "reason": "picked aliases right, not left; left.Payload is also overwritten before the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(out)"
+        },
+        {
+          "carries": "noise value stored in unselected decoy field",
+          "field": "TV2R330_Node.Decoy",
+          "from": "left.Decoy = noise",
+          "function": "case_TV2R330_heap_selected_node_payload",
+          "kind": "data",
+          "node": "dfb_source_C.ret",
+          "offset": "heap",
+          "reason": "noise is stored in left.Decoy, while the sink reads picked->Payload where picked is right.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(out)"
+        }
+      ],
+      "function": "case_TV2R330_heap_selected_node_payload",
+      "id": "TV2R330",
+      "name": "heap_selected_node_payload",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap",
+        "alias-selection",
+        "field-sensitive",
+        "helper-summary"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R331_Node.Payload",
+          "from": "picked->Payload = a",
+          "function": "case_TV2R331_heap_alias_selected_node",
+          "kind": "data",
+          "node": "picked->Payload reload",
+          "offset": "heap",
+          "reason": "TV2R331_choose_node deterministically returns right because selector ^ selector is zero, and the selected node payload is overwritten with dfb_source_A.ret before reload.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "out = picked->Payload"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R331_Node.Payload",
+          "from": "new TV2R331_Node{b, c, nullptr}",
+          "function": "case_TV2R331_heap_alias_selected_node",
+          "kind": "data",
+          "node": "left->Payload initialization",
+          "offset": "heap",
+          "reason": "the picked pointer is right, not left; left fields are not read into the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "out = picked->Payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R331_Node.Payload",
+          "from": "new TV2R331_Node{c, b, nullptr}",
+          "function": "case_TV2R331_heap_alias_selected_node",
+          "kind": "data",
+          "node": "right->Payload initialization overwritten",
+          "offset": "heap",
+          "reason": "right->Payload is overwritten by picked->Payload = a before the reload.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "out = picked->Payload"
+        }
+      ],
+      "function": "case_TV2R331_heap_alias_selected_node",
+      "id": "TV2R331",
+      "name": "heap_alias_selected_node",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [
+        "independent_dynamic_check_not_run_per_task_instruction"
+      ],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-alias",
+        "stale-copy-kill",
+        "selected-memory-reload",
+        "helper-chain"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R332_Node.payload",
+          "from": "dfb_source_B.ret",
+          "function": "tv2r332_write_payload",
+          "kind": "write",
+          "node": "first->payload",
+          "offset": "heap",
+          "reason": "B overwrites first->payload after the stale copy is made; the picker returns first, and the sink reloads first->payload",
+          "sink": "dfb_sink_int(out)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "first->payload"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R332_Node.payload",
+          "from": "dfb_source_A.ret",
+          "function": "tv2r332_write_payload",
+          "kind": "overwrite_kill",
+          "node": "first->payload",
+          "offset": "heap",
+          "reason": "A is copied into stale local storage and then killed in the live heap object by B before the selected reload",
+          "sink": "dfb_sink_int(out)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "first->payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R332_Node.payload",
+          "from": "dfb_source_C.ret",
+          "function": "tv2r332_write_payload",
+          "kind": "disjoint_heap_object",
+          "node": "second->payload",
+          "offset": "heap",
+          "reason": "C is written to the non-selected heap object; tv2r332_pick_live returns first by construction",
+          "sink": "dfb_sink_int(out)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "second->payload"
+        }
+      ],
+      "function": "case_TV2R332_heap_alias_stale_copy_kill",
+      "id": "TV2R332",
+      "name": "TV2R332 heap alias stale copy kill",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "global-static-storage",
+        "selected-alias",
+        "overwrite-kill",
+        "negative-no-source",
+        "heap"
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R333_Node.payload",
+          "from": "live->payload = dfb_source_A()",
+          "function": "case_TV2R333_static_alias_overwrite_no_source",
+          "kind": "data",
+          "node": "GTV2R333_Left.payload",
+          "offset": "heap",
+          "reason": "The selected payload field is overwritten with constant 0x7333 before the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(live->payload)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R333_Node.decoy",
+          "from": "live->decoy = dfb_source_B()",
+          "function": "case_TV2R333_static_alias_overwrite_no_source",
+          "kind": "data",
+          "node": "GTV2R333_Left.decoy",
+          "offset": "heap",
+          "reason": "The sink reads payload, not decoy; decoy is also overwritten with constant 0x7334 before the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(live->payload)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R333_Node.payload",
+          "from": "GTV2R333_Right.payload = dfb_source_C()",
+          "function": "case_TV2R333_static_alias_overwrite_no_source",
+          "kind": "data",
+          "node": "GTV2R333_Right.payload",
+          "offset": "heap",
+          "reason": "The picker returns the left global node by construction, so the right global payload is an unselected alias and is never read by the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(live->payload)"
+        }
+      ],
+      "function": "case_TV2R333_static_alias_overwrite_no_source",
+      "id": "TV2R333",
+      "name": "static_alias_overwrite_no_source",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-alias",
+        "negative-only",
+        "overwrite-kill",
+        "selected-memory-reload"
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R334_Node.payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R334_heap_alias_negative_after_overwrite",
+          "kind": "overwritten_heap_field",
+          "node": "chosen->payload = 0x3340",
+          "offset": "heap",
+          "reason": "A reaches chosen->payload only before the constant overwrite; the sink reads payload after the overwrite.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "chosen->payload"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R334_Node.decoy",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2R334_heap_alias_negative_after_overwrite",
+          "kind": "different_heap_object_field",
+          "node": "tv2r334_write_decoy(left, b)",
+          "offset": "heap",
+          "reason": "B is written to left->decoy, while chosen is right because selector is constant 1; the sink reads right->payload.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "left->decoy"
+        }
+      ],
+      "function": "case_TV2R334_heap_alias_negative_after_overwrite",
+      "id": "TV2R334",
+      "name": "TV2R334 heap alias negative after overwrite",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "container",
+        "heap",
+        "selected-reload",
+        "field-sensitive",
+        "overwrite-kill",
+        "interprocedural-helper"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R335_Node::Payload",
+          "from": "dfb_source_C.ret",
+          "function": "tv2r335_fill_nodes",
+          "kind": "container-store",
+          "node": "Nodes[1].Payload",
+          "offset": "heap",
+          "reason": "tv2r335_pick_live returns &Nodes[1], and the sink reads that node's Payload field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "Picked->Payload"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R335_Node::Payload",
+          "from": "Nodes[0].Payload",
+          "function": "tv2r335_fill_nodes",
+          "kind": "unselected-element",
+          "node": "Nodes[0].Payload",
+          "offset": "heap",
+          "reason": "source A is stored in Nodes[0].Payload, but Picked is by construction &Nodes[1].",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "Picked->Payload"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R335_Node::Noise",
+          "from": "Nodes[0].Noise",
+          "function": "case_TV2R335_tarray_selected_payload_kills_noise",
+          "kind": "overwrite-kill",
+          "node": "Picked->Noise",
+          "offset": "heap",
+          "reason": "source B is written only to Nodes[0].Noise; the selected node's Noise is overwritten with a constant, and the sink reads Payload.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "Picked->Payload"
+        }
+      ],
+      "function": "case_TV2R335_tarray_selected_payload_kills_noise",
+      "id": "TV2R335",
+      "name": "TV2R335 TArray selected payload kills noise",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-heap-alias",
+        "selected-memory-reload",
+        "interprocedural-helper-chain",
+        "multi-sink",
+        "field-overwrite-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R336_Node.Payload",
+          "from": "tv2r336_write_payload",
+          "function": "case_TV2R336_heap_selected_node_payload_kill",
+          "kind": "data",
+          "node": "selected->Payload",
+          "offset": "heap",
+          "reason": "selected is right by construction, and helper writes dfb_source_A.ret into selected->Payload before the first sink reloads it",
+          "sink": "first dfb_sink_int(selected->Payload)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "first dfb_sink_int(selected->Payload)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R336_Node.Noise",
+          "from": "tv2r336_write_noise_then_kill",
+          "function": "case_TV2R336_heap_selected_node_payload_kill",
+          "kind": "data",
+          "node": "selected->Noise",
+          "offset": "heap",
+          "reason": "dfb_source_B.ret is written to selected->Noise but killed by constant 0x3360 before the second sink",
+          "sink": "second dfb_sink_int(selected->Noise)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "second dfb_sink_int(selected->Noise)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R336_Node.Payload",
+          "from": "left->Payload store",
+          "function": "case_TV2R336_heap_selected_node_payload_kill",
+          "kind": "data",
+          "node": "left->Payload",
+          "offset": "heap",
+          "reason": "dfb_source_C.ret is written to the non-selected heap object; selected points to right, so no sink reads left->Payload",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "both dfb_sink_int calls"
+        }
+      ],
+      "function": "case_TV2R336_heap_selected_node_payload_kill",
+      "id": "TV2R336",
+      "name": "TV2R336_heap_selected_node_payload_kill",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue-heap-alias",
+        "selected-memory-reload",
+        "field-overwrite-kill",
+        "multi-sink"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "payload",
+          "from": "tv2r337_write_nodes",
+          "function": "case_TV2R337_heap_alias_selected_node_multisink",
+          "kind": "data",
+          "node": "TV2R337_Node.payload",
+          "offset": "heap",
+          "reason": "The selected pointer is deterministically right, and right->payload is written from B and loaded by the first sink.",
+          "sink": "dfb_sink_int#1",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "tv2r337_write_nodes",
+          "function": "case_TV2R337_heap_alias_selected_node_multisink",
+          "kind": "data",
+          "node": "TV2R337_Node.payload",
+          "offset": "heap",
+          "reason": "A is stored only in left->payload; the selected pointer is right, so A must not reach either sink.",
+          "sink": "dfb_sink_int#1",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "decoy",
+          "from": "tv2r337_write_nodes",
+          "function": "case_TV2R337_heap_alias_selected_node_multisink",
+          "kind": "data",
+          "node": "TV2R337_Node.decoy",
+          "offset": "heap",
+          "reason": "C is stored in right->decoy but overwritten by constant 77 before selected->decoy is loaded.",
+          "sink": "dfb_sink_int#2",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "function": "case_TV2R337_heap_alias_selected_node_multisink",
+      "id": "TV2R337",
+      "name": "heap_alias_selected_node_multisink",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-alias",
+        "negative-only",
+        "interprocedural",
+        "overwrite-kill",
+        "selected-memory-reload"
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R338_Node.payload",
+          "from": "tv2r338_prepare:left->payload",
+          "function": "case_TV2R338_heap_alias_negative_stale",
+          "kind": "data",
+          "node": "left->payload",
+          "offset": "heap",
+          "reason": "A is first written to left->payload, but left->payload is overwritten with constant 0x3381 before any load used by the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(observed)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R338_Node.stale",
+          "from": "tv2r338_prepare:right->stale",
+          "function": "case_TV2R338_heap_alias_negative_stale",
+          "kind": "data",
+          "node": "right->stale",
+          "offset": "heap",
+          "reason": "B is copied through stale fields, but the selected load is picked->payload. With selector 0, picked is left->alias, which is right, so observed reads right->payload, a constant.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(observed)"
+        }
+      ],
+      "function": "case_TV2R338_heap_alias_negative_stale",
+      "id": "TV2R338",
+      "name": "TV2R338_heap_alias_negative_stale",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-alias",
+        "selected-memory-reload",
+        "field-sensitive",
+        "interprocedural-helper-chain"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "payload",
+          "from": "right->payload = dfb_source_B.ret",
+          "function": "tv2r339_write_nodes",
+          "kind": "data",
+          "node": "TV2R339_Node.payload",
+          "offset": "heap",
+          "reason": "The selector returns right, and the sink reads selected->payload.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(value)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "left->payload = dfb_source_A.ret",
+          "function": "tv2r339_write_nodes",
+          "kind": "data",
+          "node": "TV2R339_Node.payload",
+          "offset": "heap",
+          "reason": "A is written to left payload, but selected points to right.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(value)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "noise",
+          "from": "left->noise = dfb_source_C.ret",
+          "function": "tv2r339_write_nodes",
+          "kind": "data",
+          "node": "TV2R339_Node.noise",
+          "offset": "heap",
+          "reason": "C is written to left noise, while the sink reads right payload.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(value)"
+        }
+      ],
+      "function": "case_TV2R339_heap_alias_selected_node_payload",
+      "id": "TV2R339",
+      "name": "TV2R339 heap alias selected node payload",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_unreal",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "ue",
+        "heap-alias",
+        "selected-reload",
+        "overwrite-kill",
+        "negative-only"
+      ],
+      "expected_flow": [
+        {
+          "carries": "",
+          "field": "TV2R340_Node.Payload",
+          "from": "constant overwrite of both candidate Payload fields",
+          "function": "case_TV2R340_heap_alias_selected_node_no_flow",
+          "kind": "no_source",
+          "node": "picked->Payload",
+          "offset": "heap",
+          "reason": "Both heap candidate payload fields are overwritten with constants before the selected pointer is read.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "",
+          "to": "dfb_sink_int(picked->Payload)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2R340_Node.Payload",
+          "from": "tv2r340_write_nodes:first->Payload",
+          "function": "case_TV2R340_heap_alias_selected_node_no_flow",
+          "kind": "data",
+          "node": "first->Payload",
+          "offset": "heap",
+          "reason": "A is stored to first->Payload but first->Payload is overwritten with constant 0x3401 before the reload.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(picked->Payload)"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2R340_Node.Payload",
+          "from": "tv2r340_write_nodes:second->Payload",
+          "function": "case_TV2R340_heap_alias_selected_node_no_flow",
+          "kind": "data",
+          "node": "second->Payload",
+          "offset": "heap",
+          "reason": "B is stored to second->Payload but second->Payload is overwritten with constant 0x3402 before the reload.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(picked->Payload)"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2R340_Node.Noise",
+          "from": "tv2r340_write_nodes:first->Noise",
+          "function": "case_TV2R340_heap_alias_selected_node_no_flow",
+          "kind": "data",
+          "node": "first->Noise",
+          "offset": "heap",
+          "reason": "C affects only a non-payload field used in pointer selection; the selected sink value is a constant-overwritten Payload field, so no data source should reach the sink.",
+          "sink": "dfb_sink_int arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(picked->Payload)"
+        }
+      ],
+      "function": "case_TV2R340_heap_alias_selected_node_no_flow",
+      "id": "TV2R340",
+      "name": "TV2R340 heap alias selected node no flow",
+      "severity": "proposed-regression",
+      "source_file": "Source/TraceUnrealPlayground/TraceCases2.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

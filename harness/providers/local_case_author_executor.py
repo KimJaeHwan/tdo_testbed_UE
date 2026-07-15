@@ -373,6 +373,13 @@ def _target_from_task(task: dict, requested: str) -> str:
     if requested:
         return requested
     payload = task.get("input") if isinstance(task.get("input"), dict) else {}
+    allowed_targets = [
+        str(target)
+        for target in payload.get("allowed_targets", [])
+        if str(target) in {"suite10-cpp", "suite12-obf"}
+    ]
+    if allowed_targets:
+        return allowed_targets[0]
     report = payload.get("report") if isinstance(payload.get("report"), list) else []
     suites = {str(row.get("suite") or "") for row in report if isinstance(row, dict)}
     gap_note = str(payload.get("gap_note") or "").lower()

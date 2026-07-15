@@ -9,6 +9,8 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
   "capability_map": { ... },
   "report": [ ... ],
   "gap_note": "왜 이 케이스가 필요한가",
+  "allowed_targets": ["suite10-cpp", "suite10-ue"],
+  "disallowed_targets": ["suite12-obf"],
   "existing_case_ids": ["..."],
   "case_id_policy": { "do_not_reuse_existing_case_ids": true, ... }
 }
@@ -70,6 +72,7 @@ capability gap·frontier·실바이너리 surprise를 보고 **신규 테스트 
 - 끝점은 가능하면 **독립 동적 검증**(DFSan 또는 매직값 실행)으로 교차확인 첨부.
 - 출력은 **제안일 뿐** — 오라클 추가는 사람 승인(A §P7) 후 manifest 반영 → `generate_expected_from_manifest.py` → `verify_flows.py`.
 - 새 케이스가 기존 09/10과 중복인지 확인(중복 금지).
+- 입력에 `allowed_targets`가 있으면 반드시 그 안의 target만 사용한다. `disallowed_targets`에 포함된 target은 현재 루프의 관심 밖이므로 제안하지 않는다.
 - `existing_case_ids`에 있는 ID를 재사용하지 않는다. Suite12는 기존 최대 `OBF###` 다음 번호를 고른다.
 - `anchor`는 테스트 하네스 wrapper가 sink 위치를 찾기 위한 정보다. Engine11 코어 설계에는 arg/ret/calling convention 의미를 새로 주입하지 않는다.
 - proposed case는 Engine11을 특정 helper/function/case/source label에 맞춰 고치라고 유도하면 안 된다.

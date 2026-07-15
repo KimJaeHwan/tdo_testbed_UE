@@ -23,6 +23,8 @@ OUT="$HERE/samples/low_pcode/$ARCH"
 PROJ_DIR="$HERE/build/ghidra_proj"
 PROJ="tv2_${PROFILE}_${ARCH}"
 mkdir -p "$PROJ_DIR" "$OUT"
+find "$OUT" -name '*_low_pcode.json' -delete
+find "$OUT" -name 'low_pcode_extraction_manifest.json' -delete
 
 GHIDRA_XDG_CONFIG_HOME="${GHIDRA_XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HERE/build/ghidra_config}}"
 GHIDRA_XDG_CACHE_HOME="${GHIDRA_XDG_CACHE_HOME:-${XDG_CACHE_HOME:-$HERE/build/ghidra_cache}}"

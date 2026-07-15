@@ -11,13 +11,18 @@ from typing import Any
 
 
 CASE_SCOPE_SCHEMA_VERSION = 2
+FUNCTION_POINTER_SCOPE_WINDOW = 0x20
 
 
 @dataclass(frozen=True)
 class FunctionEntry:
     path: Path
     function_name: str
+    function_entry: str
     call_names: tuple[str, ...]
+    referenced_data_addresses: tuple[int, ...]
+    function_pointer_targets: tuple[tuple[int, str, str], ...]
+    has_computed_call: bool
     source_or_sink: bool
     file_hash: str
     size_bytes: int
@@ -81,6 +86,7 @@ class CaseScopePlanner:
         self.byte_threshold = byte_threshold
         self._entries: dict[Path, FunctionEntry] | None = None
         self._name_index: dict[str, set[Path]] | None = None
+        self._entry_index: dict[str, set[Path]] | None = None
         self._source_file_count: int | None = None
         self._source_bytes: int | None = None
 
@@ -172,6 +178,7 @@ class CaseScopePlanner:
             return
         entries: dict[Path, FunctionEntry] = {}
         name_index: dict[str, set[Path]] = {}
+        entry_index: dict[str, set[Path]] = {}
         total_size = 0
         for path in sorted(self.sample_dir.rglob("*_low_pcode.json")):
             entry = self._load_entry(path)
@@ -179,8 +186,11 @@ class CaseScopePlanner:
             total_size += entry.size_bytes
             for alias in self._aliases_for(entry):
                 name_index.setdefault(alias, set()).add(path)
+            if entry.function_entry:
+                entry_index.setdefault(entry.function_entry, set()).add(path)
         self._entries = entries
         self._name_index = name_index
+        self._entry_index = entry_index
         self._source_file_count = len(entries)
         self._source_bytes = total_size
 
@@ -188,7 +198,11 @@ class CaseScopePlanner:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         function_name = str(data.get("function_name") or _function_name_from_path(path))
+        function_entry = _normalize_address(data.get("start_address"))
         call_names: set[str] = set()
+        referenced_data_addresses: set[int] = set()
+        function_pointer_targets: set[tuple[int, str, str]] = set()
+        has_computed_call = False
         functions_by_entry = (data.get("indices") or {}).get("functions_by_entry") or {}
         names_by_entry = {
             _normalize_address(entry): str(info.get("name") or "")
@@ -198,6 +212,9 @@ class CaseScopePlanner:
         for instr in data.get("instructions") or []:
             if not isinstance(instr, dict):
                 continue
+            flow_type = str(instr.get("flow_type") or "").upper()
+            if "COMPUTED" in flow_type and "CALL" in flow_type:
+                has_computed_call = True
             for target in instr.get("call_targets") or []:
                 if not isinstance(target, dict):
                     continue
@@ -219,6 +236,10 @@ class CaseScopePlanner:
                 name = names_by_entry.get(_normalize_address(ref.get("to")))
                 if name:
                     call_names.add(name)
+                ref_address = _parse_address(ref.get("to"))
+                if ref_address is not None:
+                    referenced_data_addresses.add(ref_address)
+        indices = data.get("indices") or {}
         data_refs_by_from = (data.get("indices") or {}).get("data_refs_by_from") or {}
         for refs in data_refs_by_from.values():
             for ref in refs or []:
@@ -229,15 +250,41 @@ class CaseScopePlanner:
                 name = names_by_entry.get(_normalize_address(ref.get("to")))
                 if name:
                     call_names.add(name)
+                ref_address = _parse_address(ref.get("to"))
+                if ref_address is not None:
+                    referenced_data_addresses.add(ref_address)
+        self._collect_function_pointer_targets(indices, function_pointer_targets)
         size_bytes = path.stat().st_size
         return FunctionEntry(
             path=path,
             function_name=function_name,
+            function_entry=function_entry,
             call_names=tuple(sorted(call_names)),
+            referenced_data_addresses=tuple(sorted(referenced_data_addresses)),
+            function_pointer_targets=tuple(sorted(function_pointer_targets)),
+            has_computed_call=has_computed_call,
             source_or_sink=function_name.startswith("dfb_source_") or function_name.startswith("dfb_sink_"),
             file_hash=_sha256_file(path),
             size_bytes=size_bytes,
         )
+
+    def _collect_function_pointer_targets(self, indices: dict[str, Any], targets: set[tuple[int, str, str]]) -> None:
+        for values in (indices.get("address_taken_functions_by_entry") or {}).values():
+            for value in values or []:
+                self._add_function_pointer_target(value, targets)
+        for value in (indices.get("function_pointers_by_data_address") or {}).values():
+            self._add_function_pointer_target(value, targets)
+
+    def _add_function_pointer_target(self, value: Any, targets: set[tuple[int, str, str]]) -> None:
+        if not isinstance(value, dict):
+            return
+        data_address = _parse_address(value.get("data_address"))
+        if data_address is None:
+            return
+        name = str(value.get("target_name") or "")
+        entry = _normalize_address(value.get("target_entry"))
+        if name or entry:
+            targets.add((data_address, name, entry))
 
     def _aliases_for(self, entry: FunctionEntry) -> set[str]:
         aliases = {entry.function_name, _function_name_from_path(entry.path)}
@@ -249,6 +296,7 @@ class CaseScopePlanner:
         self._ensure_index()
         assert self._entries is not None
         assert self._name_index is not None
+        assert self._entry_index is not None
 
         closure: set[Path] = {case_path}
         missing: set[str] = set()
@@ -271,6 +319,13 @@ class CaseScopePlanner:
             entry = self._entries.get(current)
             if entry is None:
                 continue
+            if entry.has_computed_call:
+                for _, name, target_entry in self._nearby_function_pointer_targets(closure):
+                    for candidate in self._target_paths(name, target_entry):
+                        if candidate in closure:
+                            continue
+                        closure.add(candidate)
+                        stack.append(candidate)
             for call_name in entry.call_names:
                 candidates = self._name_index.get(call_name)
                 if not candidates:
@@ -282,6 +337,37 @@ class CaseScopePlanner:
                     closure.add(candidate)
                     stack.append(candidate)
         return closure, missing
+
+    def _nearby_function_pointer_targets(self, closure: set[Path]) -> set[tuple[int, str, str]]:
+        self._ensure_index()
+        assert self._entries is not None
+        reference_addresses: set[int] = set()
+        targets: set[tuple[int, str, str]] = set()
+        for path in closure:
+            entry = self._entries.get(path)
+            if entry is None:
+                continue
+            reference_addresses.update(entry.referenced_data_addresses)
+            targets.update(entry.function_pointer_targets)
+        if not reference_addresses:
+            return set()
+        selected: set[tuple[int, str, str]] = set()
+        for target in targets:
+            data_address = target[0]
+            if any(abs(data_address - ref_address) <= FUNCTION_POINTER_SCOPE_WINDOW for ref_address in reference_addresses):
+                selected.add(target)
+        return selected
+
+    def _target_paths(self, name: str, target_entry: str) -> set[Path]:
+        self._ensure_index()
+        assert self._name_index is not None
+        assert self._entry_index is not None
+        candidates: set[Path] = set()
+        if target_entry:
+            candidates.update(self._entry_index.get(target_entry, set()))
+        if name and not candidates:
+            candidates.update(self._name_index.get(name, set()))
+        return candidates
 
     def _family_helper_paths(self, case_path: Path) -> set[Path]:
         self._ensure_index()
@@ -349,6 +435,16 @@ def _normalize_address(value: Any) -> str:
         return f"{int(text, 16):08x}"
     except ValueError:
         return text.lower()
+
+
+def _parse_address(value: Any) -> int | None:
+    normalized = _normalize_address(value)
+    if not normalized:
+        return None
+    try:
+        return int(normalized, 16)
+    except ValueError:
+        return None
 
 
 def _case_family_tokens(text: str) -> set[str]:
