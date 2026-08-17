@@ -1,6 +1,6 @@
 # Local Regression Environment
 
-This file is the local source of truth for the three-repo TDO regression setup.
+This file is the local source of truth for the four-repo TDO regression setup.
 Check this before running tools so Python, Ghidra, and release artifact paths do
 not drift between commands.
 
@@ -11,6 +11,7 @@ not drift between commands.
 | Low P-code engine | `/Volumes/DO/00_gitProject/01_tdo/lowpcode_data_origin` | Main implementation repo. Use this repo's Python venv for analysis. |
 | DFB testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed` | Existing single-feature DataFlowBench-style regression suite. |
 | UE/fusion testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE` | Large-struct, UE layout, container, and false-positive regression suite. |
+| OLLVM testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_Obf` | Suite12 adversarial overlay; not a core-semantics design driver. |
 
 ## Python
 
@@ -26,6 +27,8 @@ Verified:
 ```text
 Python 3.14.3
 networkx 3.6.1
+rustworkx 0.18.1
+numpy 2.5.2
 ```
 
 The UE testbed runner tools call `tools/tdo_paths.py`, which auto-detects the
@@ -288,13 +291,12 @@ python3 -m harness.orchestrator \
   --variant-filter ue-local-debuggame
 ```
 
-Current local UE 5.8 smoke:
+Current local UE 5.8 case-scoped regression baseline:
 
 ```text
-Development/P1: build OK, Ghidra extract OK, 22 case JSON, PASS 2 / FAIL 20 / ERROR 0 / FP 2
-Development/P1 auto case-scope hot cache: CACHE 22
-DebugGame/P0 : build OK, Ghidra extract OK, 22 case JSON, case-scope PASS 10 / FAIL 12 / ERROR 0 / FP 2
-DebugGame/P0 case-scope hot cache: CACHE 22
+Development/P1: PASS 65 / FAIL 0 / ERROR 0 / FP 0
+DebugGame/P0 : PASS 65 / FAIL 0 / ERROR 0 / FP 0
+Combined     : PASS 130 / FAIL 0 / ERROR 0 / FP 0
 ```
 
 P0 full-directory compose remains useful for debug comparison, but the normal
@@ -322,6 +324,70 @@ python3 cpp_like/tools/run_v2_engine.py \
   dist/release_0.3.0/low_pcode/ue_win64_debuggame \
   dist/release_0.3.0/extracted/expected/tv2_unreal.expected.json
 ```
+
+## Scaled Regression
+
+The optimized path is opt-in so the NetworkX full-program path remains usable
+as a reference. Recommended flags are:
+
+```text
+--parsed-cache --graph-backend rustworkx --demand-closure
+```
+
+Use case-level process parallelism for a complete matrix. Eight workers are
+appropriate for Suite09 and tier0 on this host; use four for the larger local
+UE scopes to limit peak memory:
+
+```bash
+python3 -m harness.orchestrator \
+  --config harness/config.yaml.example \
+  --suite 09,10 \
+  --mode local-samples \
+  --include-proposed-regression \
+  --case-scope auto \
+  --case-jobs 6 \
+  --parsed-cache \
+  --graph-backend rustworkx \
+  --demand-closure \
+  --run-id scaled_full_09_10
+```
+
+`--function-build-jobs` is useful when one target contains many independent
+functions. Do not combine it with case-level workers for a full matrix; the
+harness automatically reduces nested function workers to one to prevent CPU
+and memory oversubscription.
+
+Validated 2026-08-17 optimized regression baselines:
+
+```text
+Suite09                 PASS 488 / FAIL 0 / ERROR 0 / FP 0
+Suite10 tier0 P0/P1     PASS 712 / FAIL 0 / ERROR 0 / FP 0
+Suite10 local UE 5.8    PASS 130 / FAIL 0 / ERROR 0 / FP 0
+Combined                PASS 1330 / FAIL 0 / ERROR 0 / FP 0
+```
+
+Saved reports:
+
+```text
+output/harness/scaling_full_09_scope_fixed
+output/harness/scaling_full_10_tier0_scope_fixed
+output/harness/scaling_full_10_ue_scope_fixed
+output/harness/scaling_full_09_10_networkx_reference
+```
+
+The final path is the uncached NetworkX/full-program reference run. It also
+passed all 1,330 cases with zero errors and zero false positives, confirming
+that the opt-in scaling path preserves the reference result.
+
+For automated case-author and engine-development loops, pass
+`--regression-case-jobs 6` together with the same parsed-cache, graph-backend,
+and closure options. Keep a periodic no-cache NetworkX reference run as an A/B
+correctness gate.
+
+Case-scope paths are semantically significant. The engine must preserve the
+scope directory instead of resolving the target symlink back to the original
+full sample directory. The loader may still resolve each JSON symlink when it
+opens the file.
 
 ## Policy
 

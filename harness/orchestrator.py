@@ -102,6 +102,10 @@ class Engine11Runner:
         case_scope_byte_threshold: int = DEFAULT_CASE_SCOPE_BYTE_THRESHOLD,
         include_proposed_regressions: bool = False,
         slice_profile_opcodes: bool = False,
+        parsed_cache: bool = False,
+        function_build_jobs: int = 1,
+        graph_backend: str = "networkx",
+        demand_closure: bool = False,
     ):
         self.config = config
         self.engine_root = config.path("repos", "engine_11")
@@ -113,6 +117,10 @@ class Engine11Runner:
         self.case_scope_byte_threshold = case_scope_byte_threshold
         self.include_proposed_regressions = include_proposed_regressions
         self.slice_profile_opcodes = slice_profile_opcodes
+        self.parsed_cache = parsed_cache
+        self.function_build_jobs = max(1, int(function_build_jobs))
+        self.graph_backend = graph_backend
+        self.demand_closure = demand_closure
         self._file_hash_cache: dict[Path, str | None] = {}
         self._directory_hash_cache: dict[tuple[Path, str], str | None] = {}
         self._expected_hash_cache: dict[Path, str | None] = {}
@@ -132,8 +140,7 @@ class Engine11Runner:
     def run_variant(self, run_id: str, variant: Variant, run_config_hash: str) -> list[dict]:
         if not variant.sample_dir.exists():
             return [self._error_row(run_id, variant, "NO_SAMPLES", f"missing samples: {variant.sample_dir}", run_config_hash)]
-        cases = sorted(variant.sample_dir.rglob(variant.case_glob))
-        cases, skipped = self._filter_cases_by_severity(cases, variant.expected_path)
+        cases, skipped = self.selected_cases(variant)
         if skipped:
             print(
                 f"[harness] {variant.label}: skipped {len(skipped)} proposed-regression case(s); "
@@ -142,7 +149,13 @@ class Engine11Runner:
         if not cases:
             return [self._error_row(run_id, variant, "NO_CASES", f"no cases matching {variant.case_glob}", run_config_hash)]
         validator = self.ExpectedValidator(variant.expected_path)
-        builder = self.ProgramSliceGraphBuilder(profile_opcodes=self.slice_profile_opcodes)
+        builder = self.ProgramSliceGraphBuilder(
+            profile_opcodes=self.slice_profile_opcodes,
+            parsed_cache=self.parsed_cache,
+            function_build_jobs=self.function_build_jobs,
+            graph_backend=self.graph_backend,
+            demand_closure=self.demand_closure,
+        )
         scope_planner = CaseScopePlanner(
             variant.sample_dir,
             self.output_root,
@@ -155,6 +168,29 @@ class Engine11Runner:
         for json_path in cases:
             rows.append(self._run_case(run_id, variant, json_path, validator, builder, run_config_hash, scope_planner))
         return rows
+
+    def selected_cases(self, variant: Variant) -> tuple[list[Path], list[Path]]:
+        cases = sorted(variant.sample_dir.rglob(variant.case_glob))
+        return self._filter_cases_by_severity(cases, variant.expected_path)
+
+    def run_case_path(self, run_id: str, variant: Variant, json_path: Path, run_config_hash: str) -> dict:
+        validator = self.ExpectedValidator(variant.expected_path)
+        builder = self.ProgramSliceGraphBuilder(
+            profile_opcodes=self.slice_profile_opcodes,
+            parsed_cache=self.parsed_cache,
+            function_build_jobs=self.function_build_jobs,
+            graph_backend=self.graph_backend,
+            demand_closure=self.demand_closure,
+        )
+        scope_planner = CaseScopePlanner(
+            variant.sample_dir,
+            self.output_root,
+            variant.label,
+            policy=self.case_scope_policy,
+            file_threshold=self.case_scope_file_threshold,
+            byte_threshold=self.case_scope_byte_threshold,
+        )
+        return self._run_case(run_id, variant, json_path, validator, builder, run_config_hash, scope_planner)
 
     def _run_case(
         self,
@@ -414,14 +450,14 @@ class Engine11Runner:
         return self._expected_hash_cache[key]
 
 
-def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
+def _runner_from_payload(payload: dict) -> Engine11Runner:
     os.environ["TDO_HARNESS_NO_VENV_REEXEC"] = "1"
     config_path = Path(payload["config_path"])
     config = HarnessConfig.load(config_path if config_path.exists() else None)
     memory = None
     if payload.get("use_cache") and payload.get("memory_base"):
         memory = Memory(Path(payload["memory_base"]))
-    runner = Engine11Runner(
+    return Engine11Runner(
         config,
         Path(payload["output_root"]),
         memory=memory,
@@ -431,12 +467,31 @@ def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
         case_scope_byte_threshold=int(payload["case_scope_byte_threshold"]),
         include_proposed_regressions=bool(payload["include_proposed_regressions"]),
         slice_profile_opcodes=bool(payload["slice_profile_opcodes"]),
+        parsed_cache=bool(payload["parsed_cache"]),
+        function_build_jobs=int(payload["function_build_jobs"]),
+        graph_backend=str(payload["graph_backend"]),
+        demand_closure=bool(payload["demand_closure"]),
     )
+
+
+def _run_variant_worker(payload: dict) -> tuple[int, list[dict]]:
+    runner = _runner_from_payload(payload)
     return int(payload["index"]), runner.run_variant(
         str(payload["run_id"]),
         payload["variant"],
         str(payload["run_config_hash"]),
     )
+
+
+def _run_case_worker(payload: dict) -> tuple[int, dict]:
+    runner = _runner_from_payload(payload)
+    row = runner.run_case_path(
+        str(payload["run_id"]),
+        payload["variant"],
+        Path(payload["json_path"]),
+        str(payload["run_config_hash"]),
+    )
+    return int(payload["index"]), row
 
 
 def _run_variants_parallel(
@@ -453,6 +508,10 @@ def _run_variants_parallel(
     case_scope_byte_threshold: int,
     include_proposed_regressions: bool,
     slice_profile_opcodes: bool,
+    parsed_cache: bool,
+    function_build_jobs: int,
+    graph_backend: str,
+    demand_closure: bool,
     jobs: int,
 ) -> list[dict]:
     worker_count = max(1, min(jobs, len(variants)))
@@ -472,6 +531,10 @@ def _run_variants_parallel(
             "case_scope_byte_threshold": case_scope_byte_threshold,
             "include_proposed_regressions": include_proposed_regressions,
             "slice_profile_opcodes": slice_profile_opcodes,
+            "parsed_cache": parsed_cache,
+            "function_build_jobs": function_build_jobs,
+            "graph_backend": graph_backend,
+            "demand_closure": demand_closure,
         }
         for index, variant in enumerate(variants)
     ]
@@ -495,6 +558,128 @@ def _run_variants_parallel(
     for index in range(len(variants)):
         reports.extend(reports_by_index.get(index, []))
     return reports
+
+
+def _run_cases_parallel(
+    *,
+    config: HarnessConfig,
+    config_path: Path,
+    output_root: Path,
+    memory: Memory | None,
+    use_cache: bool,
+    variants: list[Variant],
+    run_id: str,
+    run_config_hash: str,
+    case_scope_policy: str,
+    case_scope_file_threshold: int,
+    case_scope_byte_threshold: int,
+    include_proposed_regressions: bool,
+    slice_profile_opcodes: bool,
+    parsed_cache: bool,
+    function_build_jobs: int,
+    graph_backend: str,
+    demand_closure: bool,
+    case_jobs: int,
+) -> list[dict]:
+    coordinator = Engine11Runner(
+        config,
+        output_root,
+        memory=memory,
+        use_cache=use_cache,
+        case_scope_policy=case_scope_policy,
+        case_scope_file_threshold=case_scope_file_threshold,
+        case_scope_byte_threshold=case_scope_byte_threshold,
+        include_proposed_regressions=include_proposed_regressions,
+        slice_profile_opcodes=slice_profile_opcodes,
+        parsed_cache=parsed_cache,
+        function_build_jobs=function_build_jobs,
+        graph_backend=graph_backend,
+        demand_closure=demand_closure,
+    )
+    immediate_rows: list[tuple[int, dict]] = []
+    payloads: list[dict] = []
+    index = 0
+    for variant in variants:
+        if not variant.sample_dir.exists():
+            immediate_rows.append(
+                (
+                    index,
+                    coordinator._error_row(
+                        run_id,
+                        variant,
+                        "NO_SAMPLES",
+                        f"missing samples: {variant.sample_dir}",
+                        run_config_hash,
+                    ),
+                )
+            )
+            index += 1
+            continue
+        cases, skipped = coordinator.selected_cases(variant)
+        if skipped:
+            print(
+                f"[harness] {variant.label}: skipped {len(skipped)} proposed-regression case(s); "
+                "pass --include-proposed-regression to run them"
+            )
+        if not cases:
+            immediate_rows.append(
+                (
+                    index,
+                    coordinator._error_row(
+                        run_id,
+                        variant,
+                        "NO_CASES",
+                        f"no cases matching {variant.case_glob}",
+                        run_config_hash,
+                    ),
+                )
+            )
+            index += 1
+            continue
+        for json_path in cases:
+            payloads.append(
+                {
+                    "index": index,
+                    "config_path": str(config_path),
+                    "output_root": str(output_root),
+                    "memory_base": str(memory.base) if memory is not None else "",
+                    "use_cache": use_cache,
+                    "variant": variant,
+                    "json_path": str(json_path),
+                    "run_id": run_id,
+                    "run_config_hash": run_config_hash,
+                    "case_scope_policy": case_scope_policy,
+                    "case_scope_file_threshold": case_scope_file_threshold,
+                    "case_scope_byte_threshold": case_scope_byte_threshold,
+                    "include_proposed_regressions": include_proposed_regressions,
+                    "slice_profile_opcodes": slice_profile_opcodes,
+                    "parsed_cache": parsed_cache,
+                    "function_build_jobs": function_build_jobs,
+                    "graph_backend": graph_backend,
+                    "demand_closure": demand_closure,
+                }
+            )
+            index += 1
+
+    reports_by_index = dict(immediate_rows)
+    worker_count = max(1, min(case_jobs, len(payloads))) if payloads else 1
+
+    def collect(executor) -> None:
+        futures = {executor.submit(_run_case_worker, payload): payload["index"] for payload in payloads}
+        for future in as_completed(futures):
+            row_index, row = future.result()
+            reports_by_index[row_index] = row
+
+    if payloads:
+        try:
+            with ProcessPoolExecutor(max_workers=worker_count) as executor:
+                collect(executor)
+        except PermissionError as exc:
+            print(f"[harness] case process pool unavailable ({exc}); falling back to serial execution", file=sys.stderr)
+            for payload in payloads:
+                row_index, row = _run_case_worker(payload)
+                reports_by_index[row_index] = row
+    return [reports_by_index[row_index] for row_index in sorted(reports_by_index)]
 
 
 def _parse_suites(text: str) -> set[str]:
@@ -710,6 +895,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Run selected variants in parallel worker processes. Case order remains deterministic within each variant.",
     )
     parser.add_argument(
+        "--case-jobs",
+        type=int,
+        default=0,
+        help="Run independent (variant, case) tasks in worker processes. Zero keeps variant-level scheduling.",
+    )
+    parser.add_argument(
         "--slow-case-limit",
         type=int,
         default=20,
@@ -719,6 +910,28 @@ def main(argv: list[str] | None = None) -> int:
         "--slice-profile-opcodes",
         action="store_true",
         help="Collect detailed SliceGraphBuilder opcode timing for performance_report.json.",
+    )
+    parser.add_argument(
+        "--parsed-cache",
+        action="store_true",
+        help="Enable the content-addressed persistent low-pcode parsed/index cache.",
+    )
+    parser.add_argument(
+        "--function-build-jobs",
+        type=int,
+        default=1,
+        help="Build independent FunctionGraph objects in deterministic worker processes.",
+    )
+    parser.add_argument(
+        "--graph-backend",
+        choices=["networkx", "rustworkx"],
+        default="networkx",
+        help="Backward traversal backend. Graph construction remains NetworkX-compatible.",
+    )
+    parser.add_argument(
+        "--demand-closure",
+        action="store_true",
+        help="Use conservative target-rooted function closure with automatic full-program fallback.",
     )
     parser.add_argument(
         "--regression-baseline",
@@ -829,15 +1042,52 @@ def main(argv: list[str] | None = None) -> int:
         else int(config.value("defaults", "case_scope_byte_threshold", DEFAULT_CASE_SCOPE_BYTE_THRESHOLD)),
         "include_proposed_regression": bool(args.include_proposed_regression),
         "slice_profile_opcodes": bool(args.slice_profile_opcodes),
+        "parsed_cache": bool(args.parsed_cache),
+        "function_build_jobs": max(1, int(args.function_build_jobs)),
+        "case_jobs": max(0, int(args.case_jobs)),
+        "graph_backend": str(args.graph_backend),
+        "demand_closure": bool(args.demand_closure),
     }
     run_config_hash = canonical_hash(run_config)
 
     reports: list[dict] = []
     jobs = max(1, int(args.jobs))
+    case_jobs = max(0, int(args.case_jobs))
+    if case_jobs > 1 and int(run_config["function_build_jobs"]) > 1:
+        print(
+            "[harness] case-level multiprocessing disables nested function-build multiprocessing",
+            file=sys.stderr,
+        )
+        run_config["function_build_jobs"] = 1
+        run_config_hash = canonical_hash(run_config)
     for variant in variants:
-        suffix = f" [parallel x{min(jobs, len(variants))}]" if jobs > 1 and len(variants) > 1 else ""
+        if case_jobs > 1:
+            suffix = f" [case-parallel x{case_jobs}]"
+        else:
+            suffix = f" [parallel x{min(jobs, len(variants))}]" if jobs > 1 and len(variants) > 1 else ""
         print(f"[harness] {variant.label}: {variant.sample_dir}{suffix}")
-    if jobs > 1 and len(variants) > 1:
+    if case_jobs > 1:
+        reports = _run_cases_parallel(
+            config=config,
+            config_path=args.config,
+            output_root=output_root,
+            memory=memory,
+            use_cache=not args.no_cache,
+            variants=variants,
+            run_id=run_id,
+            run_config_hash=run_config_hash,
+            case_scope_policy=str(run_config["case_scope"]),
+            case_scope_file_threshold=int(run_config["case_scope_file_threshold"]),
+            case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
+            include_proposed_regressions=bool(run_config["include_proposed_regression"]),
+            slice_profile_opcodes=bool(run_config["slice_profile_opcodes"]),
+            parsed_cache=bool(run_config["parsed_cache"]),
+            function_build_jobs=int(run_config["function_build_jobs"]),
+            graph_backend=str(run_config["graph_backend"]),
+            demand_closure=bool(run_config["demand_closure"]),
+            case_jobs=case_jobs,
+        )
+    elif jobs > 1 and len(variants) > 1:
         reports = _run_variants_parallel(
             config_path=args.config,
             output_root=output_root,
@@ -851,6 +1101,10 @@ def main(argv: list[str] | None = None) -> int:
             case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
             include_proposed_regressions=bool(run_config["include_proposed_regression"]),
             slice_profile_opcodes=bool(run_config["slice_profile_opcodes"]),
+            parsed_cache=bool(run_config["parsed_cache"]),
+            function_build_jobs=int(run_config["function_build_jobs"]),
+            graph_backend=str(run_config["graph_backend"]),
+            demand_closure=bool(run_config["demand_closure"]),
             jobs=jobs,
         )
     else:
@@ -864,6 +1118,10 @@ def main(argv: list[str] | None = None) -> int:
             case_scope_byte_threshold=int(run_config["case_scope_byte_threshold"]),
             include_proposed_regressions=bool(run_config["include_proposed_regression"]),
             slice_profile_opcodes=bool(run_config["slice_profile_opcodes"]),
+            parsed_cache=bool(run_config["parsed_cache"]),
+            function_build_jobs=int(run_config["function_build_jobs"]),
+            graph_backend=str(run_config["graph_backend"]),
+            demand_closure=bool(run_config["demand_closure"]),
         )
         for variant in variants:
             reports.extend(runner.run_variant(run_id, variant, run_config_hash))

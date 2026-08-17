@@ -193,6 +193,19 @@ def _write_case_author_tasks(args: argparse.Namespace, config: HarnessConfig, re
     }
 
 
+def _append_orchestrator_scaling_options(cmd: list[str], args: argparse.Namespace) -> None:
+    if args.regression_case_jobs > 1:
+        cmd.extend(["--case-jobs", str(args.regression_case_jobs)])
+    if args.parsed_cache:
+        cmd.append("--parsed-cache")
+    if args.function_build_jobs > 1:
+        cmd.extend(["--function-build-jobs", str(args.function_build_jobs)])
+    if args.graph_backend != "networkx":
+        cmd.extend(["--graph-backend", args.graph_backend])
+    if args.demand_closure:
+        cmd.append("--demand-closure")
+
+
 def _run_regression(args: argparse.Namespace, output_root: Path, phase: str) -> dict:
     output_dir = output_root / phase
     cmd = [
@@ -221,6 +234,7 @@ def _run_regression(args: argparse.Namespace, output_root: Path, phase: str) -> 
         cmd.append("--include-proposed-regression")
     if args.regression_jobs > 1:
         cmd.extend(["--jobs", str(args.regression_jobs)])
+    _append_orchestrator_scaling_options(cmd, args)
     proc = _run_logged(cmd, output_root / f"{phase}.log")
     report_path = output_dir / "failure_report_v2.json"
     report = _read_json(report_path, [])
@@ -667,6 +681,7 @@ def _run_post_apply_regressions(args: argparse.Namespace, output_root: Path, app
                 cmd.extend(["--variant-filter", variant_filter])
             if args.regression_jobs > 1:
                 cmd.extend(["--jobs", str(args.regression_jobs)])
+            _append_orchestrator_scaling_options(cmd, args)
             proc = _run_logged(cmd, output_root / "post_apply_regression" / f"{_safe_label(case_id)}_{_safe_label(variant_filter or 'all')}.log")
             report = _read_json(out_dir / "failure_report_v2.json", [])
             rows.append(
@@ -767,6 +782,16 @@ def _run_engine_dev_loop(
         cmd.extend(["--variant-filter", variant_filter])
     if args.regression_jobs > 1:
         cmd.extend(["--regression-jobs", str(args.regression_jobs)])
+    if args.regression_case_jobs > 1:
+        cmd.extend(["--regression-case-jobs", str(args.regression_case_jobs)])
+    if args.parsed_cache:
+        cmd.append("--parsed-cache")
+    if args.function_build_jobs > 1:
+        cmd.extend(["--function-build-jobs", str(args.function_build_jobs)])
+    if args.graph_backend != "networkx":
+        cmd.extend(["--graph-backend", args.graph_backend])
+    if args.demand_closure:
+        cmd.append("--demand-closure")
     if args.engine_allow_dirty:
         cmd.append("--allow-dirty-engine")
     if args.operator_note_file:
@@ -930,6 +955,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Pass orchestrator --jobs and nested engine_dev_loop --regression-jobs to regression phases.",
     )
+    parser.add_argument(
+        "--regression-case-jobs",
+        type=int,
+        default=0,
+        help="Pass orchestrator --case-jobs and nested engine_dev_loop --regression-case-jobs.",
+    )
+    parser.add_argument("--parsed-cache", action="store_true")
+    parser.add_argument("--function-build-jobs", type=int, default=1)
+    parser.add_argument("--graph-backend", choices=["networkx", "rustworkx"], default="networkx")
+    parser.add_argument("--demand-closure", action="store_true")
     parser.add_argument("--include-proposed-regression", action="store_true")
     parser.add_argument("--prompt-max-cases", type=int, default=24)
     parser.add_argument("--gap-note", default="")

@@ -275,6 +275,16 @@ def _run_regression(args: argparse.Namespace, config: HarnessConfig, cycle_dir: 
         cmd.append("--include-ue-extract")
     if args.regression_jobs > 1:
         cmd.extend(["--jobs", str(args.regression_jobs)])
+    if args.regression_case_jobs > 1:
+        cmd.extend(["--case-jobs", str(args.regression_case_jobs)])
+    if args.parsed_cache:
+        cmd.append("--parsed-cache")
+    if args.function_build_jobs > 1:
+        cmd.extend(["--function-build-jobs", str(args.function_build_jobs)])
+    if args.graph_backend != "networkx":
+        cmd.extend(["--graph-backend", args.graph_backend])
+    if args.demand_closure:
+        cmd.append("--demand-closure")
 
     print(f"[engine-dev-loop] regression {phase}: {run_id}")
     proc = _run_logged(cmd, cycle_dir / f"{phase}_regression.log", cwd=ROOT, dry_run=args.dry_run)
@@ -768,6 +778,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Pass orchestrator --jobs to pre/post regression runs for variant-level multiprocessing.",
     )
+    parser.add_argument(
+        "--regression-case-jobs",
+        type=int,
+        default=0,
+        help="Pass orchestrator --case-jobs to pre/post regression runs.",
+    )
+    parser.add_argument("--parsed-cache", action="store_true")
+    parser.add_argument("--function-build-jobs", type=int, default=1)
+    parser.add_argument("--graph-backend", choices=["networkx", "rustworkx"], default="networkx")
+    parser.add_argument("--demand-closure", action="store_true")
     parser.add_argument(
         "--include-proposed-regression",
         action="store_true",

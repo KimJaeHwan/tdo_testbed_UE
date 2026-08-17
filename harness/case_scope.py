@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-CASE_SCOPE_SCHEMA_VERSION = 2
+CASE_SCOPE_SCHEMA_VERSION = 3
 FUNCTION_POINTER_SCOPE_WINDOW = 0x20
 
 
@@ -209,6 +209,16 @@ class CaseScopePlanner:
             for entry, info in functions_by_entry.items()
             if isinstance(info, dict) and info.get("name")
         }
+        function_hints = ((data.get("ghidra_hints") or {}).get("function") or {})
+        if isinstance(function_hints, dict):
+            thunked = function_hints.get("thunked_function") or {}
+            if isinstance(thunked, dict) and thunked.get("name"):
+                call_names.add(str(thunked.get("name")))
+        current_function_record = functions_by_entry.get(function_entry) if function_entry else None
+        if isinstance(current_function_record, dict):
+            thunked = current_function_record.get("thunked_function") or {}
+            if isinstance(thunked, dict) and thunked.get("name"):
+                call_names.add(str(thunked.get("name")))
         for instr in data.get("instructions") or []:
             if not isinstance(instr, dict):
                 continue

@@ -160,6 +160,16 @@ def scale_profile(reports: list[dict], limit: int = 12) -> dict:
     profiled_top_pcode_count = 0
     profiled_top_node_count = 0
     profiled_top_edge_count = 0
+    profiled_input_bytes = 0
+    profiled_function_count = 0
+    profiled_instruction_count = 0
+    profiled_pcode_count = 0
+    profiled_graph_node_count = 0
+    profiled_graph_edge_count = 0
+    profiled_callsite_count = 0
+    parsed_cache_memory_hits = 0
+    parsed_cache_disk_hits = 0
+    parsed_cache_misses = 0
     seen_build_keys: set[str] = set()
 
     for row in reports:
@@ -179,6 +189,10 @@ def scale_profile(reports: list[dict], limit: int = 12) -> dict:
                 "build_seconds": 0.0,
                 "query_seconds": 0.0,
                 "validation_seconds": 0.0,
+                "input_bytes": 0,
+                "function_count": 0,
+                "graph_node_count": 0,
+                "graph_edge_count": 0,
             },
         )
         variant_bucket["case_count"] += 1
@@ -198,6 +212,20 @@ def scale_profile(reports: list[dict], limit: int = 12) -> dict:
         profiled_builds += 1
         variant_bucket["profiled_build_count"] += 1
         profiled_scope_files += _as_int(build_profile.get("file_count"))
+        profiled_input_bytes += _as_int(build_profile.get("input_bytes"))
+        profiled_function_count += _as_int(build_profile.get("function_count"))
+        profiled_instruction_count += _as_int(build_profile.get("instruction_count"))
+        profiled_pcode_count += _as_int(build_profile.get("pcode_count"))
+        profiled_graph_node_count += _as_int(build_profile.get("graph_node_count"))
+        profiled_graph_edge_count += _as_int(build_profile.get("graph_edge_count"))
+        profiled_callsite_count += _as_int(build_profile.get("callsite_count"))
+        parsed_cache_memory_hits += _as_int(build_profile.get("parsed_cache_memory_hits"))
+        parsed_cache_disk_hits += _as_int(build_profile.get("parsed_cache_disk_hits"))
+        parsed_cache_misses += _as_int(build_profile.get("parsed_cache_misses"))
+        variant_bucket["input_bytes"] += _as_int(build_profile.get("input_bytes"))
+        variant_bucket["function_count"] += _as_int(build_profile.get("function_count"))
+        variant_bucket["graph_node_count"] += _as_int(build_profile.get("graph_node_count"))
+        variant_bucket["graph_edge_count"] += _as_int(build_profile.get("graph_edge_count"))
         for key, value in build_profile.items():
             if not str(key).endswith("_seconds") and not str(key).endswith(":seconds"):
                 continue
@@ -276,7 +304,7 @@ def scale_profile(reports: list[dict], limit: int = 12) -> dict:
             bucket[key] = round(float(bucket[key]), 6)
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "case_count": len(reports),
         "variant_count": len(variants),
         "cache_hit_count": sum(1 for row in reports if (row.get("cache") or {}).get("hit")),
@@ -286,6 +314,18 @@ def scale_profile(reports: list[dict], limit: int = 12) -> dict:
         "profiled_top_pcode_count": profiled_top_pcode_count,
         "profiled_top_node_count": profiled_top_node_count,
         "profiled_top_edge_count": profiled_top_edge_count,
+        "profiled_input_bytes": profiled_input_bytes,
+        "profiled_function_count": profiled_function_count,
+        "profiled_instruction_count": profiled_instruction_count,
+        "profiled_pcode_count": profiled_pcode_count,
+        "profiled_graph_node_count": profiled_graph_node_count,
+        "profiled_graph_edge_count": profiled_graph_edge_count,
+        "profiled_callsite_count": profiled_callsite_count,
+        "parsed_cache": {
+            "memory_hits": parsed_cache_memory_hits,
+            "disk_hits": parsed_cache_disk_hits,
+            "misses": parsed_cache_misses,
+        },
         "stage_totals_top": _top_stage_totals(stage_totals, limit),
         "hot_functions_top": _top_hot_functions(hot_functions, limit),
         "hot_call_boundaries_top": _top_hot_call_boundaries(hot_call_boundaries, limit),
