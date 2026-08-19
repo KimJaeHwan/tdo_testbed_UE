@@ -18,19 +18,19 @@ output:
 
 models:
   cheap: "codex:gpt-5.4-mini"
-  strong: "codex:gpt-5.5"
-  fp_review: "codex:gpt-5.5"
+  strong: "codex:gpt-5.6-sol"
+  critical_review: "codex:gpt-5.6-sol"
   adversary_panel: []
   commands:
     cheap: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.4-mini --reasoning-effort medium"
-    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.5 --reasoning-effort high"
-    fp_review: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.5 --reasoning-effort xhigh"
+    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.6-sol --reasoning-effort high"
+    critical_review: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.6-sol --reasoning-effort xhigh"
   agent_tiers:
-    triage: "fp_review"
+    triage: "critical_review"
     coverage_planner: "cheap"
     memory_synth: "cheap"
     diagnostician: "strong"
-    adversary: "fp_review"
+    adversary: "critical_review"
     engine_fixer: "strong"
     case_author: "strong"
 

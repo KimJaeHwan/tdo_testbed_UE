@@ -3,7 +3,8 @@
 테스트베드(10_)↔BackwardSlice 엔진(11_) 개발 반복 루프를 자동화하는 하니스의 **구현용 단일 설계서**.
 Codex가 이 문서 하나로 구현한다(PR 단위 §16). 본 문서가 단일 진실. 구현 전 단계(설계 확정).
 
-> 변경 이력: v1(스켈레톤) → v2(Opus 4.8 R1–R6 + 최종 정밀화 P1–P4 + GPT5.5 보강 반영).
+> 변경 이력: v1(스켈레톤) → v2(Opus 4.8 R1–R6 + 최종 정밀화 P1–P4 + GPT5.5 보강 반영)
+> → v3 recall-first 후보 생성/precision refinement 분리(2026-08-17).
 > v1↔스켈레톤 정합 감사는 `docs/harness_design_audit.md`(v1 기준, 구현 PR에서 재정합).
 
 ---
@@ -22,7 +23,7 @@ P1 결정적 우선   : build/extract/analyze/verify/report/gate/cache/ledger를
                    LLM은 판단 노드(triage/diagnose/adversary/fix/author/coverage)에만.
 P2 반박 필수     : 모든 원인가설·수정·분류는 증거를 갖춰 adversary 반박을 통과해야 채택.
 P3 오라클 무결성 : 테스트 통과 위해 expected/manifest 수정 절대 금지(gaming 차단).
-P4 목적함수 사전식: PASS 단일 최대화 금지(§4).
+P4 목적함수 사전식: crash/음성 위반/recall 누락을 우선하며 PASS 단일 최대화 금지(§4).
 P5 결정성·버전핀 : 툴체인(NDK/UE/Ghidra/MSVC) 버전 핀 + 자동선택 금지 + 결과에 기록.
 P6 외부 구조화 메모리: 컨텍스트가 아닌 원장(JSON/sqlite)에 상태 보존(§9).
 P7 휴먼 게이트   : 오라클 변경·엔진 merge·frontier/contradictory 판정은 사람(§13).
@@ -49,7 +50,7 @@ SuiteAdapter(base): discover_cases / build(variant) / extract_lowpcode / expecte
   ├ Suite09Adapter   : 09 일반 C/C++ build/extract/expected
   └ Suite10UEAdapter : 10 UE(USTRUCT/컨테이너) build/extract/expected
 EngineAdapter: Engine11Adapter — 11_ 실행(engine commit/config 기록)
-Verifier    : engine_result × expected → VerifyResult(verdict/missing/forbidden_found/...)
+Verifier    : engine_result × expected → VerifyResult(verdict/recall/precision/negative/...)
 ```
 완료 기준: 09만/10만/09+10 동시 실행 가능, 11 engine commit·config가 report에 기록.
 
@@ -57,12 +58,15 @@ Verifier    : engine_result × expected → VerifyResult(verdict/missing/forbidd
 
 ## 4. 목적함수 & 불변식 (P4/P8)
 ```
-사전식 점수 = ( -crash, -false_positive, -regression, +pass(high-priority), +pass(other), honest_degrade )
+사전식 점수 = ( -crash, -negative_violation, -recall_missing, +pass(high-priority), +pass(other), honest_degrade )
 불변식(어기면 수정 거부):
-  I1 crash=0      I2 false_positive=0      I3 regression=0
-  I4 oracle(expected/manifest) 미변경      I5 evidence_required(증거 없는 engine_defect/수정/오라클 변경 금지)
-가장 위험한 실패 = source 못 찾음(FN)이 아니라 엉뚱한 source를 맞다고 함(FP). 그래서 I2 ≫ pass 증가.
-/O2 변형은 PASS 목표가 아니라 "FP 없음 + 정직한 degrade(unresolved/widened)"로 평가.
+  I1 crash=0      I2 expected source recall complete      I3 regression=0
+  I4 oracle(expected/manifest) 미변경      I5 explicit negative controls clean
+  I6 evidence_required(증거 없는 engine_defect/수정/오라클 변경 금지)
+양성 케이스의 expected 집합 밖 후보(그중 forbidden 도달 포함)는
+`REFINEMENT_PENDING` 정밀도 텔레메트리이며
+코어 PASS를 막지 않는다. `expected_no_sources: true`는 어떤 source도 허용하지
+않는 hard negative gate다. /O2 widened 결과도 expected source를 놓치면 FAIL이다.
 ```
 
 ## 5. 계층 Artifact Cache (R1) — 단일 평면키 금지
@@ -84,24 +88,30 @@ expected 변경   → verify만
 `engine_result_hash`/회귀비교가 엔진 출력 결정성에 의존하므로, PR3 슬라이스에서 "같은 입력 2회→동일 해시"를 검증.
 `run_config_hash`는 엔진 플래그(`--summary-first`, budgets 등)를 정규화해 포함.
 
-## 6. FailureReport v2 스키마
+## 6. FailureReport 안정 경로 / schema v3
+
+파일명 `failure_report_v2.json`은 기존 도구 호환을 위해 유지하지만 내부
+`schema_version`은 3이다.
 ```json
 {
-  "schema_version": 2, "run_id": "...", "suite": "09_tdo_testbed",
+  "schema_version": 3, "run_id": "...", "suite": "09_tdo_testbed",
   "case": "DFB055",
   "variant": { "arch": "x64", "compiler": "msvc", "opt": "O2", "build_config": null, "pdb": false, "unreal_version": null },
   "toolchain": { "android_ndk_version": "25.1.8937393", "clang_version": "...", "target_triple": "aarch64-linux-android" },
   "engine": { "repo": "trace_data_origin_lowpcode", "commit": "...", "config_hash": "...", "mode": "summary_first" },
   "artifacts": { "binary_path","binary_hash","pcode_path","pcode_hash","metadata_path","result_path","diagnose_dump_path" },
   "verdict": "PASS|FAIL|ERROR|DEGRADED",
-  "missing": [], "forbidden_found": [], "warnings": [], "features": [], "edge_kinds_seen": [], "cut": [],
+  "candidate_sources": [], "candidate_control_sources": [],
+  "missing": [], "forbidden_found": [],
+  "recall_pass": true, "precision_status": "CLEAN|REFINEMENT_PENDING|NEGATIVE_CONTROL_VIOLATION",
+  "negative_case": false, "warnings": [], "features": [], "edge_kinds_seen": [], "cut": [],
   "budgets": { "budget_exceeded": false, "details": [] }
 }
 ```
 **suite별 분리 summary 필수**(하나의 pass/fail로 합치지 말 것):
 ```json
-{ "suites": { "09_tdo_testbed": {"pass":370,"fail":118,"error":0,"false_positive":0,"regression":0},
-              "10_tdo_testbed_UE": {"pass":12,"fail":3,"degraded":1,"false_positive":0} } }
+{ "suites": { "09_tdo_testbed": {"pass":370,"fail":118,"error":0,"precision_pending":0,"negative_control_failures":0},
+              "10_tdo_testbed_UE": {"pass":12,"fail":3,"degraded":1,"precision_pending":2,"negative_control_failures":0} } }
 ```
 
 ## 7. Triage — 8 범주 + unknown 폴백 (R4/P2)
@@ -117,7 +127,8 @@ diagnostician envelope의 evidence가 비면 reject. (근거: 과거 'crash'는 
 status: `can · cannot · frontier · missing · weakly_covered · contradictory`
 ```
 coverage_planner: failure_report+expected metadata 읽어 capability별 상태 갱신, gap을 case_author에 전달.
-frontier  : 알려진 미구현 — 신규 regression으로 세지 않음(gate). 단 frontier가 FP 내면 즉시 hard fail.
+frontier  : 알려진 recall 미구현 — 신규 regression으로 세지 않음(gate).
+precision pending: capability는 `can`을 유지하고 별도 refinement backlog에 기록.
 contradictory: expected/케이스 충돌 — 자동수정 금지, 즉시 human escalation.
 weakly_covered: 단일 케이스뿐, fusion/variant 부족 → 케이스 보강 대상.
 ```
@@ -138,7 +149,7 @@ capability_map   : case_class → status(§8) + blocking_hypothesis
 - 모든 출력은 **기계검증 JSON envelope**. schema 불일치 시 결과 미적용.
 - 예) diagnostician: `{agent, schema_version, case_refs, hypotheses[{id,claim,evidence[],confidence,risk}], recommended_next_action}`.
   evidence 비면 reject(I5).
-- adversary: 서로 다른 렌즈(correctness/regression/fp_risk) 독립 다수결, **증거 없는 confirm 무효**.
+- adversary: 서로 다른 렌즈(correctness/regression/precision_risk) 독립 다수결, **증거 없는 confirm 무효**.
 - engine_fixer: proposal-only(§2). 출력=branch/files_changed/summary/selftest(collect_failures 재실행)/risk_note. merge는 사람.
 
 ### 10.1 모델 티어링 & second opinion (DeepSeek V4 Pro)
@@ -172,16 +183,17 @@ endpoint 검증(어느 source가 sink 도달) = magic-value 실행으로 **stage
 
 ## 12. Gates (전체, 결정적)
 ```
-no_crash(I1) · no_false_positive(I2) · no_regression(I3) · oracle_locked(I4) · evidence_required(I5)
+no_crash(I1) · recall_complete(I2) · no_regression(I3) · oracle_locked(I4) ·
+negative_controls_clean(I5) · evidence_required(I6)
 artifact_integrity · expected_hash_match · engine_config_recorded
-known_frontier_not_counted_as_new_regression   (단 frontier가 FP→hard fail)
+known_frontier_not_counted_as_new_regression
 ```
 
 ## 13. 휴먼 게이트 / 자율 범위 / 종료 (P7)
 ```
 사람 승인 필요: expected/manifest 변경 · 11_ 엔진 merge · "frontier/unsupported" 판정 · contradictory 해소
 완전 자율    : 테스트 실행 · 증거기반 진단 · 패치 제안(merge 전) · 케이스 초안(proposed_cases)
-종료: false_positive=0 AND high-priority PASS 목표 도달 AND frontier 문서화
+종료: recall/negative primary green AND high-priority PASS 목표 도달 AND frontier 문서화
 에스컬레이션: 같은 케이스 N회 수정 실패 / 회귀 게이트 반복 실패 / 오라클·contradictory → 사람
 ```
 
@@ -286,6 +298,7 @@ python -m harness.orchestrator --config harness/config.yaml --suite 09,10 --engi
 - expected 자동수정으로 PASS 늘리기            - 09/10/11 경계 무시하고 한 repo처럼 수정
 - LLM agent부터 연결                           - run_tests 하나에 모든 책임
 - report에 artifact hash/engine commit 누락    - known frontier와 regression 섞기
-- false positive를 allowed warning으로 처리    - NDK 등 toolchain 자동선택(핀 안 함)
+- 양성 precision 후보를 근거 없이 버리거나 core recall을 좁힘   - NDK 등 toolchain 자동선택(핀 안 함)
+- 명시적 음성 케이스의 source 도달을 warning으로 낮춤
 - PDB/type metadata를 core truth로 쓰는 테스트 설계   - 증거 없이 engine_defect 단정
 ```

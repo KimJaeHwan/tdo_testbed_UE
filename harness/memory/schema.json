@@ -23,7 +23,7 @@
       "claim": "self 포인터 store가 unknown 셀로 뭉개져 옆 field 오매칭",
       "evidence_ref": "diagnose dump path / failure_report key",
       "status": "proposed|refuted|confirmed|fixed",
-      "adversary_votes": {"correctness": "confirm", "regression": "confirm", "fp_risk": "confirm"}
+      "adversary_votes": {"correctness": "confirm", "regression": "confirm", "precision_risk": "confirm"}
     },
     "_use": "신뢰의 원장 — '검증됨 vs 가설' 관장. confirmed/fixed만 사실로 승격(A §P2). 증거 없는 claim 금지."
   },

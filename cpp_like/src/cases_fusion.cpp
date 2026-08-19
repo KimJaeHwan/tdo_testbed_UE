@@ -2382,4 +2382,154 @@ extern "C" TV2_NOINLINE void case_TV2C675_multi_sink_field_overwrite(void) {
     dfb_sink_int(copy.stale + (decoy & 0));
 }
 
+
+struct FusionPartialCopyCell {
+    int live;
+    int decoy;
+};
+
+typedef void (*FusionPartialCopyWriter)(FusionPartialCopyCell*);
+
+static TV2_NOINLINE void fusion_partial_copy_seed_a(FusionPartialCopyCell* cell) {
+    cell->live = dfb_source_A();
+    cell->decoy = dfb_source_C();
+}
+
+static TV2_NOINLINE void fusion_partial_copy_seed_b(FusionPartialCopyCell* cell) {
+    cell->live = dfb_source_A() ^ 0x13579BDF;
+    cell->decoy = dfb_source_C() ^ 0x2468ACE0;
+}
+
+static TV2_NOINLINE void fusion_partial_copy_patch_byte(FusionPartialCopyCell* cell) {
+    unsigned char* live_bytes = reinterpret_cast<unsigned char*>(&cell->live);
+    live_bytes[0] = static_cast<unsigned char>(dfb_source_B());
+}
+
+static TV2_NOINLINE void fusion_partial_copy_object(FusionPartialCopyCell* dst, const FusionPartialCopyCell* src) {
+    unsigned char* dst_bytes = reinterpret_cast<unsigned char*>(dst);
+    const unsigned char* src_bytes = reinterpret_cast<const unsigned char*>(src);
+    for (unsigned int i = 0; i < sizeof(FusionPartialCopyCell); ++i) {
+        dst_bytes[i] = src_bytes[i];
+    }
+}
+
+extern "C" TV2_NOINLINE void case_TV2C676_callback_partial_copy_precision() {
+    static_assert(sizeof(int) >= 2, "partial-byte fusion requires at least two-byte int");
+    FusionPartialCopyCell staged = {};
+    FusionPartialCopyCell copied = {};
+    FusionPartialCopyWriter writers[2] = {
+        &fusion_partial_copy_seed_a,
+        &fusion_partial_copy_seed_b
+    };
+    volatile unsigned int selected = 0u;
+    writers[selected & 1u](&staged);
+    fusion_partial_copy_patch_byte(&staged);
+    fusion_partial_copy_object(&copied, &staged);
+    dfb_sink_int(copied.live);
+}
+
+
+struct TV2C677_Cell {
+    int Payload;
+    int Decoy;
+};
+
+TV2_NOINLINE static void TV2C677_copy_cell(TV2C677_Cell* Dst, const TV2C677_Cell* Src) {
+    *Dst = *Src;
+}
+
+TV2_NOINLINE static void TV2C677_store_selected(int* Field, int Value) {
+    *Field = Value;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C677_callback_exact_field_overwrite_after_copy() {
+    TV2C677_Cell Seed = { dfb_source_A(), dfb_source_B() };
+    TV2C677_Cell Live = { 0, 0 };
+    TV2C677_copy_cell(&Live, &Seed);
+
+    int* SelectedField = &Live.Payload;
+    void (*volatile Writer)(int*, int) = &TV2C677_store_selected;
+    const int Replacement = dfb_source_C();
+    Writer(SelectedField, Replacement);
+
+    dfb_sink_int(Live.Payload);
+}
+
+
+struct TV2C678_Lane {
+    unsigned short low;
+    unsigned short high;
+};
+
+struct TV2C678_Cell {
+    TV2C678_Lane payload;
+    unsigned int neighbor;
+};
+
+using TV2C678_Callback = void (*)(volatile TV2C678_Lane*);
+
+static TV2_NOINLINE void TV2C678_write_sources(volatile TV2C678_Lane* lane) {
+    lane->low = static_cast<unsigned short>(dfb_source_A());
+    lane->high = static_cast<unsigned short>(dfb_source_B());
+}
+
+static TV2_NOINLINE void TV2C678_copy_cell(const TV2C678_Cell* src, TV2C678_Cell* dst) {
+    dst->payload = src->payload;
+    dst->neighbor = src->neighbor;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C678_callback_partial_kill_copy_negative() {
+    TV2C678_Cell cell{};
+    TV2C678_Callback volatile callback = &TV2C678_write_sources;
+    callback(&cell.payload);
+
+    volatile unsigned int* neighbor_alias = &cell.neighbor;
+    *neighbor_alias = static_cast<unsigned int>(dfb_source_C());
+
+    volatile TV2C678_Lane* payload_alias = &cell.payload;
+    payload_alias->low = 0x1357u;
+    payload_alias->high = 0x2468u;
+
+    TV2C678_Cell snapshot{};
+    TV2C678_copy_cell(&cell, &snapshot);
+    const unsigned int value =
+        (static_cast<unsigned int>(snapshot.payload.high) << 16) |
+        static_cast<unsigned int>(snapshot.payload.low);
+    dfb_sink_int(static_cast<int>(value));
+}
+
+
+struct TV2C679_Words {
+    uint16_t lo;
+    uint16_t hi;
+};
+
+struct TV2C679_Cell {
+    TV2C679_Words payload;
+    uint32_t noise;
+};
+
+TV2_NOINLINE static void TV2C679_fill_cell(TV2C679_Cell* out) {
+    const uint32_t a = static_cast<uint32_t>(dfb_source_A());
+    TV2C679_Cell tmp{};
+    tmp.payload.lo = static_cast<uint16_t>(a);
+    tmp.payload.hi = static_cast<uint16_t>(a >> 16);
+    tmp.noise = static_cast<uint32_t>(dfb_source_B());
+    *out = tmp;
+}
+
+TV2_NOINLINE static void TV2C679_patch_low(TV2C679_Cell* cell) {
+    uint16_t* lane = &cell->payload.lo;
+    *lane = static_cast<uint16_t>(dfb_source_C());
+}
+
+extern "C" TV2_NOINLINE void case_TV2C679_partial_patch_after_copy_fusion() {
+    TV2C679_Cell cell{};
+    TV2C679_fill_cell(&cell);
+    TV2C679_patch_low(&cell);
+    const uint32_t joined = static_cast<uint32_t>(cell.payload.lo) |
+        (static_cast<uint32_t>(cell.payload.hi) << 16);
+    dfb_sink_int(static_cast<int>(joined));
+}
+
 } /* extern "C" */

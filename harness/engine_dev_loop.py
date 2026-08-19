@@ -14,6 +14,7 @@ from typing import Any
 
 from .config import HarnessConfig, ROOT
 from .design_lint import run_design_lint
+from .evaluation import report_metrics, report_primary_green
 from .gates import objective_vector, regression_failures
 from .reporting import write_json
 
@@ -77,8 +78,11 @@ def _run_logged(
     return proc
 
 
-def _codex_process_env() -> dict[str, str]:
+def _codex_process_env(codex_bin: str = "") -> dict[str, str]:
     env = os.environ.copy()
+    resolved_codex = shutil.which(codex_bin) if codex_bin else None
+    if resolved_codex:
+        env["CODEX_BIN"] = resolved_codex
     home_codex = Path.home() / ".codex"
     if not env.get("CODEX_HOME") and (not home_codex.exists() or not os.access(home_codex, os.W_OK)):
         codex_home = ROOT / "output" / "harness" / ".codex_cli_home"
@@ -134,27 +138,13 @@ def _append_reasoning_effort(cmd: list[str], effort: str) -> None:
 
 
 def _metrics(report: list[dict]) -> dict:
-    counts = {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0}
-    for row in report:
-        verdict = str(row.get("verdict") or "ERROR").lower()
-        if verdict == "pass":
-            counts["pass"] += 1
-        elif verdict == "error":
-            counts["error"] += 1
-        elif verdict == "degraded":
-            counts["degraded"] += 1
-        else:
-            counts["fail"] += 1
-        if row.get("forbidden_found"):
-            counts["false_positive"] += 1
-    counts["total"] = sum(counts[key] for key in ("pass", "fail", "error", "degraded"))
+    counts = report_metrics(report)
     counts["objective_vector"] = list(objective_vector(report))
     return counts
 
 
 def _fully_green(report: list[dict]) -> bool:
-    m = _metrics(report)
-    return m["total"] > 0 and m["fail"] == 0 and m["error"] == 0 and m["degraded"] == 0 and m["false_positive"] == 0
+    return report_primary_green(report)
 
 
 def _compare_reports(before: list[dict], after: list[dict]) -> dict:
@@ -166,7 +156,8 @@ def _compare_reports(before: list[dict], after: list[dict]) -> dict:
     no_worse = (
         not regressions
         and after_metrics["error"] <= before_metrics["error"]
-        and after_metrics["false_positive"] <= before_metrics["false_positive"]
+        and after_metrics["negative_control_failures"] <= before_metrics["negative_control_failures"]
+        and after_metrics["recall_failures"] <= before_metrics["recall_failures"]
         and after_metrics["pass"] >= before_metrics["pass"]
     )
     return {
@@ -175,12 +166,12 @@ def _compare_reports(before: list[dict], after: list[dict]) -> dict:
         "objective_improved": after_vector > before_vector,
         "no_worse": no_worse,
         "regressions": regressions,
-        "fp_added": _false_positive_added(before, after),
+        "precision_candidates_added": _precision_candidates_added(before, after),
         "fully_green": _fully_green(after),
     }
 
 
-def _false_positive_added(before: list[dict], after: list[dict]) -> list[dict]:
+def _precision_candidates_added(before: list[dict], after: list[dict]) -> list[dict]:
     before_by_key = {
         (str(row.get("variant_label")), str(row.get("case"))): row
         for row in before
@@ -189,17 +180,19 @@ def _false_positive_added(before: list[dict], after: list[dict]) -> list[dict]:
     for row in after:
         key = (str(row.get("variant_label")), str(row.get("case")))
         before_row = before_by_key.get(key) or {}
-        before_fp = set(before_row.get("forbidden_found") or [])
-        after_fp = set(row.get("forbidden_found") or [])
-        new_fp = sorted(after_fp - before_fp)
-        if new_fp:
+        if row.get("negative_case"):
+            continue
+        before_candidates = set(before_row.get("precision_candidates") or before_row.get("forbidden_found") or [])
+        after_candidates = set(row.get("precision_candidates") or row.get("forbidden_found") or [])
+        added_candidates = sorted(after_candidates - before_candidates)
+        if added_candidates:
             added.append(
                 {
                     "variant": key[0],
                     "case": key[1],
-                    "before": sorted(before_fp),
-                    "after": sorted(after_fp),
-                    "added": new_fp,
+                    "before": sorted(before_candidates),
+                    "after": sorted(after_candidates),
+                    "added": added_candidates,
                 }
             )
     return added
@@ -213,11 +206,11 @@ def _repair_context_from_cycle(cycle: dict) -> dict | None:
     post = cycle.get("post_regression") or {}
     return {
         "source_cycle": cycle.get("cycle"),
-        "reason": "previous cycle introduced regression or false positive",
+        "reason": "previous cycle introduced a recall regression or primary-gate failure",
         "baseline_report": pre.get("report_path"),
         "bad_report": post.get("report_path"),
         "regressions": comparison.get("regressions") or [],
-        "fp_added": comparison.get("fp_added") or [],
+        "precision_candidates_added": comparison.get("precision_candidates_added") or [],
         "before_metrics": comparison.get("before") or {},
         "after_metrics": comparison.get("after") or {},
     }
@@ -343,7 +336,13 @@ def _run_analysis(args: argparse.Namespace, cycle_dir: Path, regression: dict) -
         cmd.extend(["--executor", args.analysis_executor])
 
     print(f"[engine-dev-loop] analysis: calls={args.analysis_calls} tasks={len(tasks)}")
-    proc = _run_logged(cmd, cycle_dir / "agent_analysis.log", cwd=ROOT, dry_run=args.dry_run)
+    proc = _run_logged(
+        cmd,
+        cycle_dir / "agent_analysis.log",
+        cwd=ROOT,
+        dry_run=args.dry_run,
+        env=_codex_process_env(args.codex_bin),
+    )
     return {
         "skipped": False,
         "command": cmd,
@@ -359,7 +358,7 @@ def _failure_excerpt(report_path: Path, limit: int) -> list[dict]:
     rows = _read_json(report_path, [])
     if not isinstance(rows, list):
         return []
-    failures = [row for row in rows if row.get("verdict") != "PASS" or row.get("forbidden_found")]
+    failures = [row for row in rows if row.get("verdict") != "PASS"]
     excerpt = []
     for row in failures[:limit]:
         excerpt.append(
@@ -425,7 +424,7 @@ def _editor_prompt(
             "- Preserve the design philosophy: Low P-code is source of truth, no arg/no ret in core semantics, convention-free observed storage transitions, architecture-aware storage.",
             "- Ghidra/decompiler metadata may be used only as optional facts or hints; do not let ABI/signature/parameter names override observed dataflow.",
             "- Do not hardcode DFB/TV2 case ids, proposed helper names, expected source labels, or fixed test-only offsets in Engine11 code.",
-            "- Avoid broad over-approximation that creates false positives.",
+            "- Avoid unjustified broad over-approximation. Positive-case extra candidates are precision telemetry, not a reason to weaken recall; explicit negative controls remain hard failures.",
             "- Keep changes focused. Update dev_docs/progress_log.md or the relevant phase doc if the change is meaningful.",
             "",
             "Useful design files to read before editing:",
@@ -514,7 +513,7 @@ def _run_editor(
         input_text=prompt,
         dry_run=args.dry_run or args.editor_dry_run,
         timeout=args.editor_timeout,
-        env=_codex_process_env(),
+        env=_codex_process_env(args.codex_bin),
     )
     return {
         "command": cmd,
@@ -739,7 +738,7 @@ def run_dev_loop(args: argparse.Namespace) -> int:
                 status = "repair_cycle_pending"
                 continue
             if args.stop_on_regression:
-                status = "regression_or_fp_worsened"
+                status = "regression_or_primary_gate_worsened"
                 break
         if args.stop_on_no_progress and not comparison.get("objective_improved"):
             status = "no_progress_after_edit"
@@ -817,7 +816,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repair-reasoning-effort",
         default="xhigh",
         choices=["", *sorted(REASONING_EFFORTS)],
-        help="Reasoning effort for repair cycles after a regression or false positive. Defaults to xhigh.",
+        help="Reasoning effort for repair cycles after a recall, regression, crash, or negative-control failure. Defaults to xhigh.",
     )
     parser.add_argument("--editor-profile", default="")
     parser.add_argument("--editor-sandbox", default="workspace-write", choices=["read-only", "workspace-write", "danger-full-access"])
@@ -851,7 +850,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--repair-on-regression",
         action="store_true",
-        help="Continue into the next cycle with regression/FP details in the editor prompt instead of stopping immediately.",
+        help="Continue with recall/negative-control regression details instead of stopping immediately.",
     )
     parser.add_argument("--stop-on-no-progress", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--dry-run", action="store_true", help="Write planned commands/prompts without executing them.")

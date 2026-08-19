@@ -18,6 +18,10 @@ confirmed 진단을 근거로 11_ 엔진을 **격리 환경(worktree/브랜치)*
 
 ## 규칙 (A §P3/§P4)
 - **오라클(expected/manifest) 절대 수정 금지.** 테스트를 통과시키려 정답을 바꾸는 것은 금지(gates.oracle_locked가 차단).
-- recall을 위해 무차별 over-approx 금지 — **false positive를 만들면 그 수정은 무효**(adversary fp_risk + gates I2).
+- 코어의 목표는 보수적 recall이다. expected source 누락, crash, 명시적
+  `expected_no_sources` 음성 케이스 위반을 수리한다.
+- 양성 케이스의 expected 밖 추가 후보(forbidden 일치 포함)는
+  `REFINEMENT_PENDING` 정밀도 증거다.
+  이것만 제거하려 backward-slice 코어를 좁히거나 ABI/이름 규칙을 넣지 않는다.
 - 변경은 진단의 `evidence_ref`에 묶인 최소 수정. 관련 없는 리팩터 섞지 말 것.
 - 제출 전 `python tools/collect_failures.py`로 자가 재실행하여 selftest 채움. merge는 orchestrator의 회귀 게이트가 결정.

@@ -402,7 +402,7 @@ engine fix plan, coverage update plan만 만들고, source-of-truth 오라클과
 기본 예시는 Codex CLI provider를 사용한다. Codex CLI provider는
 `--reasoning-effort low|medium|high|xhigh`를 받아 `model_reasoning_effort`로 전달한다.
 추천 운용은 cheap/coverage는 `medium`, diagnostician은 `high`, triage/adversary처럼
-false-positive 판단에 가까운 role은 `xhigh`다. OpenAI API provider도 가능하지만 그 경우
+음성 제어 위반이나 정밀도 후보를 판별하는 role은 `xhigh`다. OpenAI API provider도 가능하지만 그 경우
 `OPENAI_API_KEY`와 API billing이 필요하다.
 
 Engine11 direct development loop:
@@ -424,7 +424,8 @@ python -m harness.engine_dev_loop \
 `engine_dev_loop`는 분석 전용 `agent_loop`와 다르다. 매 cycle마다 09/10 회귀를
 `--no-cache`로 실행하고, 실패 리포트와 선택적 agent proposal을 바탕으로 Codex CLI를
 `lowpcode_data_origin` repo에서 `workspace-write` sandbox로 실행한다. 이후
-`compileall`과 사후 회귀를 실행하고, 이전 PASS가 깨지거나 ERROR/false positive가
+`compileall`과 사후 회귀를 실행하고, 이전 PASS가 깨지거나 ERROR, recall 실패 또는
+음성 제어 위반이
 증가하면 diff와 로그를 남긴 뒤 멈춘다. expected/manifest/testbed 파일은 자동 편집
 대상이 아니며, 루프 시작 시 Engine11 repo가 dirty면 기본적으로 중단한다.
 회귀 병목이 크면 `--regression-jobs N`을 주어 pre/post orchestrator 회귀를
@@ -483,10 +484,10 @@ python -m harness.engine_dev_loop \
   --config harness/config.yaml.example \
   --run-id engine_dev_09_10 \
   --resume-existing \
-  --editor-extra-instructions "Prioritize the latest post_regression false positive before adding recall."
+  --editor-extra-instructions "Prioritize the latest recall or negative-control regression; keep positive precision candidates as telemetry."
 ```
 
-Regression/FP repair mode:
+Primary-gate repair mode:
 
 ```bash
 python -m harness.engine_dev_loop \
@@ -504,16 +505,17 @@ python -m harness.engine_dev_loop \
   --editor-extra-instructions-file /tmp/tdo_operator_note.md
 ```
 
-기본 모드는 이전 PASS 회귀나 false positive 증가가 생기면 멈춘다.
+기본 모드는 이전 PASS 회귀, recall 실패, ERROR 또는 음성 제어 위반이 생기면 멈춘다.
 `--repair-on-regression`은 그 정보를 다음 cycle의 `Active repair context`로 넘긴다.
 다음 post-regression은 직전 cycle pre뿐 아니라 회귀가 생기기 전 baseline report와도
-비교한다. 즉 aggregate PASS가 늘어도 기존 PASS를 깨거나 새 FP를 만들면 repair cycle이
-계속 그 사실을 보게 된다.
+비교한다. 즉 aggregate PASS가 늘어도 기존 PASS를 깨거나 primary gate를 위반하면 repair
+cycle이 계속 그 사실을 보게 된다. 양성 케이스의 추가 후보는 별도 precision report에
+남고 자동 core repair를 유발하지 않는다.
 `--editor-reasoning-effort`는 실제 `lowpcode_data_origin` 수정 담당 Codex CLI에만
 적용된다. 개발 cycle은 보통 `high`로 시작하고, 비용/한도 소모를 줄여야 할 때만
 `medium`으로 낮춘다.
 `--repair-reasoning-effort`는 repair context가 있는 cycle에만 적용된다. 기본값은
-`xhigh`라서 일반 개발은 `high`로 돌리다가, false positive나 regression이 생긴
+`xhigh`라서 일반 개발은 `high`로 돌리다가, recall/음성 제어/기존 PASS regression이 생긴
 수리 cycle만 더 깊게 추론하게 할 수 있다. `--no-stop-on-regression`과 함께 써도
 repair가 `--stop-on-no-progress`보다 먼저 예약된다.
 
@@ -602,7 +604,7 @@ python -m harness.frontier_case_loop \
 ```
 
 Codex case_author를 바로 실행할 준비가 된 명령은 아래 형태다. `--codex-bin`은 생략해도
-`CODEX_BIN`, Codex.app bundle 경로, PATH 순서로 자동 탐색한다. 이 경로는 외부 Codex에
+`CODEX_BIN`, ChatGPT/Codex 앱 bundle 경로, PATH 순서로 자동 탐색한다. 이 경로는 외부 Codex에
 failure report와 gap note를 보내므로 먼저 `dry-run`으로 proposal만 받고, 적용은 별도
 검토 뒤 `approved` 모드에서 진행한다.
 
@@ -651,8 +653,8 @@ python -m harness.frontier_case_loop \
 
 이미 생성된 proposal을 다시 검증하거나 case_author 호출을 건너뛰려면
 `--proposal-root output/harness/<run>/case_author_proposals`를 준다. `--codex-bin`은
-선택 사항이다. 생략하면 `CODEX_BIN`, `/Applications/Codex.app/Contents/Resources/codex`,
-PATH의 `codex` 순서로 자동 탐색하고, 찾은 경로를 case_author provider와 내부
+선택 사항이다. 생략하면 `CODEX_BIN`, `/Applications/ChatGPT.app/Contents/Resources/codex`,
+`/Applications/Codex.app/Contents/Resources/codex`, PATH의 `codex` 순서로 자동 탐색하고, 찾은 경로를 case_author provider와 내부
 Engine11 editor 양쪽에 전달한다. Codex CLI가 홈 디렉터리 state DB에 쓸 수 없는
 샌드박스에서는 provider가 project-local `output/harness/.codex_cli_home`을
 `CODEX_HOME`으로 사용한다. proposal이 0개면 루프는 `case_author_no_proposals`로

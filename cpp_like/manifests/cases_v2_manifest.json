@@ -8282,6 +8282,475 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect-callback",
+        "interprocedural-summary",
+        "pointer-to-field-memory",
+        "partial-write",
+        "byte-lane-kill",
+        "compiler-lowered-copy",
+        "adjacent-field-precision"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret except the subsequently overwritten byte at relative offset 0",
+          "field": "live",
+          "from": "callback store to staged.live",
+          "function": "fusion_partial_copy_seed_a | fusion_partial_copy_seed_b",
+          "kind": "data",
+          "node": "staged.live",
+          "offset": "offsetof(FusionPartialCopyCell, live)",
+          "reason": "The callback writes A-derived data to every byte of live, and only byte 0 is later replaced.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "copied.live through fusion_partial_copy_object"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "live",
+          "from": "one-byte pointer store",
+          "function": "fusion_partial_copy_patch_byte",
+          "kind": "data",
+          "node": "staged.live.byte[0]",
+          "offset": "offsetof(FusionPartialCopyCell, live) + 0",
+          "reason": "The explicit unsigned-char store replaces exactly byte 0 of live with B-derived data.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "1",
+          "source": "dfb_source_B.ret",
+          "to": "copied.live through fusion_partial_copy_object"
+        },
+        {
+          "carries": "surviving A bytes and B byte 0",
+          "field": "live",
+          "from": "staged object storage",
+          "function": "fusion_partial_copy_object",
+          "kind": "storage-transition",
+          "node": "copied.live",
+          "offset": "offsetof(FusionPartialCopyCell, live)",
+          "reason": "The byte loop copies the complete object without mixing the adjacent decoy field into live.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "staged.live",
+          "to": "copied object storage"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "decoy",
+          "from": "staged.decoy through copied.decoy",
+          "function": "fusion_partial_copy_object",
+          "kind": "data",
+          "node": "copied.decoy",
+          "offset": "offsetof(FusionPartialCopyCell, decoy)",
+          "reason": "C is confined by construction to the disjoint decoy field; a widened compiler copy must not create a semantic field-to-field flow.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "copied.live"
+        }
+      ],
+      "function": "case_TV2C676_callback_partial_copy_precision",
+      "id": "TV2C676",
+      "name": "callback partial-byte overwrite followed by whole-object copy with adjacent decoy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "observed-storage-transition",
+        "compiler-lowered-struct-copy",
+        "pointer-to-field",
+        "indirect-callback",
+        "interprocedural-summary",
+        "exact-field-overwrite-kill",
+        "adjacent-field-precision"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C677_callback_exact_field_overwrite_after_copy",
+          "kind": "store",
+          "node": "Seed.Payload",
+          "offset": "offsetof(TV2C677_Cell, Payload)",
+          "reason": "Initial payload definition before the copied destination is overwritten.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "Seed.Payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "Seed.Payload",
+          "function": "TV2C677_copy_cell",
+          "kind": "copy",
+          "node": "TV2C677_copy_cell",
+          "offset": "offsetof(TV2C677_Cell, Payload)",
+          "reason": "Whole-object assignment copies the initial payload into the live object.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "Live.Payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Payload",
+          "from": "Replacement",
+          "function": "TV2C677_store_selected",
+          "kind": "overwrite",
+          "node": "TV2C677_store_selected",
+          "offset": "offsetof(TV2C677_Cell, Payload)",
+          "reason": "The indirect callback performs a full-width write to the exact selected field, killing its earlier A-derived definition.",
+          "sink": "",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "Live.Payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "Payload",
+          "from": "Live.Payload",
+          "function": "case_TV2C677_callback_exact_field_overwrite_after_copy",
+          "kind": "sink",
+          "node": "dfb_sink_int.arg0",
+          "offset": "offsetof(TV2C677_Cell, Payload)",
+          "reason": "The sink loads the callback-overwritten payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "Payload",
+          "from": "Seed.Payload",
+          "function": "case_TV2C677_callback_exact_field_overwrite_after_copy",
+          "kind": "killed-flow",
+          "node": "Live.Payload",
+          "offset": "offsetof(TV2C677_Cell, Payload)",
+          "reason": "The full-width callback store of C occurs after the copy and kills A at the exact payload field.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "Decoy",
+          "from": "Live.Decoy",
+          "function": "case_TV2C677_callback_exact_field_overwrite_after_copy",
+          "kind": "field-separation",
+          "node": "Live.Decoy",
+          "offset": "offsetof(TV2C677_Cell, Decoy)",
+          "reason": "B remains only in the adjacent Decoy field, which is never loaded for the sink.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C677_callback_exact_field_overwrite_after_copy",
+      "id": "TV2C677",
+      "name": "callback exact-field overwrite after struct copy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [],
+      "expected_features": [
+        "fusion",
+        "negative-control",
+        "observed-storage",
+        "indirect-callback",
+        "pointer-to-field",
+        "partial-write-kill",
+        "interprocedural-memory-summary",
+        "aggregate-copy",
+        "field-isolation"
+      ],
+      "expected_flow": [
+        {
+          "carries": "CONST:0x1357",
+          "field": "payload.low",
+          "from": "cell.payload.low",
+          "function": "case_TV2C678_callback_partial_kill_copy_negative",
+          "kind": "storage-transition",
+          "node": "constant overwrite and aggregate copy",
+          "offset": "offsetof(TV2C678_Cell, payload) + offsetof(TV2C678_Lane, low)",
+          "reason": "The exact two-byte constant overwrite occurs after the callback source store and is then copied to the sink-bearing snapshot.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "CONST:0x1357",
+          "to": "snapshot.payload.low"
+        },
+        {
+          "carries": "CONST:0x2468",
+          "field": "payload.high",
+          "from": "cell.payload.high",
+          "function": "case_TV2C678_callback_partial_kill_copy_negative",
+          "kind": "storage-transition",
+          "node": "constant overwrite and aggregate copy",
+          "offset": "offsetof(TV2C678_Cell, payload) + offsetof(TV2C678_Lane, high)",
+          "reason": "The exact two-byte constant overwrite occurs after the callback source store; reconstruction therefore yields constant 0x24681357.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "CONST:0x2468",
+          "to": "snapshot.payload.high"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": true,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload.low",
+          "from": "callback store to cell.payload.low",
+          "function": "TV2C678_write_sources",
+          "kind": "data",
+          "node": "killed callback store",
+          "offset": "offsetof(TV2C678_Cell, payload) + offsetof(TV2C678_Lane, low)",
+          "reason": "The later exact two-byte write of 0x1357 kills the complete stored projection of dfb_source_A.ret before the aggregate copy.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "sink-bearing snapshot.payload.low"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "payload.high",
+          "from": "callback store to cell.payload.high",
+          "function": "TV2C678_write_sources",
+          "kind": "data",
+          "node": "killed callback store",
+          "offset": "offsetof(TV2C678_Cell, payload) + offsetof(TV2C678_Lane, high)",
+          "reason": "The later exact two-byte write of 0x2468 kills the complete stored projection of dfb_source_B.ret before the aggregate copy.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_B.ret",
+          "to": "sink-bearing snapshot.payload.high"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "neighbor",
+          "from": "cell.neighbor",
+          "function": "case_TV2C678_callback_partial_kill_copy_negative",
+          "kind": "data",
+          "node": "disjoint neighboring field",
+          "offset": "offsetof(TV2C678_Cell, neighbor)",
+          "reason": "The aggregate copy preserves dfb_source_C.ret only in the disjoint neighbor field, while the sink reconstructs exclusively payload.low and payload.high.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_C.ret",
+          "to": "snapshot.neighbor"
+        }
+      ],
+      "function": "case_TV2C678_callback_partial_kill_copy_negative",
+      "id": "TV2C678",
+      "name": "callback partial-field kill followed by aggregate-copy negative control",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "observed-storage-transition",
+        "interprocedural-summary",
+        "compiler-lowered-copy",
+        "pointer-to-field",
+        "partial-write",
+        "overwrite-kill",
+        "field-precision",
+        "wrapper-core-separation"
+      ],
+      "expected_flow": [
+        {
+          "carries": "bits 16..31 of source A",
+          "field": "payload.hi",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C679_fill_cell",
+          "kind": "data",
+          "node": "a",
+          "offset": "offsetof(TV2C679_Cell, payload) + offsetof(TV2C679_Words, hi)",
+          "reason": "The helper explicitly stores the upper half of A into the live high lane.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(uint16_t)",
+          "source": "dfb_source_A.ret",
+          "to": "TV2C679_fill_cell:tmp.payload.hi"
+        },
+        {
+          "carries": "source A upper lane",
+          "field": "payload.hi",
+          "from": "TV2C679_fill_cell:tmp.payload.hi",
+          "function": "TV2C679_fill_cell",
+          "kind": "storage-copy",
+          "node": "aggregate assignment",
+          "offset": "offsetof(TV2C679_Cell, payload) + offsetof(TV2C679_Words, hi)",
+          "reason": "The aggregate assignment copies the initialized high lane to caller-observed storage.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(uint16_t)",
+          "source": "dfb_source_A.ret",
+          "to": "case_TV2C679_partial_patch_after_copy_fusion:cell.payload.hi"
+        },
+        {
+          "carries": "low 16 bits of source C",
+          "field": "payload.lo",
+          "from": "dfb_source_C.ret",
+          "function": "TV2C679_patch_low",
+          "kind": "data",
+          "node": "lane",
+          "offset": "offsetof(TV2C679_Cell, payload) + offsetof(TV2C679_Words, lo)",
+          "reason": "The pointer-to-field store replaces only the low lane with C.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(uint16_t)",
+          "source": "dfb_source_C.ret",
+          "to": "case_TV2C679_partial_patch_after_copy_fusion:cell.payload.lo"
+        },
+        {
+          "carries": "A upper 16 bits and C lower 16 bits",
+          "field": "payload.lo+payload.hi",
+          "from": "cell.payload.lo+cell.payload.hi",
+          "function": "case_TV2C679_partial_patch_after_copy_fusion",
+          "kind": "fusion",
+          "node": "joined",
+          "offset": "offsetof(TV2C679_Cell, payload)",
+          "reason": "The sink operand reconstructs a 32-bit value from the surviving high lane and patched low lane.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(TV2C679_Words)",
+          "source": "dfb_source_A.ret+dfb_source_C.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "source A low lane",
+          "field": "payload.lo",
+          "from": "TV2C679_fill_cell:tmp.payload.lo",
+          "function": "TV2C679_fill_cell",
+          "kind": "overwritten-before-sink",
+          "node": "tmp.payload.lo",
+          "offset": "offsetof(TV2C679_Cell, payload) + offsetof(TV2C679_Words, lo)",
+          "reason": "The later pointer-to-field store from C kills A only in the low lane.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(uint16_t)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "source B decoy",
+          "field": "noise",
+          "from": "TV2C679_fill_cell:tmp.noise",
+          "function": "TV2C679_fill_cell",
+          "kind": "disjoint-field",
+          "node": "tmp.noise",
+          "offset": "offsetof(TV2C679_Cell, noise)",
+          "reason": "The sink reads and combines only payload.lo and payload.hi; noise is never read.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(uint32_t)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "no source C data",
+          "field": "payload.hi",
+          "from": "TV2C679_patch_low:lane",
+          "function": "case_TV2C679_partial_patch_after_copy_fusion",
+          "kind": "lane-separation",
+          "node": "cell.payload.hi",
+          "offset": "offsetof(TV2C679_Cell, payload) + offsetof(TV2C679_Words, hi)",
+          "reason": "The patch pointer targets payload.lo and cannot overwrite the adjacent high lane by construction.",
+          "sink": "cell.payload.hi",
+          "size": "sizeof(uint16_t)",
+          "source": "dfb_source_C.ret",
+          "to": "cell.payload.hi"
+        }
+      ],
+      "function": "case_TV2C679_partial_patch_after_copy_fusion",
+      "id": "TV2C679",
+      "name": "partial_patch_after_copy_fusion",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

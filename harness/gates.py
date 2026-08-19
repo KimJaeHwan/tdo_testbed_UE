@@ -7,7 +7,20 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-INVARIANTS = ["I1 crash=0", "I2 false_positive=0", "I3 regression=0", "I4 oracle_unchanged"]
+from .evaluation import (
+    is_negative_control_violation,
+    is_precision_pending,
+    is_recall_failure,
+)
+
+
+INVARIANTS = [
+    "I1 crash=0",
+    "I2 expected_sources_recalled",
+    "I3 regression=0",
+    "I4 oracle_unchanged",
+    "I5 negative_controls_clean",
+]
 
 
 def _case_rows(report: list[dict]):
@@ -22,7 +35,8 @@ def _case_rows(report: list[dict]):
 
 
 def _counts(report: list[dict]) -> dict:
-    crashes = fp = pass_p0 = pass_other = passes = 0
+    crashes = precision_pending = negative_failures = recall_failures = 0
+    pass_p0 = pass_other = passes = 0
     per_case = {}  # (variant,case) -> verdict  (회귀 비교용)
     for label, cid, case in _case_rows(report):
         label = str(label or "")
@@ -31,20 +45,38 @@ def _counts(report: list[dict]) -> dict:
         per_case[(label, str(cid))] = verdict
         if verdict == "ERROR":
             crashes += 1
-        if case.get("forbidden_found"):
-            fp += 1
+        if is_precision_pending(case):
+            precision_pending += 1
+        if is_negative_control_violation(case):
+            negative_failures += 1
+        if is_recall_failure(case):
+            recall_failures += 1
         if verdict == "PASS":
             passes += 1
             pass_p0 += 1 if p0 else 0
             pass_other += 0 if p0 else 1
-    return dict(crashes=crashes, fp=fp, pass_p0=pass_p0, pass_other=pass_other,
-                passes=passes, per_case=per_case)
+    return dict(
+        crashes=crashes,
+        precision_pending=precision_pending,
+        negative_failures=negative_failures,
+        recall_failures=recall_failures,
+        pass_p0=pass_p0,
+        pass_other=pass_other,
+        passes=passes,
+        per_case=per_case,
+    )
 
 
 def objective_vector(report: list[dict]) -> tuple:
-    """사전식 비교용 벡터(클수록 좋음). A §5 순서."""
+    """Recall-first lexicographic objective; precision is separate telemetry."""
     c = _counts(report)
-    return (-c["crashes"], -c["fp"], c["pass_p0"], c["pass_other"])
+    return (
+        -c["crashes"],
+        -c["negative_failures"],
+        -c["recall_failures"],
+        c["pass_p0"],
+        c["pass_other"],
+    )
 
 
 def regression_ok(before: list[dict], after: list[dict]) -> bool:
@@ -68,9 +100,9 @@ def regression_failures(before: list[dict], after: list[dict]) -> list[dict]:
 
 
 def objective_improves(before: list[dict], after: list[dict]) -> bool:
-    """불변식(crash/fp) 위반 0 유지하면서 목적벡터가 사전식으로 개선되었나."""
+    """Improve recall without introducing crashes or negative-control leaks."""
     ca = _counts(after)
-    if ca["crashes"] > 0 or ca["fp"] > 0:   # I1·I2 위반이면 무조건 거부
+    if ca["crashes"] > 0 or ca["negative_failures"] > 0:
         return False
     return objective_vector(after) > objective_vector(before)
 
@@ -89,9 +121,14 @@ def invariant_status(report: list[dict], root: Path | None = None) -> dict:
     counts = _counts(report)
     status = {
         "I1_crash_zero": counts["crashes"] == 0,
-        "I2_false_positive_zero": counts["fp"] == 0,
+        "I2_recall_complete": counts["recall_failures"] == 0,
+        "I5_negative_controls_clean": counts["negative_failures"] == 0,
+        "precision_clean": counts["precision_pending"] == 0,
         "crashes": counts["crashes"],
-        "false_positive": counts["fp"],
+        "recall_failures": counts["recall_failures"],
+        "negative_control_failures": counts["negative_failures"],
+        "precision_pending": counts["precision_pending"],
+        "false_positive": counts["precision_pending"],
         "objective_vector": objective_vector(report),
     }
     if root is not None:
@@ -144,27 +181,27 @@ def human_gate_items(report: list[dict], gate: dict) -> list[dict]:
                     "required_action": "diagnose_before_engine_fix",
                 }
             )
-        if row.get("forbidden_found"):
+        if is_negative_control_violation(row):
             items.append(
                 {
-                    "kind": "false_positive",
+                    "kind": "negative_control_violation",
                     "severity": "hard",
                     "case": case,
                     "variant": variant,
-                    "reason": "I2 false_positive gate failed",
+                    "reason": "I5 negative-control gate failed",
                     "forbidden_found": row.get("forbidden_found", []),
                     "evidence_ref": result_path,
-                    "required_action": "human_confirm_frontier_or_engine_fix",
+                    "required_action": "diagnose_or_revert_before_accepting_run",
                 }
             )
-        if row.get("verdict") == "FAIL" and not row.get("forbidden_found"):
+        if is_recall_failure(row):
             items.append(
                 {
                     "kind": "frontier_candidate",
                     "severity": "review",
                     "case": case,
                     "variant": variant,
-                    "reason": "missing expected source without false positive",
+                    "reason": "missing expected source under recall-first policy",
                     "missing": row.get("missing", []),
                     "evidence_ref": result_path,
                     "required_action": "human_or_agent_evidence_before_frontier_status",

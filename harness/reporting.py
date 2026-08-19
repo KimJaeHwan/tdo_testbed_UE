@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .evaluation import is_negative_control_violation, is_precision_pending
+
 
 def sha256_file(path: Path | None) -> str | None:
     if path is None or not path.is_file():
@@ -63,6 +65,8 @@ def summarize(reports: list[dict]) -> dict:
                 "error": 0,
                 "degraded": 0,
                 "false_positive": 0,
+                "precision_pending": 0,
+                "negative_control_failures": 0,
                 "cache_hits": 0,
                 "timing": _empty_timing_bucket(),
                 "variants": {},
@@ -77,8 +81,11 @@ def summarize(reports: list[dict]) -> dict:
             bucket["degraded"] += 1
         else:
             bucket["fail"] += 1
-        if row.get("forbidden_found"):
+        if is_precision_pending(row):
             bucket["false_positive"] += 1
+            bucket["precision_pending"] += 1
+        if is_negative_control_violation(row):
+            bucket["negative_control_failures"] += 1
         if (row.get("cache") or {}).get("hit"):
             bucket["cache_hits"] += 1
         _add_timing(bucket["timing"], row)
@@ -92,6 +99,8 @@ def summarize(reports: list[dict]) -> dict:
                 "error": 0,
                 "degraded": 0,
                 "false_positive": 0,
+                "precision_pending": 0,
+                "negative_control_failures": 0,
                 "cache_hits": 0,
                 "timing": _empty_timing_bucket(),
             },
@@ -104,12 +113,46 @@ def summarize(reports: list[dict]) -> dict:
             vb["degraded"] += 1
         else:
             vb["fail"] += 1
-        if row.get("forbidden_found"):
+        if is_precision_pending(row):
             vb["false_positive"] += 1
+            vb["precision_pending"] += 1
+        if is_negative_control_violation(row):
+            vb["negative_control_failures"] += 1
         if (row.get("cache") or {}).get("hit"):
             vb["cache_hits"] += 1
         _add_timing(vb["timing"], row)
-    return {"schema_version": 2, "suites": suites}
+    return {"schema_version": 3, "validation_policy": "recall_first", "suites": suites}
+
+
+def precision_report(reports: list[dict]) -> dict:
+    candidates = []
+    for row in reports:
+        if not is_precision_pending(row):
+            continue
+        candidates.append(
+            {
+                "suite": row.get("suite"),
+                "variant": row.get("variant_label"),
+                "case": row.get("case"),
+                "function": row.get("function"),
+                "candidate_sources": row.get("candidate_sources") or row.get("actual_sources") or [],
+                "candidate_control_sources": row.get("candidate_control_sources")
+                or row.get("actual_control_sources")
+                or [],
+                "expected_sources": row.get("expected_sources") or [],
+                "expected_control_sources": row.get("expected_control_sources") or [],
+                "precision_candidates": row.get("precision_candidates") or row.get("forbidden_found") or [],
+                "oracle_forbidden_matches": row.get("forbidden_found") or [],
+                "precision_status": row.get("precision_status") or "REFINEMENT_PENDING",
+                "result_path": (row.get("artifacts") or {}).get("result_path"),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "validation_policy": "recall_first",
+        "candidate_count": len(candidates),
+        "candidates": candidates,
+    }
 
 
 def performance_report(reports: list[dict], slow_case_limit: int = 20) -> dict:
@@ -465,10 +508,12 @@ def print_summary(summary: dict) -> None:
         print(f"## {suite}")
         print(
             f"PASS {stats['pass']}  FAIL {stats['fail']}  ERROR {stats['error']}  "
-            f"DEGRADED {stats['degraded']}  FP {stats['false_positive']}  CACHE {stats['cache_hits']}"
+            f"DEGRADED {stats['degraded']}  PRECISION_PENDING {stats['precision_pending']}  "
+            f"NEGATIVE_FAIL {stats['negative_control_failures']}  CACHE {stats['cache_hits']}"
         )
         for variant, vstats in sorted(stats.get("variants", {}).items()):
             print(
                 f"  {variant:32} PASS {vstats['pass']:3}  FAIL {vstats['fail']:3}  "
-                f"ERROR {vstats['error']:2}  FP {vstats['false_positive']:2}  CACHE {vstats['cache_hits']:3}"
+                f"ERROR {vstats['error']:2}  PENDING {vstats['precision_pending']:2}  "
+                f"NEG {vstats['negative_control_failures']:2}  CACHE {vstats['cache_hits']:3}"
             )

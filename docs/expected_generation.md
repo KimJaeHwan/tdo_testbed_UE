@@ -52,7 +52,7 @@ expected/<binary>.expected.json    ← 11_엔진이 읽는 정답지 (자동 생
   "expected_data_sources":    ["dfb_source_C.ret"],   // 반드시 도달
   "expected_control_sources": [],                     // 분기조건 등 control source
   "expected_global_sources":  [],
-  "forbidden_data_sources":   ["dfb_source_A.ret", "dfb_source_B.ret"],  // 도달하면 FAIL
+  "forbidden_data_sources":   ["dfb_source_A.ret", "dfb_source_B.ret"],  // 양성: 정밀화 후보
   "forbidden_control_sources":[],
   "expected_features":        ["fusion","partial_overwrite","kill"],
   "allowed_warnings":         [],
@@ -122,7 +122,10 @@ expected/<binary>.expected.json    ← 11_엔진이 읽는 정답지 (자동 생
 
 ## 6. 11_ 엔진과의 호환
 
-- 현재 11_ `ExpectedValidator`는 `expected_data_sources / control / global / forbidden_*`만 읽어 PASS/FAIL을 낸다.
+- 현재 11_ `ExpectedValidator`는 `expected_data_sources / control / global / forbidden_*`와
+  `expected_no_sources`를 읽는다. 양성 케이스는 expected source가 모두 포함되면 PASS이고,
+  forbidden 도달은 `REFINEMENT_PENDING`이다. `expected_no_sources: true`에서는 모든 source
+  도달이 FAIL이다.
 - `expected_flow` / `forbidden_flow`는 **모르는 필드라 무시**되므로 기존 채점을 깨지 않는다(additive).
 - 용도: ① 11_ 개발자가 "엔진이 이 경로로 가야 한다"를 보고 맞추는 사양서, ② 향후 11_에 **경로 검사기**를 붙이면
   실제 slice 경로가 `expected_flow`를 거치고 `forbidden_flow`를 피하는지까지 자동 검증 가능 → 우연 정답 차단.
@@ -165,4 +168,5 @@ offset     ← 구조체 정의에서 offsetof로 계산 (cpp=정확)
 끝점만 검사하면, 분석기가 **틀린 경로로 우연히 맞는 source**에 도달해도 PASS가 된다(과대근사 등).
 중간 흐름을 정답에 박으면 *"진짜 그 길로 갔는가"* 를 사양으로 못 박을 수 있다.
 특히 `forbidden_flow`는 실제로 발견된 버그(예: `TV2U008`이 UObject 포인터 경유로 옆 field `Other`(B)를
-끌고 온 false positive)를 정답지 차원에서 명시적으로 금지한다.
+끌고 온 추가 후보)를 정답지 차원에서 표시한다. 이 표시는 현재 양성 케이스의 1차 PASS를
+막지 않으며, 후속 taint/path-feasibility 정밀화가 제거해야 할 후보 집합을 제공한다.

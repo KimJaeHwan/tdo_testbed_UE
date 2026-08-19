@@ -2,7 +2,9 @@
 
 > 목적: BackwardSlice 엔진이 **충분히 크고 복잡한 구조체 / 엔진형 레이아웃**에서
 > field-sensitive · range-sensitive 데이터 흐름을 끝까지 보존하는지 검증한다.
-> 정확도의 핵심은 **"맞는 source를 찾는 것"** 만이 아니라 **"틀린 source(forbidden)를 끌고 오지 않는 것"** 이다.
+> 코어 판정의 핵심은 **정답 source를 보수적 후보 집합에 빠짐없이 포함하는 것**이다.
+> forbidden source는 버리지 않고 향후 taint/path refinement의 정밀도 probe로 기록한다.
+> `expected_no_sources: true`인 명시적 음성 케이스만은 모든 source 도달을 금지한다.
 >
 > 정합성: 케이스 스키마는 **`11_tracing_Data_Origin_lowpcode`의 V8 §24 스키마**를 따른다.
 > (`expected_data_sources / expected_control_sources / expected_global_sources /
@@ -30,8 +32,8 @@
 [core-regression] = 엔진이 이미 통과하는 능력의 확장. 모든 빌드 프로파일에서 PASS 필수.
 [target]          = 근접 능력(double-deref 등). PASS 목표, 미달 시 정직한 partial 허용.
 [frontier]        = DFB055류 현재 개발 프론티어. "최소 1차 연결 또는 정직한 unresolved/widened".
-[degrade-ok]      = widened 허용(변수 index/budget 초과). false source만 절대 금지.
-공통 불변식: 어떤 등급에서도 forbidden source 도달 = FAIL. widened여도 false source 금지.
+[degrade-ok]      = widened 허용(변수 index/budget 초과). expected source 누락은 허용하지 않음.
+공통 불변식: 양성 케이스의 forbidden 도달은 `REFINEMENT_PENDING`, 명시적 음성 케이스의 source 도달은 FAIL.
 ```
 
 ---
@@ -51,8 +53,9 @@ extern "C" __declspec(noinline) int  dfb_sink_int(int);// anchor = (callee=dfb_s
 
 판정 기준:
 ```text
-PASS  = expected_sources 전부 도달 AND forbidden_sources 0개 도달
-FAIL  = forbidden 1개라도 도달(false positive)  OR  expected 누락(false negative)
+PASS  = expected_sources 전부가 candidate_sources에 포함
+FAIL  = expected 누락 OR explicit expected_no_sources 케이스에서 source 발견
+REFINEMENT_PENDING = PASS이지만 forbidden precision candidate가 함께 발견됨
 DEGRADE-OK = budget 초과 시 crash 없이 partial_summary + warning (Tier4/5)
 ```
 
@@ -84,7 +87,8 @@ DEGRADE-OK = budget 초과 시 crash 없이 partial_summary + warning (Tier4/5)
 > `SwapSelfOverlap→DFB066`, `DoublePtrOutParam→DFB023`, `OffsetPadding/Packed→DFB047`,
 > `ControlOnly→DFB014`(C004에 융합). → 필요 시 09 회귀로 검증.
 >
-> Tier 0 false-positive 관문: **C005·C006·C017 = `core-regression`** (forbidden 새면 회귀).
+> Tier 0 precision probe: **C005·C006·C017 = `core-regression`**. forbidden 후보는
+> refinement backlog에 기록하되 primary recall 회귀로 세지 않는다.
 > **C011(intra-proc 3-deref)만 `frontier`** (DFB055 사촌). C020은 scale `target`.
 
 ---
@@ -126,7 +130,7 @@ deref 깊이 = 엔진 능력 등급. **0-deref(in-struct 값)=`core-regression`,
 | **TV2R004** | core-regression | FTransform Translation 왕복 | `FTransform` | 0 | `SetTranslation/GetTranslation` 경유 | engine_struct, nested_struct, call_out_mem |
 | **TV2R006** | core-regression | FName 비교/저장 | `FName` | 0 | ComparisonIndex 정수 레이아웃 | engine_struct, name_index |
 | **TV2R001** | target | TArray element field [상수 index] | `TArray<FTraceItem>` | 1 | `Items[0].ItemId` — heap data ptr + element offset | container_layout, array_index, heap_indirection |
-| **TV2R002** | target | **TArray wrong-index forbidden** [상수] | `TArray<FTraceItem>` | 1 | `Items[0]` 오염, `Items[1]` read → 분리. **forbidden 도달 시 FAIL** | container_layout, element_sensitive, false_positive_guard |
+| **TV2R002** | target | **TArray wrong-index forbidden** [상수] | `TArray<FTraceItem>` | 1 | `Items[0]` 오염, `Items[1]` read → 분리. forbidden 도달은 precision pending | container_layout, element_sensitive, false_positive_guard |
 | **TV2R007** | target | **TObjectPtr 체인** | `TObjectPtr<UObj>` | 1 | obj ptr → field 로드, 1단 역참조 | pointer_chain, object_ptr |
 | **TV2R012** | target | FVector SIMD copy (Development opt) | `FVector` | 0~1 | movaps/memcpy intrinsic lowering | engine_struct, simd_copy, range_copy |
 | **TV2R005** | frontier | FString 문자버퍼 | `FString` | 2 | TArray<TCHAR> heap 버퍼 indirection | container_layout, heap_indirection, string |
@@ -136,7 +140,7 @@ deref 깊이 = 엔진 능력 등급. **0-deref(in-struct 값)=`core-regression`,
 | **TV2R011** | frontier | TArray of large struct (16KB elem) | `TArray<FTraceLarge>` | 1+ | element copy + range, scale | container_layout, large_struct, scale |
 
 > `frontier` 케이스 성공 기준 = **"최소 1차 dataflow 연결 또는 정직한 `unresolved_call_boundary`/`widened`"**.
-> 어떤 등급에서도 **forbidden 도달 = FAIL** (widened여도 false source 금지). R002 wrong-index는 `target`이지만 false-positive 관문이라 forbidden 엄격 적용.
+> 양성 케이스의 forbidden 도달은 정밀화 후보로 남긴다. `expected_no_sources` 음성 케이스는 widened 여부와 관계없이 source 도달 시 FAIL이다.
 
 ---
 
@@ -291,7 +295,8 @@ Scale Guard(설계서 §12) 초과 시 반드시: `budget_exceeded` / `partial_s
 
 **최종 관문 판정 (엔진 현황 반영)**:
 1. **`core-regression` 전체가 모든 빌드 프로파일에서 PASS** = 엔진의 기존 능력(byte-range·kill·control/data 분리)이 큰 구조체로 안전하게 확장됨.
-2. **false-positive 관문**(C005·C006·C017·U006·U007·R002)에서 **forbidden 0 도달**.
+2. **정밀도 관측군**(C005·C006·C017·U006·U007·R002)의 forbidden 도달은
+   `REFINEMENT_PENDING`으로 수집한다. 명시적 음성 케이스에서는 source 0 도달을 강제한다.
 3. **`frontier`(C011, R005/R008/R009/R010)에서 false source 0** — 연결을 못 해도 `unresolved`/`widened`로 정직하게. 이게 DFB055 다음 개발 타깃과 정렬됨.
 
 → 1·2 달성 = "크고 복잡한 구조체 대응 완료". 3은 엔진 로드맵(Phase 6→deep-field)과 함께 전진.

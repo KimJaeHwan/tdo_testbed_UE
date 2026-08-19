@@ -97,7 +97,16 @@ def _run_logged(cmd: list[str], log_path: Path, cwd: Path = ROOT) -> subprocess.
 
 
 def _summary_counts(summary: dict) -> dict[str, int]:
-    counts = {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0, "cache_hits": 0}
+    counts = {
+        "pass": 0,
+        "fail": 0,
+        "error": 0,
+        "degraded": 0,
+        "false_positive": 0,
+        "precision_pending": 0,
+        "negative_control_failures": 0,
+        "cache_hits": 0,
+    }
     for suite in (summary.get("suites") or {}).values():
         for key in counts:
             counts[key] += int(suite.get(key, 0) or 0)

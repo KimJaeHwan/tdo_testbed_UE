@@ -21,6 +21,7 @@ from .reporting import (
     canonical_hash,
     git_commit,
     performance_report,
+    precision_report,
     print_summary,
     sha256_directory,
     sha256_file,
@@ -265,9 +266,11 @@ class Engine11Runner:
             timing["validation_seconds"] = time.perf_counter() - validation_start
             missing = validation.get("missing_expected_sources", []) + validation.get("missing_expected_control_sources", [])
             forbidden = validation.get("forbidden_sources_found", []) + validation.get("forbidden_control_sources_found", [])
+            precision_candidates = validation.get("precision_candidate_sources", [])
+            precision_control_candidates = validation.get("precision_candidate_control_sources", [])
             timing["total_seconds"] = time.perf_counter() - case_start
             return {
-                "schema_version": 2,
+                "schema_version": 3,
                 "run_id": run_id,
                 "suite": variant.suite,
                 "variant_label": variant.label,
@@ -280,12 +283,30 @@ class Engine11Runner:
                 "verdict": validation.get("verdict"),
                 "actual_sources": validation.get("actual_sources", []),
                 "actual_control_sources": validation.get("actual_control_sources", []),
+                "candidate_sources": validation.get("candidate_sources", validation.get("actual_sources", [])),
+                "candidate_control_sources": validation.get(
+                    "candidate_control_sources", validation.get("actual_control_sources", [])
+                ),
+                "precision_candidate_sources": precision_candidates,
+                "precision_candidate_control_sources": precision_control_candidates,
+                "precision_candidates": precision_candidates + precision_control_candidates,
+                "expected_sources": validation.get("expected_sources", []),
+                "expected_control_sources": validation.get("expected_control_sources", []),
                 "missing": missing,
                 "forbidden_found": forbidden,
+                "negative_case": bool(validation.get("negative_case")),
+                "negative_control_pass": validation.get("negative_control_pass"),
+                "recall_pass": validation.get("recall_pass"),
+                "precision_clean": validation.get("precision_clean"),
+                "precision_status": validation.get("precision_status"),
+                "validation_policy": validation.get("validation_policy", "recall_first"),
+                "validation_reason": validation.get("validation_reason"),
                 "warnings": list(fg.warnings),
                 "features": [],
                 "edge_kinds_seen": self._edge_kinds(fg),
-                "cut": sorted(set(cuts)) if validation.get("verdict") != "PASS" else [],
+                "cut": sorted(set(cuts))
+                if validation.get("verdict") != "PASS" or not validation.get("precision_clean", True)
+                else [],
                 "budgets": {"budget_exceeded": False, "details": []},
                 "pcode_scope": scoped_case.manifest,
                 "cache": {"hit": False},
@@ -308,7 +329,7 @@ class Engine11Runner:
         run_config_hash: str,
     ) -> dict:
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "run_id": run_id,
             "suite": variant.suite,
             "variant_label": variant.label,
@@ -1031,8 +1052,8 @@ def main(argv: list[str] | None = None) -> int:
 
     run_config = {
         "engine_mode": "summary_first" if config.value("defaults", "summary_first", True) else "default",
-        "report_schema_version": 2,
-        "validator": "expected_validator_v1",
+        "report_schema_version": 3,
+        "validator": "expected_validator_recall_first_v2",
         "case_scope": args.case_scope or str(config.value("defaults", "case_scope", "auto")),
         "case_scope_file_threshold": args.case_scope_file_threshold
         if args.case_scope_file_threshold is not None
@@ -1146,6 +1167,7 @@ def main(argv: list[str] | None = None) -> int:
     write_json(output_root / "failure_report_v2.json", reports)
     write_json(output_root / "summary.json", summary)
     write_json(output_root / "performance_report.json", performance_report(reports, args.slow_case_limit))
+    write_json(output_root / "precision_report.json", precision_report(reports))
     write_json(output_root / "gate.json", gate)
     write_json(output_root / "human_gate.json", human_gate)
     write_json(output_root / "agent_tasks.json", agent_tasks)
@@ -1158,7 +1180,8 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if any(
         [
             not gate.get("I1_crash_zero"),
-            not gate.get("I2_false_positive_zero"),
+            not gate.get("I2_recall_complete"),
+            not gate.get("I5_negative_controls_clean"),
             gate.get("I3_regression_zero") is False,
         ]
     ) else 0

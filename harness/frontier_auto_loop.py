@@ -193,7 +193,10 @@ def _metrics_green(metrics: Any) -> bool:
         return False
     if int(metrics.get("total") or 0) <= 0:
         return False
-    return not any(int(metrics.get(key) or 0) for key in ("fail", "error", "degraded", "false_positive"))
+    return not any(
+        int(metrics.get(key) or 0)
+        for key in ("fail", "error", "degraded", "negative_control_failures")
+    )
 
 
 def _phase(cycle_state: dict, name: str) -> dict | None:

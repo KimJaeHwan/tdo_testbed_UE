@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import HarnessConfig, ROOT
+from .evaluation import report_metrics
 from .gates import invariant_status
 from .reporting import write_json
 
@@ -45,25 +46,11 @@ def _run_logged(cmd: list[str], log_path: Path, cwd: Path = ROOT) -> subprocess.
 
 
 def _metrics(report: list[dict]) -> dict:
-    counts = {"pass": 0, "fail": 0, "error": 0, "degraded": 0, "false_positive": 0}
-    for row in report:
-        verdict = str(row.get("verdict") or "ERROR").lower()
-        if verdict == "pass":
-            counts["pass"] += 1
-        elif verdict == "error":
-            counts["error"] += 1
-        elif verdict == "degraded":
-            counts["degraded"] += 1
-        else:
-            counts["fail"] += 1
-        if row.get("forbidden_found"):
-            counts["false_positive"] += 1
-    counts["total"] = sum(counts[key] for key in ("pass", "fail", "error", "degraded"))
-    return counts
+    return report_metrics(report)
 
 
 def _report_excerpt(report: list[dict], limit: int) -> list[dict]:
-    interesting = [row for row in report if row.get("verdict") != "PASS" or row.get("forbidden_found")]
+    interesting = [row for row in report if row.get("verdict") != "PASS"]
     if not interesting:
         interesting = report[:limit]
     excerpt: list[dict] = []
@@ -256,6 +243,7 @@ def _resolve_codex_bin(codex_bin: str) -> str:
     candidates = [
         codex_bin,
         os.environ.get("CODEX_BIN", ""),
+        "/Applications/ChatGPT.app/Contents/Resources/codex",
         "/Applications/Codex.app/Contents/Resources/codex",
         shutil.which("codex") or "",
     ]
@@ -709,7 +697,7 @@ def _post_apply_green(post_apply: dict) -> bool:
         metrics = row.get("metrics") or {}
         if row.get("returncode") not in {0, 1}:
             return False
-        if any(metrics.get(key, 0) for key in ("fail", "error", "degraded", "false_positive")):
+        if any(metrics.get(key, 0) for key in ("fail", "error", "degraded", "negative_control_failures")):
             return False
     return True
 
@@ -771,6 +759,8 @@ def _run_engine_dev_loop(
         "--stop-on-no-progress",
         "--include-proposed-regression",
     ]
+    if args.editor_model:
+        cmd.extend(["--editor-model", args.editor_model])
     codex_bin = _resolve_codex_bin(args.codex_bin)
     if codex_bin:
         cmd.extend(["--codex-bin", codex_bin])
@@ -1009,13 +999,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine-analysis-calls", type=int, default=12)
     parser.add_argument("--engine-analysis-chunk-calls", type=int, default=6)
     parser.add_argument("--engine-analysis-chunk-tokens", type=int, default=100000)
+    parser.add_argument("--editor-model", default="", help="Optional nested Engine11 Codex model override.")
     parser.add_argument("--editor-reasoning-effort", default="high", choices=["low", "medium", "high", "xhigh"])
     parser.add_argument("--repair-reasoning-effort", default="xhigh", choices=["", "low", "medium", "high", "xhigh"])
     parser.add_argument("--editor-timeout", type=float, default=7200.0)
     parser.add_argument(
         "--codex-bin",
         default="",
-        help="Codex executable path used by case_author provider and nested engine_dev_loop. Defaults to CODEX_BIN, the Codex.app bundle path, or PATH.",
+        help="Codex executable path used by case_author provider and nested engine_dev_loop. Defaults to CODEX_BIN, the ChatGPT/Codex app bundle path, or PATH.",
     )
     parser.add_argument("--operator-note-file", type=Path, default=None)
     return parser

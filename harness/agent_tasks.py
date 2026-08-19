@@ -18,7 +18,7 @@ def build_agent_tasks(report: list[dict], human_gate: list[dict], agents_dir: Pa
         case = str(item.get("case"))
         row = rows_by_key.get((variant, case), {})
         kind = item.get("kind")
-        if kind in {"false_positive", "crash_or_harness_error"}:
+        if kind in {"negative_control_violation", "crash_or_harness_error"}:
             tasks.append(_task("triage", agents_dir, {"failure": _failure_view(row), "human_gate": item}))
             tasks.append(_task("diagnostician", agents_dir, {"failure": _failure_view(row), "human_gate": item}))
             tasks.append(
@@ -28,7 +28,7 @@ def build_agent_tasks(report: list[dict], human_gate: list[dict], agents_dir: Pa
                     {
                         "kind": "failure_review",
                         "subject": _failure_view(row),
-                        "lens": "fp_risk" if kind == "false_positive" else "correctness",
+                        "lens": "precision_risk" if kind == "negative_control_violation" else "correctness",
                         "human_gate": item,
                     },
                 )
@@ -41,7 +41,7 @@ def build_agent_tasks(report: list[dict], human_gate: list[dict], agents_dir: Pa
                     agents_dir,
                     {
                         "failure": _failure_view(row),
-                        "gap_note": "missing expected source without false positive; human evidence required before frontier status",
+                        "gap_note": "missing expected source under recall-first policy; human evidence required before frontier status",
                     },
                 )
             )
@@ -70,6 +70,9 @@ def _failure_view(row: dict) -> dict:
         "verdict": row.get("verdict"),
         "missing": row.get("missing", []),
         "forbidden_found": row.get("forbidden_found", []),
+        "negative_case": row.get("negative_case", False),
+        "recall_pass": row.get("recall_pass"),
+        "precision_status": row.get("precision_status"),
         "cut": row.get("cut", []),
         "artifacts": row.get("artifacts", {}),
         "pcode_scope": row.get("pcode_scope", {}),

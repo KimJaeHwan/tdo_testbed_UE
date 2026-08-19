@@ -6,18 +6,19 @@
 ```json
 { "kind": "diagnosis | fix",
   "subject": { ...진단 또는 수정 객체... },
-  "lens": "correctness | regression | fp_risk" }
+  "lens": "correctness | regression | precision_risk" }
 ```
 
 ## 렌즈별 반박 포인트
 - **correctness**: 원인이 정말 엔진인가(하니스 아닌가)? 인용 증거가 재현되나? 주장이 덤프와 일치하나?
 - **regression**: 이 수정이 이전에 PASS였던 케이스를 깨나? (decision_log/회귀 데이터로 확인 요구)
-- **fp_risk**: 이 수정이 recall을 위해 over-approx → **false positive를 새로 만들지 않나?** (가장 위험)
+- **precision_risk**: 이 수정이 후보 집합을 불필요하게 넓히나? 양성 케이스라면
+  `REFINEMENT_PENDING` 근거로 기록하고, 명시적 음성 케이스라면 hard failure로 반박한다.
 
 ## 출력 (이 스키마로만)
 ```json
 { "refuted": true,
-  "lens": "fp_risk",
+  "lens": "precision_risk",
   "reason": "한 줄",
   "evidence_ref": "재현/덤프/회귀데이터 경로 (없으면 confirm 무효)" }
 ```

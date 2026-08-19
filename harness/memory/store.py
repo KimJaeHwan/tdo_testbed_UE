@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..evaluation import is_negative_control_violation, is_precision_pending
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -153,12 +155,13 @@ class Memory:
 
         for key, rows in grouped.items():
             verdicts = [row.get("verdict") for row in rows]
-            has_forbidden = any(row.get("forbidden_found") for row in rows)
+            has_precision_pending = any(is_precision_pending(row) for row in rows)
+            has_negative_violation = any(is_negative_control_violation(row) for row in rows)
             has_error = any(row.get("verdict") == "ERROR" for row in rows)
             all_pass = all(row.get("verdict") == "PASS" for row in rows)
             if all_pass:
                 status = "can"
-            elif has_forbidden or has_error:
+            elif has_negative_violation or has_error:
                 status = "contradictory"
             else:
                 status = "frontier"
@@ -174,7 +177,9 @@ class Memory:
                 "last_run_id": rows[-1].get("run_id"),
                 "last_variants": sorted({str(row.get("variant_label")) for row in rows}),
                 "last_verdicts": sorted({str(verdict) for verdict in verdicts}),
-                "last_false_positive": has_forbidden,
+                "last_false_positive": has_precision_pending,
+                "last_precision_pending": has_precision_pending,
+                "last_negative_control_violation": has_negative_violation,
                 "last_missing": sorted({item for row in rows for item in row.get("missing", [])}),
                 "evidence_refs": sorted(
                     {

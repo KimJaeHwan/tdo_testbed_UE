@@ -155,6 +155,10 @@ extern "C" TV2_NOINLINE void case_TV2R337_heap_alias_selected_node_multisink();
 extern "C" TV2_NOINLINE void case_TV2R338_heap_alias_negative_stale();
 extern "C" TV2_NOINLINE void case_TV2R339_heap_alias_selected_node_payload();
 extern "C" TV2_NOINLINE void case_TV2R340_heap_alias_selected_node_no_flow();
+extern "C" TV2_NOINLINE void case_TV2R341_partial_field_copy_callback();
+extern "C" TV2_NOINLINE void case_TV2R342_heap_callback_bytewise_kill_copy();
+extern "C" TV2_NOINLINE void case_TV2R343_heap_copy_partial_payload_overwrite();
+extern "C" TV2_NOINLINE void case_TV2R344_partial_byte_copy_loop_call_output();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -209,6 +213,10 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R338_heap_alias_negative_stale();
 	case_TV2R339_heap_alias_selected_node_payload();
 	case_TV2R340_heap_alias_selected_node_no_flow();
+	case_TV2R341_partial_field_copy_callback();
+	case_TV2R342_heap_callback_bytewise_kill_copy();
+	case_TV2R343_heap_copy_partial_payload_overwrite();
+	case_TV2R344_partial_byte_copy_loop_call_output();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -1419,5 +1427,177 @@ extern "C" TV2_NOINLINE void case_TV2R340_heap_alias_selected_node_no_flow(void)
     dfb_sink_int(picked->Payload);
     delete first;
     delete second;
+}
+
+struct TV2R341_Cell
+{
+    uint16 LiveLow;
+    uint16 DeadHigh;
+    uint32 Noise;
+};
+
+using TV2R341_ReadCallback = void (*)(const TV2R341_Cell*, int32*);
+
+static TV2_NOINLINE void TV2R341_Fill(TV2R341_Cell* Cell)
+{
+    Cell->LiveLow = static_cast<uint16>(dfb_source_A());
+    Cell->DeadHigh = static_cast<uint16>(dfb_source_B());
+    Cell->Noise = 0x13579bdfu;
+}
+
+static TV2_NOINLINE void TV2R341_Read(const TV2R341_Cell* Cell, int32* Out)
+{
+    const uint16* LowField = &Cell->LiveLow;
+    const uint16* HighField = &Cell->DeadHigh;
+    *Out = static_cast<int32>(static_cast<uint32>(*LowField) |
+        (static_cast<uint32>(*HighField) << 16));
+}
+
+static TV2_NOINLINE void TV2R341_SelectReader(TV2R341_ReadCallback* OutCallback)
+{
+    *OutCallback = &TV2R341_Read;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R341_partial_field_copy_callback(void)
+{
+    TV2R341_Cell Staged{};
+    TV2R341_Fill(&Staged);
+
+    Staged.DeadHigh = 0x5a5au;
+    TV2R341_Cell Copied = Staged;
+
+    TV2R341_ReadCallback Callback = nullptr;
+    TV2R341_SelectReader(&Callback);
+
+    int32 Result = 0;
+    Callback(&Copied, &Result);
+    dfb_sink_int(Result);
+}
+
+struct TV2R342_Cell
+{
+    int Payload;
+    int Noise;
+};
+
+typedef void (*TV2R342_Writer)(TV2R342_Cell*);
+
+static TV2_NOINLINE int tv2r342_observe_payload(TV2R342_Cell* Cell)
+{
+    return *reinterpret_cast<volatile int*>(&Cell->Payload);
+}
+
+static TV2_NOINLINE void tv2r342_write_decoy(TV2R342_Cell* Cell)
+{
+    Cell->Noise = dfb_source_C();
+}
+
+static TV2_NOINLINE void tv2r342_write_selected(TV2R342_Cell* Cell)
+{
+    int Value = dfb_source_B();
+    unsigned char* Dst = reinterpret_cast<unsigned char*>(&Cell->Payload);
+    const unsigned char* Src = reinterpret_cast<const unsigned char*>(&Value);
+    for (unsigned Index = 0; Index < sizeof(int); ++Index)
+    {
+        Dst[Index] = Src[Index];
+    }
+}
+
+static TV2_NOINLINE TV2R342_Writer tv2r342_pick_writer(unsigned Route)
+{
+    TV2R342_Writer Table[2] = { tv2r342_write_decoy, tv2r342_write_selected };
+    return Table[Route & 1u];
+}
+
+extern "C" TV2_NOINLINE void case_TV2R342_heap_callback_bytewise_kill_copy()
+{
+    TV2R342_Cell* Cell = new TV2R342_Cell;
+    TV2R342_Cell* Copy = new TV2R342_Cell;
+
+    Cell->Payload = dfb_source_A();
+    Cell->Noise = 0;
+    volatile int BeforeKill = tv2r342_observe_payload(Cell);
+    (void)BeforeKill;
+
+    volatile unsigned Route = 1u;
+    TV2R342_Writer Writer = tv2r342_pick_writer(Route);
+    Writer(Cell);
+
+    *Copy = *Cell;
+    int Result = Copy->Payload;
+    dfb_sink_int(Result);
+
+    delete Copy;
+    delete Cell;
+}
+
+struct TV2R343_Cell {
+    uint32 Payload;
+    uint32 Decoy;
+};
+
+extern "C" TV2_NOINLINE void case_TV2R343_heap_copy_partial_payload_overwrite() {
+    TV2R343_Cell* Cells = new TV2R343_Cell[2];
+    Cells[0].Payload = static_cast<uint32>(dfb_source_A());
+    Cells[0].Decoy = static_cast<uint32>(dfb_source_C());
+    Cells[1].Payload = static_cast<uint32>(dfb_source_B());
+    Cells[1].Decoy = 0u;
+
+    Cells[1] = Cells[0];
+    reinterpret_cast<uint8*>(&Cells[1].Payload)[1] = 0x5Au;
+
+    const int SinkValue = static_cast<int>(Cells[1].Payload);
+    dfb_sink_int(SinkValue);
+    delete[] Cells;
+}
+
+struct TV2R344_Cell
+{
+    uint32 Payload;
+    uint32 DecoyB;
+    uint32 DecoyC;
+};
+
+static TV2_NOINLINE void TV2R344_FillAndPatch(
+    TV2R344_Cell* Dst,
+    uint32 Live,
+    uint32 NoiseB,
+    uint32 NoiseC)
+{
+    TV2R344_Cell Stage = { Live, NoiseB, NoiseC };
+    *Dst = Stage;
+
+    unsigned char* PayloadBytes =
+        reinterpret_cast<unsigned char*>(&Dst->Payload);
+    PayloadBytes[1] = 0x5a;
+}
+
+static TV2_NOINLINE uint32 TV2R344_ReadThroughLoopAlias(
+    const TV2R344_Cell* Cell)
+{
+    const TV2R344_Cell* Alias = Cell;
+    volatile int32 Iterations = 2;
+    uint32 Acc = Cell->Payload;
+    for (int32 Index = 0; Index < Iterations; ++Index)
+    {
+        Acc ^= Alias->Payload;
+    }
+    return Acc;
+}
+
+extern "C" TV2_NOINLINE void case_TV2R344_partial_byte_copy_loop_call_output()
+{
+    const uint32 Live = static_cast<uint32>(dfb_source_A());
+    const uint32 NoiseB = static_cast<uint32>(dfb_source_B());
+    const uint32 NoiseC = static_cast<uint32>(dfb_source_C());
+
+    TV2R344_Cell Cell = {};
+    TV2R344_FillAndPatch(&Cell, Live, NoiseB, NoiseC);
+
+    volatile uint32 ObservedNoise = Cell.DecoyB ^ Cell.DecoyC;
+    (void)ObservedNoise;
+
+    const uint32 Value = TV2R344_ReadThroughLoopAlias(&Cell);
+    dfb_sink_int(static_cast<int>(Value));
 }
 

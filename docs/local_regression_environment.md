@@ -10,7 +10,7 @@ not drift between commands.
 |---|---|---|
 | Low P-code engine | `/Volumes/DO/00_gitProject/01_tdo/lowpcode_data_origin` | Main implementation repo. Use this repo's Python venv for analysis. |
 | DFB testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed` | Existing single-feature DataFlowBench-style regression suite. |
-| UE/fusion testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE` | Large-struct, UE layout, container, and false-positive regression suite. |
+| UE/fusion testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_UE` | Large-struct, UE layout, container, recall, and precision-probe suite. |
 | OLLVM testbed | `/Volumes/DO/00_gitProject/01_tdo/tdo_testbed_Obf` | Suite12 adversarial overlay; not a core-semantics design driver. |
 
 ## Python
@@ -357,7 +357,7 @@ functions. Do not combine it with case-level workers for a full matrix; the
 harness automatically reduces nested function workers to one to prevent CPU
 and memory oversubscription.
 
-Validated 2026-08-17 optimized regression baselines:
+Validated 2026-08-17 strict-policy optimized regression baselines:
 
 ```text
 Suite09                 PASS 488 / FAIL 0 / ERROR 0 / FP 0
@@ -378,6 +378,37 @@ output/harness/scaling_full_09_10_networkx_reference
 The final path is the uncached NetworkX/full-program reference run. It also
 passed all 1,330 cases with zero errors and zero false positives, confirming
 that the opt-in scaling path preserves the reference result.
+
+## Recall-First Validation
+
+The active validator policy is `recall_first`:
+
+- Positive cases PASS when every expected data/control source is present.
+- All sources outside the expected set, including `forbidden_*` matches, are recorded as
+  `REFINEMENT_PENDING` in `precision_report.json`; they do not fail the primary
+  regression or trigger an automatic core repair.
+- Cases with `expected_no_sources: true` remain strict negative controls. Any
+  observed data/control source fails `I5_negative_controls_clean`.
+- Crash, missing expected source, negative-control violation, and prior-PASS
+  regression remain hard gates.
+
+This separates candidate generation from future forward-taint and
+path-feasibility refinement without adding argument, return, or ABI semantics
+to the backward-slice core. The old `false_positive` count remains only as a
+compatibility alias for `precision_pending` in report consumers.
+
+Validated recall-first full matrix (`recall_first_full_09_10`, 2026-08-17):
+
+```text
+Suite09                 PASS 488 / FAIL 0 / ERROR 0 / PRECISION_PENDING 30
+Suite10                 PASS 842 / FAIL 0 / ERROR 0 / PRECISION_PENDING 5
+Combined                PASS 1330 / FAIL 0 / ERROR 0 / NEGATIVE_FAIL 0
+Explicit negative cases PASS 32 / FAIL 0
+```
+
+The 35 pending rows are non-gating refinement evidence. They cluster in
+DFB010/011/013/014/016 and Tier0 P0 TV2C637/TV2C649. The primary engine repair
+loop must not narrow the conservative core solely to remove these candidates.
 
 For automated case-author and engine-development loops, pass
 `--regression-case-jobs 6` together with the same parsed-cache, graph-backend,

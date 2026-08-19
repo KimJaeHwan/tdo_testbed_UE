@@ -12,7 +12,8 @@ ledger, agent proposal 흐름을 자동화하는 것이다.
 2. Engine11 main은 자동 merge하지 않는다.
 3. LLM 결과는 source of truth가 아니라 proposal/work item이다.
 4. no arg / no ret / convention free 원칙을 깨는 ABI/시그니처 추론을 truth로 쓰지 않는다.
-5. false positive는 hard gate다. PASS 증가보다 FP 방지가 우선이다.
+5. 양성 케이스는 expected source 포함 여부를 1차 gate로 삼는다. 추가 후보는
+   `REFINEMENT_PENDING`으로 보존하고, 명시적 음성 케이스의 source 도달만 hard gate다.
 ```
 
 ## 디렉터리 구조
@@ -59,6 +60,7 @@ harness/
 - Engine11 분석 실행
 - expected 검증
 - `failure_report_v2.json`, `summary.json`, `performance_report.json`, `gate.json` 생성
+- `precision_report.json`에 양성 케이스의 추가 후보를 별도로 기록
 - artifact cache / ledger 갱신
 - human gate / agent task 생성
 
@@ -144,12 +146,14 @@ cp harness/config.yaml.example harness/config.yaml
 
 중요 gate:
 - `I1_crash_zero`
-- `I2_false_positive_zero`
+- `I2_recall_complete`
 - `I3_regression_zero`
 - `I4_oracle_locked`
+- `I5_negative_controls_clean`
 
-이 gate 때문에 UE P0/P1은 현재 `ERROR 0`이어도 FP 2가 있으면 exit code 1을 낸다.
-이건 하네스 실패가 아니라 의도된 hard gate다.
+양성 케이스가 expected source를 모두 포함하면 expected 밖의 추가 후보가 있어도 1차 회귀는 PASS다.
+추가 후보는 `precision_report.json`에서 후속 taint/path-feasibility 정밀화 대상으로 남는다.
+`expected_no_sources: true` 케이스에서 하나라도 source가 나오면 exit code 1이다.
 
 ### `harness/case_scope.py`
 
@@ -245,7 +249,7 @@ Codex CLI를 Engine11 repo에서 `workspace-write`로 실행할 수 있다.
 - 실패 리포트, gate, summary, 선택적 agent proposal을 Codex 편집 프롬프트로 연결
 - 편집 대상 repo를 `repos.engine_11`로 제한
 - 편집 후 `compileall`과 사후 회귀 실행
-- 이전 PASS 회귀, ERROR 증가, false positive 증가를 감지하면 중단
+- 이전 PASS 회귀, ERROR, recall 실패, 음성 제어 위반을 감지하면 중단
 - cycle별 `engine.diff`, Codex prompt/log, pre/post regression artifact 기록
 - `--include-proposed-regression`을 줄 때만 case_author frontier 케이스를 회귀 입력에 포함
 - 편집 직후 `design_lint`로 case/helper/source-label 하드코딩을 차단
@@ -256,7 +260,7 @@ Codex CLI를 Engine11 repo에서 `workspace-write`로 실행할 수 있다.
   Codex prompt에 항상 포함한다.
 - Ghidra signature/prototype/parameter metadata는 optional fact/hint로만 사용할 수 있고,
   observed low-pcode dataflow를 덮어쓸 수 없다.
-- PASS 수를 늘리기 위한 broad over-approx는 false positive gate로 차단한다.
+- 근거 없는 broad over-approx는 precision telemetry와 음성 제어 케이스로 감시한다.
 
 실제 09/10 개발 루프:
 
@@ -303,7 +307,8 @@ python3 -m harness.engine_dev_loop \
   positive를 만든 수리 cycle만 더 깊은 추론으로 돌릴 수 있다.
 - 사람이 중간 개입해야 하면 `--editor-extra-instructions` 또는
   `--editor-extra-instructions-file`로 다음 Codex 편집 프롬프트에 운영자 지시를 추가한다.
-- `--repair-on-regression`은 post-regression에서 기존 PASS 회귀나 새 false positive가
+- `--repair-on-regression`은 post-regression에서 기존 PASS 회귀, recall 실패,
+  crash 또는 음성 제어 위반이
   발견되었을 때 즉시 종료하지 않고, 다음 cycle의 `Active repair context`에 그 악화
   정보를 넣어 재개한다. repair cycle은 직전 pre뿐 아니라 악화 전 baseline report와도
   비교한다. `--no-stop-on-regression`과 같이 써도 repair 예약이
@@ -383,7 +388,7 @@ python3 -m harness.frontier_case_loop \
 ```
 
 실제 Codex case_author를 호출할 준비 명령은 아래 형태다. `--codex-bin`을 생략하면
-`CODEX_BIN`, Codex.app bundle 경로, PATH의 `codex` 순서로 자동 탐색한다. 이 경로는
+`CODEX_BIN`, ChatGPT/Codex 앱 bundle 경로, PATH의 `codex` 순서로 자동 탐색한다. 이 경로는
 Codex provider에 failure report와 gap note를 전달하므로, 우선 `dry-run`으로 proposal만
 받고 사람이 검토한 뒤 적용 단계로 넘어간다.
 
@@ -425,14 +430,17 @@ python3 -m harness.frontier_case_loop \
 cpp-like proposed case는 기본적으로 `tv2-tier0` variant에서 targeted post-apply
 회귀를 돌린다. UE proposed case는 `ue-local` variant가 기본이다. targeted 회귀가 이미
 green이면 `--engine-skip-if-post-apply-green` 기본값 때문에 내부 Engine11 editor는
-실행하지 않는다. `--codex-bin`을 생략하면 `CODEX_BIN`, Codex.app bundle 경로,
+실행하지 않는다. `--codex-bin`을 생략하면 `CODEX_BIN`, ChatGPT/Codex 앱 bundle 경로,
 PATH의 `codex` 순서로 자동 탐색하고 case_author provider와 내부 Engine11 editor
 양쪽에 전달한다. Codex CLI가 홈 디렉터리 state DB에 쓸 수 없는 샌드박스에서는
 provider가 project-local `output/harness/.codex_cli_home`을 `CODEX_HOME`으로 사용한다.
 
 Agent analysis의 reasoning effort는 `harness/config.yaml`의 provider command에서 role별로
-나눈다. 예시는 `triage`/`adversary`를 `fp_review` tier로 보내 `xhigh`, 일반 진단은
+나눈다. 예시는 `triage`/`adversary`를 `critical_review` tier로 보내 `xhigh`, 일반 진단은
 `strong` tier의 `high`, coverage/memory 정리는 `cheap` tier의 `medium`을 사용한다.
+`critical_review`는 양성 케이스의 추가 source를 수리하는 tier가 아니다. recall 누락,
+crash, 기존 PASS 회귀, 명시적 negative-control 위반처럼 primary gate에 영향을 주는
+증거를 깊게 검토한다.
 
 중간에 멈춘 뒤 재개하면서 지시를 추가하는 예:
 
@@ -729,11 +737,11 @@ LLM agent loop용 설정이다. deterministic 회귀 분석만 할 때는 없어
 ```yaml
 models:
   cheap: "codex:gpt-5.4-mini"
-  strong: "codex:gpt-5.5"
+  strong: "codex:gpt-5.6-sol"
   adversary_panel: []
   commands:
     cheap: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.4-mini"
-    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.5"
+    strong: "python3 -m harness.providers.codex_cli_agent_executor --model gpt-5.6-sol"
   agent_tiers:
     triage: "cheap"
     coverage_planner: "cheap"
@@ -751,10 +759,10 @@ OpenAI API를 직접 쓰고 싶으면 commands를 아래처럼 바꾼다.
 ```yaml
 models:
   cheap: "gpt-5.4-mini"
-  strong: "gpt-5.5"
+  strong: "gpt-5.6-sol"
   commands:
     cheap: "python3 -m harness.providers.openai_agent_executor --model gpt-5.4-mini"
-    strong: "python3 -m harness.providers.openai_agent_executor --model gpt-5.5"
+    strong: "python3 -m harness.providers.openai_agent_executor --model gpt-5.6-sol"
 ```
 
 이 경우 ChatGPT Plus/Pro 결제와 API platform billing은 별도이므로, API key와 API billing이 준비되어야 한다.
