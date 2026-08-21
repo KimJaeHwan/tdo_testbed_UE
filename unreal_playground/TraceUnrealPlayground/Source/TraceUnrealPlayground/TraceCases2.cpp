@@ -159,6 +159,8 @@ extern "C" TV2_NOINLINE void case_TV2R341_partial_field_copy_callback();
 extern "C" TV2_NOINLINE void case_TV2R342_heap_callback_bytewise_kill_copy();
 extern "C" TV2_NOINLINE void case_TV2R343_heap_copy_partial_payload_overwrite();
 extern "C" TV2_NOINLINE void case_TV2R344_partial_byte_copy_loop_call_output();
+extern "C" TV2_NOINLINE void case_TV2R345_heap_callback_partial_copy_fusion();
+extern "C" TV2_NOINLINE void case_TV2R346_callback_partial_heap_copy_fusion();
 extern "C" TV2_NOINLINE void TraceRunAll2()
 {
 	case_TV2U008_uobject_header_offset(nullptr);
@@ -217,6 +219,8 @@ extern "C" TV2_NOINLINE void TraceRunAll2()
 	case_TV2R342_heap_callback_bytewise_kill_copy();
 	case_TV2R343_heap_copy_partial_payload_overwrite();
 	case_TV2R344_partial_byte_copy_loop_call_output();
+	case_TV2R345_heap_callback_partial_copy_fusion();
+	case_TV2R346_callback_partial_heap_copy_fusion();
 }
 
 static void (*volatile g_tv2_keep2)() = &TraceRunAll2;
@@ -1599,5 +1603,99 @@ extern "C" TV2_NOINLINE void case_TV2R344_partial_byte_copy_loop_call_output()
 
     const uint32 Value = TV2R344_ReadThroughLoopAlias(&Cell);
     dfb_sink_int(static_cast<int>(Value));
+}
+
+struct TV2R345_Cell
+{
+    uint32 Payload;
+    uint32 Noise;
+};
+
+using TV2R345_CopyFn = void (*)(TV2R345_Cell*, const TV2R345_Cell*);
+
+static TV2_NOINLINE void TV2R345_CopyPatchAndDistract(
+    TV2R345_Cell* Dst,
+    const TV2R345_Cell* Src)
+{
+    *Dst = *Src;
+
+    uint8* PayloadBytes = reinterpret_cast<uint8*>(&Dst->Payload);
+#if PLATFORM_LITTLE_ENDIAN
+    PayloadBytes[2] = 0x5a;
+    PayloadBytes[3] = 0xa5;
+#else
+    PayloadBytes[0] = 0xa5;
+    PayloadBytes[1] = 0x5a;
+#endif
+
+    if ((Src->Noise & 1u) != 0u)
+    {
+        Dst->Noise ^= 0x13579bdfu;
+    }
+    else
+    {
+        Dst->Noise ^= 0x2468ace0u;
+    }
+}
+
+extern "C" TV2_NOINLINE void case_TV2R345_heap_callback_partial_copy_fusion()
+{
+    TV2R345_Cell* Staging = new TV2R345_Cell;
+    TV2R345_Cell* Live = new TV2R345_Cell;
+
+    Staging->Payload = static_cast<uint32>(dfb_source_A());
+    Staging->Noise = static_cast<uint32>(dfb_source_B());
+
+    Live->Payload = static_cast<uint32>(dfb_source_C());
+    Live->Noise = 0u;
+
+    TV2R345_CopyFn volatile Copy = &TV2R345_CopyPatchAndDistract;
+    Copy(Live, Staging);
+
+    for (uint32 I = 0; I != 3u; ++I)
+    {
+        Live->Noise ^= (0x101u + I);
+    }
+
+    const int SinkValue = static_cast<int>(Live->Payload & 0x0000ffffu);
+    dfb_sink_int(SinkValue);
+
+    delete Live;
+    delete Staging;
+}
+
+typedef struct TV2R346_Cell
+{
+    uint64 Payload;
+    uint32 Decoy;
+    uint32 Noise;
+} TV2R346_Cell;
+
+static TV2_NOINLINE void TV2R346_WriteThroughCallback(TV2R346_Cell* Cell)
+{
+    const uint32 A = (uint32)dfb_source_A();
+    const uint32 B = (uint32)dfb_source_B();
+    Cell->Payload = 0xA5A5A5A500000000ULL | (uint64)A;
+    Cell->Decoy = B;
+    Cell->Noise = 0x31415926U;
+
+    const uint16 C = (uint16)dfb_source_C();
+    FMemory::Memcpy(&Cell->Payload, &C, sizeof(C));
+}
+
+extern "C" TV2_NOINLINE void case_TV2R346_callback_partial_heap_copy_fusion()
+{
+    TV2R346_Cell* HeapCell = new TV2R346_Cell{};
+    void (*Writer)(TV2R346_Cell*) = &TV2R346_WriteThroughCallback;
+    Writer(HeapCell);
+
+    TV2R346_Cell Snapshot{};
+    FMemory::Memcpy(&Snapshot, HeapCell, sizeof(Snapshot));
+    delete HeapCell;
+
+    const uint32 Low = (uint32)Snapshot.Payload;
+    const uint32 Shifted = (uint32)(Snapshot.Payload >> 16);
+    const int Value = (int)(Low ^ Shifted);
+    dfb_sink_int(Value);
 }
 

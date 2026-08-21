@@ -8751,6 +8751,1183 @@
       "severity": "proposed-regression",
       "source_file": "src/cases_fusion.cpp",
       "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "observed-storage-transition",
+        "indirect-callback",
+        "interprocedural-summary",
+        "pointer-to-field",
+        "strong-overwrite-kill",
+        "partial-byte-write",
+        "aggregate-copy",
+        "cfg-selected-alias"
+      ],
+      "expected_flow": [
+        {
+          "carries": "data source written after and therefore killing the earlier full-field C write for the same observed storage range",
+          "field": "payload",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C680_write_sources",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C680_Cell,payload)",
+          "reason": "full-width store defines every payload byte before the later one-byte constant overwrite",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_A.ret",
+          "to": "nodes[1].payload"
+        },
+        {
+          "carries": "constant 0x5a replaces one byte while the other payload bytes retain dfb_source_A.ret",
+          "field": "payload",
+          "from": "nodes[1].payload",
+          "function": "case_TV2C680_callback_partial_overwrite_copy",
+          "kind": "partial-store",
+          "node": "nodes[1].payload byte 1",
+          "offset": "offsetof(TV2C680_Cell,payload)+1",
+          "reason": "a one-byte store cannot kill the complementary bytes of the preceding unsigned-int store",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned char)",
+          "source": "dfb_source_A.ret",
+          "to": "nodes[1].payload"
+        },
+        {
+          "carries": "surviving bytes from dfb_source_A.ret",
+          "field": "payload",
+          "from": "nodes[1].payload",
+          "function": "case_TV2C680_callback_partial_overwrite_copy",
+          "kind": "aggregate-copy",
+          "node": "snapshot",
+          "offset": "offsetof(TV2C680_Cell,payload)",
+          "reason": "by-value aggregate copy preserves the payload byte provenance",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_A.ret",
+          "to": "snapshot.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret through the non-overwritten payload bytes",
+          "field": "snapshot.payload",
+          "from": "snapshot.payload",
+          "function": "case_TV2C680_callback_partial_overwrite_copy",
+          "kind": "sink",
+          "node": "dfb_sink_int argument 0",
+          "offset": "offsetof(TV2C680_Cell,payload)",
+          "reason": "the sink consumes the copied payload value",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "noise field only",
+          "field": "noise",
+          "from": "nodes[1].noise",
+          "function": "TV2C680_write_sources",
+          "kind": "source-to-sink",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C680_Cell,noise)",
+          "reason": "the aggregate copy preserves field separation and the sink loads payload, not noise",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_B.ret",
+          "to": "snapshot.payload"
+        },
+        {
+          "carries": "fully killed prior payload definition",
+          "field": "payload",
+          "from": "first nodes[1].payload definition",
+          "function": "TV2C680_write_sources",
+          "kind": "source-to-sink",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C680_Cell,payload)",
+          "reason": "the subsequent full-width dfb_source_A.ret store strongly overwrites all bytes written by C before any read",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned int)",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "function": "case_TV2C680_callback_partial_overwrite_copy",
+      "id": "TV2C680",
+      "name": "callback-selected writer with killed source, byte overwrite, and aggregate copy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "callback-array-dispatch",
+        "cfg-loop",
+        "interprocedural-memory-summary",
+        "pointer-to-field-memory",
+        "partial-aggregate-writes",
+        "compiler-lowered-struct-copy",
+        "snapshot-before-overwrite",
+        "overwrite-kill",
+        "precision-probe"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C681_Cell.left",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C681_write_left",
+          "kind": "data",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C681_Cell, left)",
+          "reason": "The selected callback writes source A directly into the left field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "live.left"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C681_Cell.right",
+          "from": "dfb_source_B.ret",
+          "function": "TV2C681_write_right",
+          "kind": "data",
+          "node": "dfb_source_B.ret",
+          "offset": "offsetof(TV2C681_Cell, right)",
+          "reason": "The selected callback writes source B directly into the right field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "live.right"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C681_Cell.left",
+          "from": "live.left",
+          "function": "TV2C681_copy_cell",
+          "kind": "memory-copy",
+          "node": "TV2C681_copy_cell",
+          "offset": "offsetof(TV2C681_Cell, left)",
+          "reason": "The whole-struct assignment snapshots the A-bearing field before the later overwrite.",
+          "sink": "snapshot.left",
+          "size": "sizeof(int)",
+          "source": "live.left",
+          "to": "snapshot.left"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C681_Cell.right",
+          "from": "live.right",
+          "function": "TV2C681_copy_cell",
+          "kind": "memory-copy",
+          "node": "TV2C681_copy_cell",
+          "offset": "offsetof(TV2C681_Cell, right)",
+          "reason": "The same whole-struct assignment snapshots the B-bearing field.",
+          "sink": "snapshot.right",
+          "size": "sizeof(int)",
+          "source": "live.right",
+          "to": "snapshot.right"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C681_Cell.left",
+          "from": "snapshot.left",
+          "function": "TV2C681_pack_live",
+          "kind": "data",
+          "node": "TV2C681_pack_live",
+          "offset": "offsetof(TV2C681_Cell, left)",
+          "reason": "The XOR operand loaded from snapshot.left contributes data to the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "snapshot.left",
+          "to": "value"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C681_Cell.right",
+          "from": "snapshot.right",
+          "function": "TV2C681_pack_live",
+          "kind": "data",
+          "node": "TV2C681_pack_live",
+          "offset": "offsetof(TV2C681_Cell, right)",
+          "reason": "The XOR operand loaded from snapshot.right contributes data to the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "snapshot.right",
+          "to": "value"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C681_Cell.left",
+          "from": "live.left",
+          "function": "case_TV2C681_callback_loop_snapshot_copy_overwrite",
+          "kind": "data",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C681_Cell, left)",
+          "reason": "Source C overwrites only live.left after snapshot was copied; snapshot.left is not aliased back to live.left.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "snapshot.left"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C681_Cell.noise",
+          "from": "snapshot.noise",
+          "function": "TV2C681_write_noise",
+          "kind": "data",
+          "node": "dfb_source_C.ret",
+          "offset": "offsetof(TV2C681_Cell, noise)",
+          "reason": "Although noise is copied, TV2C681_pack_live never loads that field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "value"
+        }
+      ],
+      "function": "case_TV2C681_callback_loop_snapshot_copy_overwrite",
+      "id": "TV2C681",
+      "name": "callback_loop_snapshot_copy_overwrite",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "compiler-lowered-copy",
+        "partial-write",
+        "pointer-to-field",
+        "interprocedural-summary",
+        "indirect-callback",
+        "cfg-join",
+        "preserved-byte-provenance"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C682_seed",
+          "kind": "data",
+          "node": "original.payload",
+          "offset": "offsetof(TV2C682_Cell, payload)",
+          "reason": "The seed helper writes source A into payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "original.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "original.payload",
+          "function": "case_TV2C682_callback_partial_object_patch_after_copy_fusion",
+          "kind": "copy",
+          "node": "copied.payload",
+          "offset": "offsetof(TV2C682_Cell, payload)",
+          "reason": "Whole-struct assignment copies payload and its byte provenance before patching.",
+          "sink": "copied.payload",
+          "size": "sizeof(int)",
+          "source": "original.payload",
+          "to": "copied.payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "payload",
+          "from": "dfb_source_C.ret",
+          "function": "TV2C682_patch_12|TV2C682_patch_21",
+          "kind": "partial-write",
+          "node": "copied.payload[1]",
+          "offset": "offsetof(TV2C682_Cell, payload) + 1",
+          "reason": "Both callback alternatives replace byte 1 with data derived from source C.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "1",
+          "source": "dfb_source_C.ret",
+          "to": "copied.payload[1]"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "payload",
+          "from": "dfb_source_C.ret",
+          "function": "TV2C682_patch_12|TV2C682_patch_21",
+          "kind": "partial-write",
+          "node": "copied.payload[2]",
+          "offset": "offsetof(TV2C682_Cell, payload) + 2",
+          "reason": "Both callback alternatives replace byte 2 with data derived from source C.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "1",
+          "source": "dfb_source_C.ret",
+          "to": "copied.payload[2]"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "copied.payload",
+          "function": "case_TV2C682_callback_partial_object_patch_after_copy_fusion",
+          "kind": "preserved-storage",
+          "node": "copied.payload[0,3]",
+          "offset": "offsetof(TV2C682_Cell, payload)",
+          "reason": "Bytes 0 and 3 are not patched, so source A remains part of the loaded four-byte sink value.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "2 disjoint bytes",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int.arg0"
+        },
+        {
+          "carries": "dfb_source_A.ret,dfb_source_C.ret",
+          "field": "payload",
+          "from": "copied.payload",
+          "function": "case_TV2C682_callback_partial_object_patch_after_copy_fusion",
+          "kind": "sink",
+          "node": "copied.payload",
+          "offset": "offsetof(TV2C682_Cell, payload)",
+          "reason": "The sink consumes the complete payload after the disjoint partial writes.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "copied.payload",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "decoy",
+          "from": "copied.decoy",
+          "function": "case_TV2C682_callback_partial_object_patch_after_copy_fusion",
+          "kind": "field-separation",
+          "node": "copied.decoy",
+          "offset": "offsetof(TV2C682_Cell, decoy)",
+          "reason": "Source B is copied only into the neighboring decoy field; no read, alias, or callback write transfers it into payload.",
+          "sink": "dfb_sink_int.arg0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int.arg0"
+        }
+      ],
+      "function": "case_TV2C682_callback_partial_object_patch_after_copy_fusion",
+      "id": "TV2C682",
+      "name": "callback partial object-representation patch after struct copy fusion",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect-call",
+        "heap-storage",
+        "pointer-to-field",
+        "field-sensitive",
+        "partial-overwrite-kill",
+        "compiler-lowered-copy",
+        "loop",
+        "interprocedural-summary"
+      ],
+      "expected_flow": [
+        {
+          "carries": "low 16 bits of dfb_source_A.ret",
+          "field": "high",
+          "from": "source_a",
+          "function": "case_TV2C683_callback_heap_partial_kill_copy_fusion",
+          "kind": "data",
+          "node": "indirect writer call",
+          "offset": "offsetof(TV2C683_Cell, high)",
+          "reason": "The selected callback unconditionally stores source_a into the high field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "cells[0].high"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "high",
+          "from": "cells[0].high",
+          "function": "TV2C683_copy_cell",
+          "kind": "memory-copy",
+          "node": "byte-copy loop",
+          "offset": "offsetof(TV2C683_Cell, high)",
+          "reason": "The complete object-representation copy preserves the high-field bytes containing source A.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "cells[1].high"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "high",
+          "from": "cells[1].high",
+          "function": "case_TV2C683_callback_heap_partial_kill_copy_fusion",
+          "kind": "data",
+          "node": "sink value assembly",
+          "offset": "offsetof(TV2C683_Cell, high)",
+          "reason": "The sink value shifts the copied high field into bits 16..31.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "no source after overwrite",
+          "field": "low",
+          "from": "cells[0].low initial store",
+          "function": "case_TV2C683_callback_heap_partial_kill_copy_fusion",
+          "kind": "kill",
+          "node": "constant overwrite before copy",
+          "offset": "offsetof(TV2C683_Cell, low)",
+          "reason": "The full low-field overwrite with 0x5a5a occurs before the object copy and kills source B.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_B.ret",
+          "to": "cells[0].low constant store"
+        },
+        {
+          "carries": "dfb_source_C.ret only in an adjacent field",
+          "field": "decoy",
+          "from": "cells[1].decoy",
+          "function": "case_TV2C683_callback_heap_partial_kill_copy_fusion",
+          "kind": "field-separation",
+          "node": "sink excludes decoy field",
+          "offset": "offsetof(TV2C683_Cell, decoy)",
+          "reason": "The copied decoy field is never loaded while assembling the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "value"
+        }
+      ],
+      "function": "case_TV2C683_callback_heap_partial_kill_copy_fusion",
+      "id": "TV2C683",
+      "name": "callback heap partial-write kill plus lowered struct copy fusion",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "observed-storage-transition",
+        "pointer-to-field-memory",
+        "partial-write-preservation",
+        "indirect-callback",
+        "compiler-lowered-struct-copy",
+        "interprocedural-summary",
+        "field-sensitive-precision"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C684_partial_callback_struct_copy",
+          "kind": "source-store",
+          "node": "original.payload",
+          "offset": "offsetof(TV2C684_Cell, payload)",
+          "reason": "The source value is written directly into the payload field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "original.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret in the two bytes not overwritten by the callback",
+          "field": "payload",
+          "from": "original.payload",
+          "function": "TV2C684_patch_two_bytes",
+          "kind": "partial-write-preserve",
+          "node": "original.payload",
+          "offset": "offsetof(TV2C684_Cell, payload)",
+          "reason": "The indirect callback overwrites exactly two of the four object-representation bytes; the other two bytes remain sourced from A on either endian ordering.",
+          "sink": "dfb_sink_int",
+          "size": "2",
+          "source": "dfb_source_A.ret",
+          "to": "original.payload after patch"
+        },
+        {
+          "carries": "the partially preserved dfb_source_A.ret bytes",
+          "field": "payload",
+          "from": "original.payload after patch",
+          "function": "TV2C684_copy_cell",
+          "kind": "compiler-lowered-copy",
+          "node": "copied.payload",
+          "offset": "offsetof(TV2C684_Cell, payload)",
+          "reason": "Whole-struct assignment copies payload and decoy storage, requiring field-sensitive propagation through the copy summary.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "copied.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "copied.payload",
+          "function": "TV2C684_read_payload",
+          "kind": "interprocedural-read",
+          "node": "value",
+          "offset": "offsetof(TV2C684_Cell, payload)",
+          "reason": "The reader loads only the copied payload field and its result is passed to the sink.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "payload",
+          "from": "value",
+          "function": "case_TV2C684_partial_callback_struct_copy",
+          "kind": "sink",
+          "node": "dfb_sink_int argument 0",
+          "offset": "offsetof(TV2C684_Cell, payload)",
+          "reason": "The sink consumes the payload returned by the reader.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret only within the decoy field",
+          "field": "decoy",
+          "from": "original.decoy or copied.decoy",
+          "function": "TV2C684_copy_cell",
+          "kind": "no-cross-field-flow",
+          "node": "copied.decoy",
+          "offset": "offsetof(TV2C684_Cell, decoy)",
+          "reason": "B is stored and copied only in the disjoint decoy field; neither the callback nor the reader accesses that field.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "copied.payload or dfb_sink_int"
+        }
+      ],
+      "function": "case_TV2C684_partial_callback_struct_copy",
+      "id": "TV2C684",
+      "name": "partial callback write followed by interprocedural struct copy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect-callback",
+        "interprocedural-memory-summary",
+        "noncontiguous-partial-write",
+        "compiler-lowered-struct-copy",
+        "field-sensitive-decoy",
+        "wrapper-core-separation"
+      ],
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C685_Cell.payload",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C685_write_overlay",
+          "kind": "source-store",
+          "node": "original.payload initial full-width store",
+          "offset": "offsetof(TV2C685_Cell, payload)",
+          "reason": "The full payload is initialized from A before any partial overwrite.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "original.payload"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C685_Cell.payload",
+          "from": "b byte 1",
+          "function": "TV2C685_write_overlay",
+          "kind": "partial-overwrite",
+          "node": "original.payload byte 1 store",
+          "offset": "offsetof(TV2C685_Cell, payload) + 1",
+          "reason": "Character-type access legally replaces exactly byte 1 with B while preserving A in the other bytes.",
+          "sink": "dfb_sink_int",
+          "size": "1",
+          "source": "dfb_source_B.ret",
+          "to": "original.payload byte 1"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C685_Cell.payload",
+          "from": "b byte 2",
+          "function": "TV2C685_write_overlay",
+          "kind": "partial-overwrite",
+          "node": "original.payload byte 2 store",
+          "offset": "offsetof(TV2C685_Cell, payload) + 2",
+          "reason": "Character-type access legally replaces exactly byte 2 with B; bytes 0 and 3 remain from A.",
+          "sink": "dfb_sink_int",
+          "size": "1",
+          "source": "dfb_source_B.ret",
+          "to": "original.payload byte 2"
+        },
+        {
+          "carries": "dfb_source_A.ret,dfb_source_B.ret",
+          "field": "TV2C685_Cell.payload",
+          "from": "original.payload",
+          "function": "TV2C685_copy_cell",
+          "kind": "memory-copy",
+          "node": "original-to-copied struct assignment",
+          "offset": "offsetof(TV2C685_Cell, payload)",
+          "reason": "The whole-struct assignment transfers the mixed payload through an interprocedural observed-memory summary.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret,dfb_source_B.ret",
+          "to": "copied.payload"
+        },
+        {
+          "carries": "dfb_source_A.ret,dfb_source_B.ret",
+          "field": "TV2C685_Cell.payload",
+          "from": "copied.payload",
+          "function": "case_TV2C685_callback_partial_overlay_copy",
+          "kind": "sink",
+          "node": "copied.payload sink argument",
+          "offset": "offsetof(TV2C685_Cell, payload)",
+          "reason": "The sink reads the copied payload, whose surviving bytes originate from A and B.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret,dfb_source_B.ret",
+          "to": "dfb_sink_int argument 0"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C685_Cell.decoy",
+          "from": "original.decoy through copied.decoy",
+          "function": "case_TV2C685_callback_partial_overlay_copy",
+          "kind": "field-separation",
+          "node": "copied.decoy must not reach payload sink",
+          "offset": "offsetof(TV2C685_Cell, decoy)",
+          "reason": "C is stored and copied only in the adjacent decoy field; no source-level read, cast, overlap, or pointer targets decoy when forming the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "copied.payload"
+        }
+      ],
+      "function": "case_TV2C685_callback_partial_overlay_copy",
+      "id": "TV2C685",
+      "name": "callback partial-byte overlay through struct copy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "heap-observed-storage",
+        "pointer-to-field",
+        "compiler-lowered-struct-copy",
+        "interprocedural-summary",
+        "indirect-callback",
+        "field-sensitive-partial-overwrite",
+        "overwrite-kill"
+      ],
+      "expected_flow": [
+        {
+          "carries": "payload value from source A before the aggregate copy",
+          "field": "staged.payload",
+          "from": "dfb_source_A.ret",
+          "function": "TV2C686_fill_copy",
+          "kind": "source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(TV2C686_Cell, payload)",
+          "reason": "The helper assigns source A directly to the payload field.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "staged.payload"
+        },
+        {
+          "carries": "source A payload lane",
+          "field": "payload",
+          "from": "staged.payload",
+          "function": "TV2C686_fill_copy",
+          "kind": "memory-copy",
+          "node": "TV2C686_Cell aggregate assignment",
+          "offset": "offsetof(TV2C686_Cell, payload)",
+          "reason": "The by-value aggregate assignment copies the payload lane into the heap object.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "cell->payload"
+        },
+        {
+          "carries": "source A payload lane",
+          "field": "payload",
+          "from": "cell->payload",
+          "function": "case_TV2C686_heap_copy_callback_decoy_overwrite",
+          "kind": "memory-read",
+          "node": "payload_lane load",
+          "offset": "offsetof(TV2C686_Cell, payload)",
+          "reason": "The computed pointer uses the payload offsetof and reads only that field.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "value"
+        },
+        {
+          "carries": "source A payload lane",
+          "field": "payload",
+          "from": "value",
+          "function": "case_TV2C686_heap_copy_callback_decoy_overwrite",
+          "kind": "sink",
+          "node": "dfb_sink_int(arg0)",
+          "offset": "offsetof(TV2C686_Cell, payload)",
+          "reason": "The loaded payload is passed to the void sink as a statement.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(arg0)"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "decoy",
+          "from": "staged.decoy",
+          "function": "case_TV2C686_heap_copy_callback_decoy_overwrite",
+          "kind": "cross-field-flow",
+          "node": "decoy-to-payload",
+          "offset": "offsetof(TV2C686_Cell, decoy)",
+          "reason": "Source B is copied only into the distinct decoy lane and is subsequently killed there by the callback.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "cell->payload"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "decoy",
+          "from": "cell->decoy",
+          "function": "TV2C686_overwrite_decoy",
+          "kind": "cross-field-flow",
+          "node": "decoy-to-payload",
+          "offset": "offsetof(TV2C686_Cell, decoy)",
+          "reason": "The callback writes source C through the decoy offsetof; it never writes or selects the payload lane.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "cell->payload"
+        }
+      ],
+      "function": "case_TV2C686_heap_copy_callback_decoy_overwrite",
+      "id": "TV2C686",
+      "name": "heap_copy_callback_decoy_overwrite",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "indirect-callback",
+        "helper-thunk",
+        "interprocedural-summary",
+        "pointer-to-field-memory",
+        "partial-write",
+        "loop",
+        "compiler-lowered-copy",
+        "field-precision"
+      ],
+      "expected_flow": [
+        {
+          "carries": "low 16 bits of dfb_source_A.ret",
+          "field": "lane[0]",
+          "from": "values[0] through the selected callback and helper thunk",
+          "function": "TV2C687_write_lane",
+          "kind": "data",
+          "node": "original.lane[0] partial store",
+          "offset": "offsetof(TV2C687_Frame, lane) + 0 * sizeof(unsigned short)",
+          "reason": "The first loop iteration writes the truncated A value into lane 0.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "original.lane[0]"
+        },
+        {
+          "carries": "low 16 bits of dfb_source_B.ret",
+          "field": "lane[1]",
+          "from": "values[1] through the selected callback and helper thunk",
+          "function": "TV2C687_write_lane",
+          "kind": "data",
+          "node": "original.lane[1] partial store",
+          "offset": "offsetof(TV2C687_Frame, lane) + 1 * sizeof(unsigned short)",
+          "reason": "The second loop iteration writes the truncated B value into lane 1.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_B.ret",
+          "to": "original.lane[1]"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane[0]",
+          "from": "original.lane[0]",
+          "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+          "kind": "memory-copy",
+          "node": "aggregate copy lane 0",
+          "offset": "offsetof(TV2C687_Frame, lane) + 0 * sizeof(unsigned short)",
+          "reason": "The by-value aggregate copy preserves lane 0.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "copied.lane[0]"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "lane[1]",
+          "from": "original.lane[1]",
+          "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+          "kind": "memory-copy",
+          "node": "aggregate copy lane 1",
+          "offset": "offsetof(TV2C687_Frame, lane) + 1 * sizeof(unsigned short)",
+          "reason": "The by-value aggregate copy preserves lane 1.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_B.ret",
+          "to": "copied.lane[1]"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "lane[0]",
+          "from": "copied.lane[0]",
+          "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+          "kind": "data",
+          "node": "fused low half",
+          "offset": "offsetof(TV2C687_Frame, lane) + 0 * sizeof(unsigned short)",
+          "reason": "Lane 0 is ORed directly into the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_A.ret",
+          "to": "fused bits 0..15"
+        },
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "lane[1]",
+          "from": "copied.lane[1]",
+          "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+          "kind": "data",
+          "node": "fused high half",
+          "offset": "offsetof(TV2C687_Frame, lane) + 1 * sizeof(unsigned short)",
+          "reason": "Lane 1 is widened, shifted, and ORed into the sink value.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(unsigned short)",
+          "source": "dfb_source_B.ret",
+          "to": "fused bits 16..31"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "decoy",
+          "from": "original.decoy through copied.decoy",
+          "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+          "kind": "data",
+          "node": "copied.decoy must remain disjoint",
+          "offset": "offsetof(TV2C687_Frame, decoy)",
+          "reason": "The aggregate copy transports the adjacent decoy field, but fused reads only copied.lane[0] and copied.lane[1]; therefore C has no data or control path to the sink.",
+          "sink": "dfb_sink_int",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "fused"
+        }
+      ],
+      "function": "case_TV2C687_callback_partial_lanes_struct_copy_precision",
+      "id": "TV2C687",
+      "name": "callback_partial_lanes_struct_copy_precision",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
+    },
+    {
+      "allowed_warnings": [],
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "binary": "tv2_cpp_like",
+      "expected_control_sources": [],
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "observed-storage-transition",
+        "correlated-pointer-selection",
+        "indirect-callback",
+        "interprocedural-summary",
+        "pointer-to-field-memory",
+        "full-width-overwrite-kill",
+        "compiler-lowered-aggregate-copy",
+        "adjacent-field-partial-write",
+        "wrapper-core-separation"
+      ],
+      "expected_flow": [
+        {
+          "carries": "selected callback payload source A",
+          "field": "a",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2C688_correlated_callback_overwrite_copy",
+          "kind": "data-source",
+          "node": "dfb_source_A.ret",
+          "offset": "offsetof(local,a)",
+          "reason": "The source return is assigned directly to a before callback selection.",
+          "sink": "a storage entering the indirect writer call",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "a"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C688_Cell.live",
+          "from": "callback input value observed at the selected writer entry",
+          "function": "TV2C688_write_plain | TV2C688_write_encoded",
+          "kind": "interprocedural-memory-write",
+          "node": "writers[index](selected,a)",
+          "offset": "offsetof(TV2C688_Cell, live)",
+          "reason": "Both possible callbacks perform a full-width write equivalent to value into the selected live field.",
+          "sink": "selected->live",
+          "size": "sizeof(int)",
+          "source": "a",
+          "to": "selected->live"
+        },
+        {
+          "carries": "dfb_source_A.ret and kills dfb_source_C.ret",
+          "field": "TV2C688_Cell.live",
+          "from": "callback store",
+          "function": "TV2C688_write_plain | TV2C688_write_encoded",
+          "kind": "overwrite-kill",
+          "node": "selected->live full-width callback store",
+          "offset": "offsetof(TV2C688_Cell, live)",
+          "reason": "The callback writes all bytes of live after its initialization from source C, so C cannot remain in the selected live field.",
+          "sink": "selected->live",
+          "size": "sizeof(int)",
+          "source": "dfb_source_A.ret",
+          "to": "previous selected->live definition"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C688_Cell.live",
+          "from": "selected aggregate",
+          "function": "case_TV2C688_correlated_callback_overwrite_copy",
+          "kind": "aggregate-copy",
+          "node": "shadow = *selected",
+          "offset": "offsetof(TV2C688_Cell, live)",
+          "reason": "The by-value aggregate copy preserves the live field written by the callback.",
+          "sink": "shadow.live",
+          "size": "sizeof(int)",
+          "source": "selected->live",
+          "to": "shadow aggregate"
+        },
+        {
+          "carries": "dfb_source_A.ret",
+          "field": "TV2C688_Cell.live",
+          "from": "shadow.live",
+          "function": "case_TV2C688_correlated_callback_overwrite_copy",
+          "kind": "data-sink",
+          "node": "dfb_sink_int(shadow.live)",
+          "offset": "offsetof(TV2C688_Cell, live)",
+          "reason": "The void sink is called as a statement with the copied live field.",
+          "sink": "dfb_sink_int arg 0",
+          "size": "sizeof(int)",
+          "source": "shadow.live",
+          "to": "dfb_sink_int"
+        }
+      ],
+      "expected_global_sources": [],
+      "expected_no_sources": false,
+      "forbidden_control_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret",
+          "field": "TV2C688_Cell.dead",
+          "from": "cells[index].dead through aggregate copy and byte overwrite",
+          "function": "case_TV2C688_correlated_callback_overwrite_copy",
+          "kind": "forbidden-adjacent-field-flow",
+          "node": "shadow.dead",
+          "offset": "offsetof(TV2C688_Cell, dead)",
+          "reason": "Source B occupies only the distinct dead field. Copying the aggregate and partially writing dead_bytes[0] never reads or writes live.",
+          "sink": "dfb_sink_int arg 0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_B.ret",
+          "to": "shadow.live"
+        },
+        {
+          "carries": "dfb_source_C.ret",
+          "field": "TV2C688_Cell.live",
+          "from": "initial selected live definition",
+          "function": "case_TV2C688_correlated_callback_overwrite_copy",
+          "kind": "forbidden-killed-definition-flow",
+          "node": "cells[index].live initialization",
+          "offset": "offsetof(TV2C688_Cell, live)",
+          "reason": "The selected live field is fully overwritten by the callback before the aggregate copy; the unselected C-bearing cell is never copied to shadow.",
+          "sink": "dfb_sink_int arg 0",
+          "size": "sizeof(int)",
+          "source": "dfb_source_C.ret",
+          "to": "shadow.live"
+        }
+      ],
+      "function": "case_TV2C688_correlated_callback_overwrite_copy",
+      "id": "TV2C688",
+      "name": "correlated callback field overwrite followed by aggregate copy",
+      "severity": "proposed-regression",
+      "source_file": "src/cases_fusion.cpp",
+      "tier": 0
     }
   ],
   "schema_version": 2

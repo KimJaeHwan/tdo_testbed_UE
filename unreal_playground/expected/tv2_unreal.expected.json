@@ -5514,6 +5514,274 @@
           "to": "Cell.Payload"
         }
       ]
+    },
+    {
+      "id": "TV2R345",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R345_heap_callback_partial_copy_fusion",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret",
+        "dfb_source_C.ret"
+      ],
+      "forbidden_control_sources": [
+        "dfb_source_B.ret"
+      ],
+      "expected_features": [
+        "fusion",
+        "heap-storage",
+        "pointer-to-field",
+        "indirect-callback",
+        "interprocedural-summary",
+        "compiler-lowered-struct-copy",
+        "partial-write",
+        "overwrite-kill",
+        "field-precision",
+        "loop-distraction",
+        "wrapper-core-separation"
+      ],
+      "allowed_warnings": [],
+      "expected_no_sources": false,
+      "expected_flow": [
+        {
+          "carries": "all 32 data bits before later masking",
+          "field": "Payload",
+          "from": "dfb_source_A.ret",
+          "function": "case_TV2R345_heap_callback_partial_copy_fusion",
+          "kind": "store",
+          "node": "Staging->Payload",
+          "offset": "heap",
+          "reason": "The case directly stores source A into the staging heap object's Payload field.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "Staging.Payload"
+        },
+        {
+          "carries": "Staging.Payload to Live.Payload",
+          "field": "Payload",
+          "from": "Staging.Payload",
+          "function": "TV2R345_CopyPatchAndDistract",
+          "kind": "compiler-lowered-copy",
+          "node": "*Dst = *Src",
+          "offset": "heap",
+          "reason": "Whole-structure assignment copies the A-derived payload through the callback; the adjacent B-derived Noise field remains a separate lane.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "Live.Payload"
+        },
+        {
+          "carries": "preserved low-order 16 bits of source A",
+          "field": "Payload",
+          "from": "Live.Payload low 16 bits",
+          "function": "TV2R345_CopyPatchAndDistract",
+          "kind": "partial-write-preserve",
+          "node": "PayloadBytes high-half stores",
+          "offset": "heap",
+          "reason": "The endian-selected two-byte stores replace only the high-order half. The low-order half consumed by the sink is not overwritten.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "2",
+          "source": "dfb_source_A.ret",
+          "to": "Live.Payload low 16 bits"
+        },
+        {
+          "carries": "low-order 16 bits of source A",
+          "field": "Payload",
+          "from": "Live.Payload low 16 bits",
+          "function": "case_TV2R345_heap_callback_partial_copy_fusion",
+          "kind": "masked-load",
+          "node": "Live->Payload & 0x0000ffffu",
+          "offset": "heap",
+          "reason": "The sink argument is constructed solely from the preserved low half of Live.Payload.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "2",
+          "source": "dfb_source_A.ret",
+          "to": "dfb_sink_int(arg0)"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "source B only in the adjacent noise lane",
+          "field": "Noise",
+          "from": "Staging.Noise",
+          "function": "case_TV2R345_heap_callback_partial_copy_fusion",
+          "kind": "field-separation",
+          "node": "Staging->Noise",
+          "offset": "heap",
+          "reason": "B is copied and used by a branch and loop confined to Noise; neither branch writes Payload and the sink never reads Noise.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(arg0)"
+        },
+        {
+          "carries": "source C before a full-field overwrite",
+          "field": "Payload",
+          "from": "Live.Payload initial value",
+          "function": "case_TV2R345_heap_callback_partial_copy_fusion",
+          "kind": "overwrite-kill",
+          "node": "Live->Payload prior writer",
+          "offset": "heap",
+          "reason": "The callback's whole-structure assignment fully replaces Live.Payload with Staging.Payload before any sinkward load, killing C.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "4",
+          "source": "dfb_source_C.ret",
+          "to": "dfb_sink_int(arg0)"
+        },
+        {
+          "carries": "source B as control for Noise-only updates",
+          "field": "Noise",
+          "from": "dfb_source_B.ret",
+          "function": "TV2R345_CopyPatchAndDistract",
+          "kind": "non-controlling-branch",
+          "node": "Src->Noise & 1u",
+          "offset": "heap",
+          "reason": "Although B selects a callback branch, both arms modify only Noise, so B has no control dependency on the sink value.",
+          "sink": "dfb_sink_int(arg0)",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "dfb_sink_int(arg0)"
+        }
+      ]
+    },
+    {
+      "id": "TV2R346",
+      "binary": "tv2_unreal",
+      "tier": 0,
+      "severity": "proposed-regression",
+      "function": "case_TV2R346_callback_partial_heap_copy_fusion",
+      "anchor": {
+        "arg_index": 0,
+        "callee": "dfb_sink_int",
+        "storage": "test-wrapper-only"
+      },
+      "expected_data_sources": [
+        "dfb_source_A.ret",
+        "dfb_source_C.ret"
+      ],
+      "expected_control_sources": [],
+      "expected_global_sources": [],
+      "forbidden_data_sources": [
+        "dfb_source_B.ret"
+      ],
+      "forbidden_control_sources": [],
+      "expected_features": [
+        "fusion",
+        "indirect-callback",
+        "interprocedural-summary",
+        "heap-storage",
+        "pointer-to-field-memory",
+        "partial-write",
+        "overlap-kill",
+        "compiler-lowered-copy",
+        "field-sensitive-read",
+        "observed-storage-transition",
+        "wrapper-core-separation"
+      ],
+      "allowed_warnings": [
+        "positive-case forbidden-source reach is precision telemetry and must not weaken recall"
+      ],
+      "expected_no_sources": false,
+      "expected_flow": [
+        {
+          "carries": "dfb_source_A.ret initially occupies Payload bytes 0..3",
+          "field": "TV2R346_Cell.Payload",
+          "from": "dfb_source_A.ret",
+          "function": "TV2R346_WriteThroughCallback",
+          "kind": "data",
+          "node": "TV2R346_WriteThroughCallback",
+          "offset": "heap",
+          "reason": "The callback directly stores the zero-extended A value into the low four bytes of Payload.",
+          "sink": "dfb_sink_int",
+          "size": "4",
+          "source": "dfb_source_A.ret",
+          "to": "HeapCell->Payload"
+        },
+        {
+          "carries": "dfb_source_C.ret replaces Payload bytes 0..1 while A remains in bytes 2..3",
+          "field": "TV2R346_Cell.Payload",
+          "from": "local C",
+          "function": "TV2R346_WriteThroughCallback",
+          "kind": "overwrite",
+          "node": "FMemory::Memcpy partial store",
+          "offset": "heap",
+          "reason": "A two-byte copy is an observed partial write, so it kills only the overlapping A bytes.",
+          "sink": "dfb_sink_int",
+          "size": "2",
+          "source": "dfb_source_C.ret",
+          "to": "HeapCell->Payload bytes 0..1"
+        },
+        {
+          "carries": "surviving A bytes and C bytes",
+          "field": "TV2R346_Cell.Payload",
+          "from": "heap",
+          "function": "case_TV2R346_callback_partial_heap_copy_fusion",
+          "kind": "copy",
+          "node": "FMemory::Memcpy struct copy",
+          "offset": "heap",
+          "reason": "The whole-object copy transfers the live Payload bytes from heap storage to Snapshot.",
+          "sink": "Snapshot.Payload",
+          "size": "8",
+          "source": "HeapCell->Payload",
+          "to": "stack"
+        },
+        {
+          "carries": "dfb_source_A.ret and dfb_source_C.ret",
+          "field": "TV2R346_Cell.Payload",
+          "from": "Low and Shifted",
+          "function": "case_TV2R346_callback_partial_heap_copy_fusion",
+          "kind": "data",
+          "node": "Payload fold",
+          "offset": "heap",
+          "reason": "Low reads C in bytes 0..1 and surviving A in bytes 2..3; Shifted also reads the surviving A bytes before the XOR reaches the sink.",
+          "sink": "dfb_sink_int",
+          "size": "8",
+          "source": "Snapshot.Payload",
+          "to": "Value"
+        }
+      ],
+      "forbidden_flow": [
+        {
+          "carries": "dfb_source_B.ret only in the adjacent Decoy field",
+          "field": "TV2R346_Cell.Decoy",
+          "from": "Snapshot.Decoy",
+          "function": "case_TV2R346_callback_partial_heap_copy_fusion",
+          "kind": "precision-probe",
+          "node": "FMemory::Memcpy struct copy",
+          "offset": "heap",
+          "reason": "The whole-struct copy moves Decoy, but no subsequent load of Snapshot.Decoy contributes to Low, Shifted, Value, or the sink.",
+          "sink": "dfb_sink_int",
+          "size": "4",
+          "source": "dfb_source_B.ret",
+          "to": "Value"
+        },
+        {
+          "carries": "none",
+          "field": "",
+          "from": "dfb_source_B.ret",
+          "function": "case_TV2R346_callback_partial_heap_copy_fusion",
+          "kind": "control",
+          "node": "indirect callback selection",
+          "offset": "",
+          "reason": "Writer is assigned a fixed callback address independently of every source; B cannot select the callback or control sink execution.",
+          "sink": "dfb_sink_int",
+          "size": "",
+          "source": "dfb_source_B.ret",
+          "to": "Writer"
+        }
+      ]
     }
   ]
 }

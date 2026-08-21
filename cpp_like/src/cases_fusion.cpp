@@ -2532,4 +2532,358 @@ extern "C" TV2_NOINLINE void case_TV2C679_partial_patch_after_copy_fusion() {
     dfb_sink_int(static_cast<int>(joined));
 }
 
+
+struct TV2C680_Cell {
+    unsigned int payload;
+    unsigned int noise;
+};
+
+using TV2C680_Writer = void (*)(TV2C680_Cell*);
+
+static TV2_NOINLINE void TV2C680_write_clean(TV2C680_Cell* cell) {
+    cell->payload = 0x11223344u;
+    cell->noise = 0x55667788u;
+}
+
+static TV2_NOINLINE void TV2C680_write_sources(TV2C680_Cell* cell) {
+    cell->payload = static_cast<unsigned int>(dfb_source_C());
+    cell->noise = static_cast<unsigned int>(dfb_source_B());
+    cell->payload = static_cast<unsigned int>(dfb_source_A());
+}
+
+extern "C" TV2_NOINLINE void case_TV2C680_callback_partial_overwrite_copy() {
+    TV2C680_Cell nodes[2] = {};
+    TV2C680_Writer writers[2] = {TV2C680_write_clean, TV2C680_write_sources};
+    volatile unsigned int selected = 1u;
+    writers[selected & 1u](&nodes[1]);
+
+    TV2C680_Cell* alias = (selected & 1u) ? &nodes[1] : &nodes[0];
+    unsigned char* payload_bytes = reinterpret_cast<unsigned char*>(&alias->payload);
+    payload_bytes[1] = 0x5au;
+
+    TV2C680_Cell snapshot = *alias;
+    dfb_sink_int(static_cast<int>(snapshot.payload));
+}
+
+
+struct TV2C681_Cell {
+    int left;
+    int right;
+    int noise;
+};
+
+using TV2C681_Writer = void (*)(TV2C681_Cell*);
+
+static TV2_NOINLINE void TV2C681_write_left(TV2C681_Cell* cell) {
+    cell->left = dfb_source_A();
+}
+
+static TV2_NOINLINE void TV2C681_write_right(TV2C681_Cell* cell) {
+    cell->right = dfb_source_B();
+}
+
+static TV2_NOINLINE void TV2C681_write_noise(TV2C681_Cell* cell) {
+    cell->noise = dfb_source_C();
+}
+
+static TV2_NOINLINE void TV2C681_copy_cell(TV2C681_Cell* dst, const TV2C681_Cell* src) {
+    *dst = *src;
+}
+
+static TV2_NOINLINE int TV2C681_pack_live(const TV2C681_Cell* cell) {
+    return cell->left ^ cell->right;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C681_callback_loop_snapshot_copy_overwrite(void) {
+    TV2C681_Cell live = {0, 0, 0};
+    TV2C681_Writer writers[3] = {
+        &TV2C681_write_left,
+        &TV2C681_write_noise,
+        &TV2C681_write_right
+    };
+
+    for (unsigned int i = 0; i < 3; ++i) {
+        writers[i](&live);
+    }
+
+    TV2C681_Cell snapshot = {0, 0, 0};
+    TV2C681_copy_cell(&snapshot, &live);
+
+    live.left = dfb_source_C();
+    const int value = TV2C681_pack_live(&snapshot);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C682_Cell {
+    int payload;
+    int decoy;
+};
+
+using TV2C682_PatchFn = void (*)(TV2C682_Cell*, int);
+
+TV2_NOINLINE static void TV2C682_seed(TV2C682_Cell* cell, int payload, int decoy) {
+    cell->payload = payload;
+    cell->decoy = decoy;
+}
+
+TV2_NOINLINE static void TV2C682_patch_12(TV2C682_Cell* cell, int value) {
+    unsigned char* bytes = reinterpret_cast<unsigned char*>(&cell->payload);
+    bytes[1] = static_cast<unsigned char>(value & 0xff);
+    bytes[2] = static_cast<unsigned char>((value >> 8) & 0xff);
+}
+
+TV2_NOINLINE static void TV2C682_patch_21(TV2C682_Cell* cell, int value) {
+    unsigned char* bytes = reinterpret_cast<unsigned char*>(&cell->payload);
+    bytes[2] = static_cast<unsigned char>((value >> 8) & 0xff);
+    bytes[1] = static_cast<unsigned char>(value & 0xff);
+}
+
+extern "C" TV2_NOINLINE void case_TV2C682_callback_partial_object_patch_after_copy_fusion() {
+    static_assert(sizeof(int) == 4, "TV2C682 requires a four-byte int");
+    TV2C682_Cell original{};
+    TV2C682_seed(&original, dfb_source_A(), dfb_source_B());
+
+    TV2C682_Cell copied = original;
+    const int patch = dfb_source_C();
+    volatile unsigned selector = 1u;
+    TV2C682_PatchFn apply = (selector & 1u) ? TV2C682_patch_12 : TV2C682_patch_21;
+    apply(&copied, patch);
+
+    dfb_sink_int(copied.payload);
+}
+
+
+struct TV2C683_Cell {
+    unsigned short low;
+    unsigned short high;
+    int decoy;
+};
+
+typedef void (*TV2C683_Writer)(TV2C683_Cell *, unsigned int);
+
+TV2_NOINLINE static void TV2C683_write_high(TV2C683_Cell *cell, unsigned int value) {
+    cell->high = static_cast<unsigned short>(value);
+}
+
+TV2_NOINLINE static void TV2C683_copy_cell(TV2C683_Cell *dst, const TV2C683_Cell *src) {
+    unsigned char *out = reinterpret_cast<unsigned char *>(dst);
+    const unsigned char *in = reinterpret_cast<const unsigned char *>(src);
+    for (unsigned int i = 0; i < sizeof(TV2C683_Cell); ++i) {
+        out[i] = in[i];
+    }
+}
+
+extern "C" TV2_NOINLINE void case_TV2C683_callback_heap_partial_kill_copy_fusion() {
+    static_assert(sizeof(unsigned short) == 2, "TV2C683 requires a 16-bit unsigned short");
+    TV2C683_Cell *cells = new TV2C683_Cell[2]();
+    const unsigned int source_a = static_cast<unsigned int>(dfb_source_A());
+    const unsigned int source_b = static_cast<unsigned int>(dfb_source_B());
+    const int source_c = dfb_source_C();
+
+    cells[0].low = static_cast<unsigned short>(source_b);
+    cells[0].decoy = source_c;
+    TV2C683_Writer writer = &TV2C683_write_high;
+    writer(&cells[0], source_a);
+
+    cells[0].low = static_cast<unsigned short>(0x5a5aU);
+    TV2C683_copy_cell(&cells[1], &cells[0]);
+
+    const unsigned int value =
+        (static_cast<unsigned int>(cells[1].high) << 16U) |
+        static_cast<unsigned int>(cells[1].low);
+    dfb_sink_int(static_cast<int>(value));
+    delete[] cells;
+}
+
+
+struct TV2C684_Cell {
+    int payload;
+    int decoy;
+};
+
+static_assert(sizeof(int) == 4, "TV2C684 requires a four-byte int");
+
+static TV2_NOINLINE void TV2C684_patch_two_bytes(unsigned char* field) {
+    field[0] = 0x5a;
+    field[1] = 0xa5;
+}
+
+static TV2_NOINLINE void TV2C684_copy_cell(TV2C684_Cell* dst, const TV2C684_Cell* src) {
+    *dst = *src;
+}
+
+static TV2_NOINLINE int TV2C684_read_payload(const TV2C684_Cell* cell) {
+    return cell->payload;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C684_partial_callback_struct_copy() {
+    TV2C684_Cell original;
+    original.payload = dfb_source_A();
+    original.decoy = dfb_source_B();
+
+    void (*volatile patch)(unsigned char*) = &TV2C684_patch_two_bytes;
+    patch(reinterpret_cast<unsigned char*>(&original.payload));
+
+    TV2C684_Cell copied = {0, 0};
+    TV2C684_copy_cell(&copied, &original);
+    int value = TV2C684_read_payload(&copied);
+    dfb_sink_int(value);
+}
+
+
+struct TV2C685_Cell {
+    int payload;
+    int decoy;
+};
+
+typedef void (*TV2C685_Writer)(TV2C685_Cell*);
+
+static TV2_NOINLINE void TV2C685_write_overlay(TV2C685_Cell* out) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    out->payload = a;
+    out->decoy = dfb_source_C();
+
+    unsigned char* dst = reinterpret_cast<unsigned char*>(&out->payload);
+    const unsigned char* src = reinterpret_cast<const unsigned char*>(&b);
+    dst[1] = src[1];
+    dst[2] = src[2];
+}
+
+static TV2_NOINLINE void TV2C685_copy_cell(TV2C685_Cell* dst, const TV2C685_Cell* src) {
+    *dst = *src;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C685_callback_partial_overlay_copy() {
+    static_assert(sizeof(int) == 4, "TV2C685 requires a four-byte int");
+    TV2C685_Cell original = {};
+    TV2C685_Cell copied = {};
+    TV2C685_Writer volatile dispatch = &TV2C685_write_overlay;
+    dispatch(&original);
+    TV2C685_copy_cell(&copied, &original);
+    dfb_sink_int(copied.payload);
+}
+
+
+struct TV2C686_Cell {
+    int payload;
+    int decoy;
+};
+
+TV2_NOINLINE static void TV2C686_fill_copy(TV2C686_Cell* dst) {
+    TV2C686_Cell staged{};
+    staged.payload = dfb_source_A();
+    staged.decoy = dfb_source_B();
+    *dst = staged;
+}
+
+TV2_NOINLINE static void TV2C686_overwrite_decoy(TV2C686_Cell* dst) {
+    unsigned char* base = reinterpret_cast<unsigned char*>(dst);
+    int* decoy_lane = reinterpret_cast<int*>(base + offsetof(TV2C686_Cell, decoy));
+    *decoy_lane = dfb_source_C();
+}
+
+extern "C" TV2_NOINLINE void case_TV2C686_heap_copy_callback_decoy_overwrite() {
+    TV2C686_Cell* cell = new TV2C686_Cell{};
+    TV2C686_fill_copy(cell);
+
+    using Mutator = void (*)(TV2C686_Cell*);
+    Mutator callback = &TV2C686_overwrite_decoy;
+    callback(cell);
+
+    unsigned char* base = reinterpret_cast<unsigned char*>(cell);
+    int* payload_lane = reinterpret_cast<int*>(base + offsetof(TV2C686_Cell, payload));
+    const int value = *payload_lane;
+    dfb_sink_int(value);
+    delete cell;
+}
+
+
+struct TV2C687_Frame {
+    unsigned short lane[2];
+    int decoy;
+};
+
+typedef void (*TV2C687_Writer)(void *, unsigned int, unsigned int);
+
+static TV2_NOINLINE void TV2C687_write_lane(void *base, unsigned int lane, unsigned int value) {
+    unsigned char *bytes = static_cast<unsigned char *>(base);
+    unsigned short *slot = reinterpret_cast<unsigned short *>(bytes + lane * sizeof(unsigned short));
+    *slot = static_cast<unsigned short>(value);
+}
+
+static TV2_NOINLINE void TV2C687_write_lane_thunk(void *base, unsigned int lane, unsigned int value) {
+    TV2C687_write_lane(base, lane, value);
+}
+
+extern "C" TV2_NOINLINE void case_TV2C687_callback_partial_lanes_struct_copy_precision() {
+    TV2C687_Frame original = {};
+    unsigned int values[2] = {
+        static_cast<unsigned int>(dfb_source_A()),
+        static_cast<unsigned int>(dfb_source_B())
+    };
+    original.decoy = dfb_source_C();
+
+    TV2C687_Writer writers[2] = {
+        &TV2C687_write_lane,
+        &TV2C687_write_lane_thunk
+    };
+    volatile unsigned int selector = 1u;
+    TV2C687_Writer writer = writers[selector & 1u];
+
+    for (unsigned int i = 0; i != 2u; ++i) {
+        writer(static_cast<void *>(&original.lane[0]), i, values[i]);
+    }
+
+    TV2C687_Frame copied = original;
+    unsigned int fused =
+        (static_cast<unsigned int>(copied.lane[1]) << 16) |
+        static_cast<unsigned int>(copied.lane[0]);
+    dfb_sink_int(static_cast<int>(fused));
+}
+
+
+struct TV2C688_Cell {
+    int live;
+    int dead;
+};
+
+typedef void (*TV2C688_Writer)(TV2C688_Cell*, int);
+
+static TV2_NOINLINE void TV2C688_write_plain(TV2C688_Cell* cell, int value) {
+    cell->live = value;
+}
+
+static TV2_NOINLINE void TV2C688_write_encoded(TV2C688_Cell* cell, int value) {
+    int encoded = value ^ 0x13579bdf;
+    cell->live = encoded ^ 0x13579bdf;
+}
+
+extern "C" TV2_NOINLINE void case_TV2C688_correlated_callback_overwrite_copy(void) {
+    int a = dfb_source_A();
+    int b = dfb_source_B();
+    int c = dfb_source_C();
+
+    TV2C688_Cell cells[2];
+    cells[0].live = c;
+    cells[0].dead = b;
+    cells[1].live = c;
+    cells[1].dead = b;
+
+    TV2C688_Writer writers[2] = {
+        TV2C688_write_plain,
+        TV2C688_write_encoded
+    };
+    volatile unsigned int route = 1U;
+    unsigned int index = route & 1U;
+    TV2C688_Cell* selected = &cells[index];
+    writers[index](selected, a);
+
+    TV2C688_Cell shadow = *selected;
+    unsigned char* dead_bytes = reinterpret_cast<unsigned char*>(&shadow.dead);
+    dead_bytes[0] = 0x5aU;
+    dfb_sink_int(shadow.live);
+}
+
 } /* extern "C" */
